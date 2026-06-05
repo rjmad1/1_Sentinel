@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Shield,
@@ -12,9 +13,14 @@ import {
   Send,
   User,
   Play,
-  Package
+  Package,
+  RefreshCw,
+  Database
 } from './utils/icons';
 import { SoftwareIntelligence } from './components/SoftwareIntelligence';
+import { ComingSoonPage } from './components/ComingSoonPage';
+import { SystemStatusPage } from './components/SystemStatusPage';
+import { ReportIssueModal } from './components/ReportIssueModal';
 import {
   saveAssessment,
   getHistoricalAssessments,
@@ -70,21 +76,366 @@ interface GraphNode {
   details: Record<string, unknown>;
 }
 
+interface RefreshAssessmentModalProps {
+  onClose: () => void;
+  onSuccess: (data: any) => void;
+}
+
+const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ onClose, onSuccess }) => {
+  const [step, setStep] = useState(1);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const processFile = (file: File) => {
+    setLoading(true);
+    setUploadError(null);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        if (parsed && parsed.Machine && parsed.HealthScore) {
+          onSuccess(parsed);
+          setStep(4);
+        } else {
+          setUploadError("Invalid Assessment.json schema. The file must contain Machine and HealthScore keys.");
+        }
+      } catch {
+        setUploadError("Failed to parse JSON file. Make sure it is a valid JSON document.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      processFile(e.target.files[0]);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3 style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
+            <RefreshCw size={16} className={step === 3 && loading ? "spin" : ""} />
+            <span>Refresh System Assessment</span>
+          </h3>
+          <button className="cyber-btn" style={{ padding: '4px 8px', fontSize: '10px' }} onClick={onClose}>Close</button>
+        </div>
+
+        <div className="modal-body">
+          {/* Progress Bar */}
+          <div className="wizard-steps">
+            <div className={`wizard-step ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}`}>
+              <div className="wizard-step-circle">{step > 1 ? "✓" : "1"}</div>
+              <div className="wizard-step-label">Download</div>
+            </div>
+            <div className={`wizard-step ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}`}>
+              <div className="wizard-step-circle">{step > 2 ? "✓" : "2"}</div>
+              <div className="wizard-step-label">Run</div>
+            </div>
+            <div className={`wizard-step ${step === 3 ? 'active' : step > 3 ? 'completed' : ''}`}>
+              <div className="wizard-step-circle">{step > 3 ? "✓" : "3"}</div>
+              <div className="wizard-step-label">Import</div>
+            </div>
+            <div className={`wizard-step ${step === 4 ? 'active' : ''}`}>
+              <div className="wizard-step-circle">4</div>
+              <div className="wizard-step-label">Finish</div>
+            </div>
+          </div>
+
+          {/* Step Contents */}
+          {step === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h4 style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: 'var(--color-cyan)' }}>Step 1: Download the Assessment Collector</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
+                To gather the latest evidence from your local system, download the PowerShell collector script.
+              </p>
+              <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '12px' }}>
+                <strong style={{ color: 'var(--text-primary)' }}>Bundle Contents:</strong>
+                <ul style={{ listStyleType: 'disc', paddingLeft: '20px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px', color: 'var(--text-secondary)' }}>
+                  <li>CIM evidence gathering methods (Disks, Memory, CPU, Security)</li>
+                  <li>Automatic deduplication & risk rating algorithms</li>
+                  <li>Local execution reporting output (Assessment.json)</li>
+                </ul>
+              </div>
+              <a 
+                href="/Invoke-EIIPAssessment.ps1" 
+                download="Invoke-EIIPAssessment.ps1"
+                className="cyber-btn cyber-btn-primary"
+                style={{ textDecoration: 'none', color: '#060913', fontWeight: 'bold', padding: '12px', marginTop: '8px', textAlign: 'center' }}
+                onClick={() => setStep(2)}
+              >
+                <span>Download Collector Script</span>
+              </a>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h4 style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: 'var(--color-cyan)' }}>Step 2: Run the Collector on your Host</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
+                Open an elevated PowerShell session (Run as Administrator) and execute the downloaded script:
+              </p>
+              <div style={{
+                background: 'rgba(2, 4, 10, 0.95)',
+                padding: '12px 16px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                color: 'var(--color-cyan)',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}>
+                <span style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>powershell -ExecutionPolicy Bypass -File .\Invoke-EIIPAssessment.ps1</span>
+                <button 
+                  className="cyber-btn" 
+                  style={{ padding: '4px 8px', fontSize: '10px', flexShrink: 0 }}
+                  onClick={() => {
+                    navigator.clipboard.writeText("powershell -ExecutionPolicy Bypass -File .\\Invoke-EIIPAssessment.ps1");
+                  }}
+                >
+                  Copy
+                </button>
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                This script will run read-only CIM diagnostics. It will generate a file named <code>Assessment.json</code> in the execution folder.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
+                <button className="cyber-btn" onClick={() => setStep(1)}>Back</button>
+                <button className="cyber-btn cyber-btn-primary" style={{ color: '#060913', fontWeight: 'bold' }} onClick={() => setStep(3)}>Next: Import File</button>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h4 style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: 'var(--color-cyan)' }}>Step 3: Import the Generated Assessment.json</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
+                Select or drag-and-drop the generated <code>Assessment.json</code> file below to replace the system assessment state.
+              </p>
+
+              <div 
+                onDragEnter={handleDrag}
+                onDragOver={handleDrag}
+                onDragLeave={handleDrag}
+                onDrop={handleDrop}
+                style={{
+                  border: dragActive ? '2px dashed var(--color-cyan)' : '2px dashed var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '40px 20px',
+                  textAlign: 'center',
+                  background: dragActive ? 'rgba(6,182,212,0.03)' : 'rgba(255,255,255,0.01)',
+                  cursor: 'pointer',
+                  position: 'relative'
+                }}
+              >
+                <input 
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileSelect}
+                  style={{
+                    position: 'absolute',
+                    top: 0, left: 0, width: '100%', height: '100%',
+                    opacity: 0, cursor: 'pointer'
+                  }}
+                />
+                <Globe size={32} color={dragActive ? "var(--color-cyan)" : "var(--text-muted)"} style={{ marginBottom: '12px', display: 'inline-block' }} />
+                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                  {loading ? "Parsing assessment..." : "Drag & Drop Assessment.json here"}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  or click to select file from disk
+                </div>
+              </div>
+
+              {uploadError && (
+                <div style={{ color: 'var(--color-pink)', fontSize: '12px', background: 'rgba(236,72,153,0.05)', border: '1px solid rgba(236,72,153,0.15)', padding: '10px 14px', borderRadius: '6px' }}>
+                  {uploadError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
+                <button className="cyber-btn" onClick={() => setStep(2)}>Back</button>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center', padding: '20px 0' }}>
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                background: 'rgba(16,185,129,0.1)',
+                border: '2px solid var(--color-green)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-green)',
+                fontSize: '28px',
+                marginBottom: '12px'
+              }}>
+                ✓
+              </div>
+              <h4 style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-green)' }}>Assessment Refreshed Successfully</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6', maxWidth: '400px' }}>
+                All views, dependency graphs, findings tables, and status meters have been refreshed with the latest CIM telemetry.
+              </p>
+              <button className="cyber-btn cyber-btn-primary" style={{ color: '#060913', fontWeight: 'bold', marginTop: '12px', padding: '10px 24px' }} onClick={onClose}>
+                Finish & View Dashboard
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Detect Demo Mode
+const IS_E2E = typeof window !== 'undefined' && (
+  !!window.navigator.webdriver || 
+  window.location.search.includes('test=true')
+);
+const DEMO_MODE = 
+  import.meta.env.VITE_DEMO_MODE === 'true' || 
+  (typeof window !== 'undefined' && window.location.search.includes('demo=true')) ||
+  IS_E2E;
+
 function App() {
   // Navigation & Active Workspace Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'auditor' | 'remediation' | 'forecasting' | 'topology' | 'importer' | 'ai' | 'software'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'auditor' | 'remediation' | 'forecasting' | 'topology' | 'importer' | 'ai' | 'software' | 'system-status' | 'coming-soon-fleet' | 'coming-soon-correlation' | 'coming-soon-healing' | 'coming-soon-ai-eng' | 'coming-soon-vuln' | 'coming-soon-execution'>('overview');
 
-  // Core Data States initialized to baseline mock report data
-  const [envData, setEnvData] = useState<EnvironmentOverview>(MOCK_ENVIRONMENT);
-  const [findingsData, setFindingsData] = useState<Finding[]>(MOCK_FINDINGS);
-  const [healthScoreData, setHealthScoreData] = useState<HealthScore>(MOCK_HEALTH_SCORE);
-  const [riskMatrixData, setRiskMatrixData] = useState<RiskMatrixRow[]>(MOCK_RISK_MATRIX);
-  const [capacityForecastData, setCapacityForecastData] = useState<CapacityForecast>(MOCK_CAPACITY_FORECAST);
+  // Console logging state & modal control state
+  const [consoleErrors, setConsoleErrors] = useState<string[]>([]);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleConsoleError = (event: ErrorEvent) => {
+      const errorStr = `[Error] ${event.message} at ${event.filename}:${event.lineno}:${event.colno}`;
+      setConsoleErrors(prev => [errorStr, ...prev].slice(0, 50));
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const errorStr = `[Unhandled Rejection] ${String(event.reason)}`;
+      setConsoleErrors(prev => [errorStr, ...prev].slice(0, 50));
+    };
+
+    const originalConsoleError = console.error;
+    console.error = (...args: any[]) => {
+      const errorStr = `[console.error] ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ')}`;
+      setConsoleErrors(prev => [errorStr, ...prev].slice(0, 50));
+      originalConsoleError.apply(console, args);
+    };
+
+    const originalConsoleWarn = console.warn;
+    console.warn = (...args: any[]) => {
+      const warnStr = `[console.warn] ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ')}`;
+      setConsoleErrors(prev => [warnStr, ...prev].slice(0, 50));
+      originalConsoleWarn.apply(console, args);
+    };
+
+    window.addEventListener('error', handleConsoleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleConsoleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      console.error = originalConsoleError;
+      console.warn = originalConsoleWarn;
+    };
+  }, []);
+
+  // Core Data States initialized conditionally
+  const [envDataState, setEnvData] = useState<EnvironmentOverview | null>(DEMO_MODE ? MOCK_ENVIRONMENT : null);
+  const [findingsData, setFindingsData] = useState<Finding[]>(DEMO_MODE ? MOCK_FINDINGS : []);
+  const [healthScoreDataState, setHealthScoreData] = useState<HealthScore | null>(DEMO_MODE ? MOCK_HEALTH_SCORE : null);
+  const [riskMatrixData, setRiskMatrixData] = useState<RiskMatrixRow[]>(DEMO_MODE ? MOCK_RISK_MATRIX : []);
+  const [capacityForecastDataState, setCapacityForecastData] = useState<CapacityForecast | null>(DEMO_MODE ? MOCK_CAPACITY_FORECAST : null);
   const [rawEvidenceData, setRawEvidenceData] = useState<EvidenceRecord[]>([]);
-  const [logLines, setLogLines] = useState<string[]>(MOCK_LOGS);
+  const [logLines, setLogLines] = useState<string[]>(DEMO_MODE ? MOCK_LOGS : []);
+  const [activeAssessmentSoftware, setActiveAssessmentSoftware] = useState<any[]>(DEMO_MODE ? [] : []);
+  const [activeAssessmentId, setActiveAssessmentId] = useState<string | null>(DEMO_MODE ? "hist-004" : null);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [assessmentAgeInfo, setAssessmentAgeInfo] = useState<{ text: string; severity: 'green' | 'yellow' | 'red'; isStale: boolean }>({ text: 'N/A', severity: 'red', isStale: true });
+  const [isRefreshModalOpen, setIsRefreshModalOpen] = useState(false);
+
+  // Non-nullable convenience variables for JSX rendering to satisfy strict null checks
+  const envData = envDataState || MOCK_ENVIRONMENT;
+  const healthScoreData = healthScoreDataState || MOCK_HEALTH_SCORE;
+  const capacityForecastData = capacityForecastDataState || MOCK_CAPACITY_FORECAST;
+
+  useEffect(() => {
+    const updateAge = () => {
+      if (!envDataState || !envDataState.CollectionTimestamp) {
+        setAssessmentAgeInfo({ text: 'N/A', severity: 'red', isStale: true });
+        return;
+      }
+      const timestamp = envDataState.CollectionTimestamp;
+      const diffMs = Math.max(0, new Date().getTime() - new Date(timestamp).getTime());
+      const diffHours = diffMs / (1000 * 60 * 60);
+      const diffDays = diffHours / 24;
+      
+      let text: string;
+      let severity: 'green' | 'yellow' | 'red' = 'green';
+      let isStale = false;
+      
+      if (diffHours < 1) {
+        const mins = Math.max(0, Math.round(diffMs / (1000 * 60)));
+        text = mins === 0 ? 'Just now' : `${mins} minute${mins > 1 ? 's' : ''} ago`;
+      } else if (diffHours < 24) {
+        const hrs = Math.round(diffHours);
+        text = `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
+      } else if (diffDays < 7) {
+        const days = Math.round(diffDays);
+        text = `${days} day${days > 1 ? 's' : ''} ago`;
+        severity = 'yellow';
+        isStale = true;
+      } else {
+        const days = Math.round(diffDays);
+        text = `${days} day${days > 1 ? 's' : ''} ago`;
+        severity = 'red';
+        isStale = true;
+      }
+      
+      setAssessmentAgeInfo({ text, severity, isStale });
+    };
+
+    updateAge();
+    const interval = setInterval(updateAge, 30000); // update every 30 seconds
+    return () => clearInterval(interval);
+  }, [envDataState]);
   
   // Historical trends data
-  const [historyData, setHistoryData] = useState<HistoricalAssessment[]>(MOCK_HISTORY);
+  const [historyData, setHistoryData] = useState<HistoricalAssessment[]>(DEMO_MODE ? MOCK_HISTORY : []);
   const [hoveredHistoryPoint, setHoveredHistoryPoint] = useState<{
     run: HistoricalAssessment;
     x: number;
@@ -138,6 +489,8 @@ function App() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
+
+
   // Load assessments from IndexedDB on startup and seed if empty
   useEffect(() => {
     const seedDatabase = async () => {
@@ -150,15 +503,17 @@ function App() {
           const latestId = hist[hist.length - 1].AssessmentId;
           const data = await loadAssessmentDetails(latestId);
           if (data) {
+            setActiveAssessmentId(latestId);
             if (data.Machine) setEnvData(data.Machine);
             if (data.Findings) setFindingsData(data.Findings);
             if (data.HealthScore) setHealthScoreData(data.HealthScore);
             if (data.RiskMatrix) setRiskMatrixData(data.RiskMatrix);
             if (data.CapacityForecast) setCapacityForecastData(data.CapacityForecast);
             if (data.RawEvidence) setRawEvidenceData(data.RawEvidence);
+            if (data.Software) setActiveAssessmentSoftware(data.Software);
           }
-        } else {
-          // Database is empty. Seed it with the 4 historical runs
+        } else if (DEMO_MODE) {
+          // Database is empty. Seed it with the 4 historical runs ONLY when DEMO_MODE is true
           const seedHistory = [
             {
               AssessmentId: "hist-001",
@@ -204,6 +559,20 @@ function App() {
           
           const freshHist = await getHistoricalAssessments();
           setHistoryData(freshHist);
+
+          // Load latest seeded
+          const latestId = freshHist[freshHist.length - 1].AssessmentId;
+          const data = await loadAssessmentDetails(latestId);
+          if (data) {
+            setActiveAssessmentId(latestId);
+            if (data.Machine) setEnvData(data.Machine);
+            if (data.Findings) setFindingsData(data.Findings);
+            if (data.HealthScore) setHealthScoreData(data.HealthScore);
+            if (data.RiskMatrix) setRiskMatrixData(data.RiskMatrix);
+            if (data.CapacityForecast) setCapacityForecastData(data.CapacityForecast);
+            if (data.RawEvidence) setRawEvidenceData(data.RawEvidence);
+            if (data.Software) setActiveAssessmentSoftware(data.Software);
+          }
         }
       } catch (err) {
         console.error("IndexedDB seeding error:", err);
@@ -285,7 +654,7 @@ function App() {
           return { 
             'Device': 'C:',
             'Storage Status': findingsData.some(f => f.FindingId === 'PERF-DISKFREE-C') ? 'Low Space' : 'Healthy',
-            'Capacity Note': capacityForecastData?.Storage.Note || 'Exhaustion forecast: 95 Days'
+            'Capacity Note': capacityForecastData?.Storage?.Note || 'Exhaustion forecast: 95 Days'
           };
         })()
       },
@@ -657,6 +1026,8 @@ function App() {
             if (parsed.RiskMatrix) setRiskMatrixData(parsed.RiskMatrix);
             if (parsed.CapacityForecast) setCapacityForecastData(parsed.CapacityForecast);
             if (parsed.RawEvidence) setRawEvidenceData(parsed.RawEvidence);
+            if (parsed.Software) setActiveAssessmentSoftware(parsed.Software);
+            if (parsed.AssessmentId) setActiveAssessmentId(parsed.AssessmentId);
 
             saveAssessment(parsed).then(() => {
               getHistoricalAssessments().then(hist => {
@@ -717,6 +1088,10 @@ function App() {
   };
 
   const handleExportPackage = async () => {
+    if (!envDataState || !healthScoreDataState) {
+      setLogLines(prev => [...prev, `[Error] Cannot export package: No active assessment data loaded.`]);
+      return;
+    }
     try {
       setLogLines(prev => [...prev, `[Info] Generating AI Review Package zip archive...`]);
       const zip = new JSZip();
@@ -800,6 +1175,9 @@ function App() {
 
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const handleCopyPrompt = () => {
+    if (!envDataState || !healthScoreDataState) {
+      return;
+    }
     const findingsList = findingsData.map(f => `- [${f.Severity}] ${f.Title} (${f.Domain}): ${f.Description} (Remediation: ${f.RecommendedRemediation})`).join('\n');
     const capacityInfo = `Storage: ${capacityForecastData?.Storage?.Note || 'N/A'}\nMemory: ${capacityForecastData?.Memory?.Note || 'N/A'}\nCPU: ${capacityForecastData?.CPU?.Note || 'N/A'}`;
     
@@ -868,9 +1246,12 @@ ${capacityInfo}
 
     setTimeout(() => {
       let botResponse = '';
-      const command = userText.toLowerCase();
+      if (!envDataState || !healthScoreDataState) {
+        botResponse = 'No active assessment data is loaded. Please import an assessment or switch to Demo Mode to use AI Guardian Chat diagnostics.';
+      } else {
+        const command = userText.toLowerCase();
 
-      if (command.startsWith('/')) {
+        if (command.startsWith('/')) {
         if (command === '/help') {
           botResponse = `Available Quick Command Protocol:\n- \`/status\` : Summary of the machine specifications & health score\n- \`/remediate\` : Prioritized list of required remediation steps\n- \`/graph\` : Details of the active nodes in the knowledge graph\n- \`/clear\` : Wipe the terminal message logs`;
         } else if (command === '/status') {
@@ -919,6 +1300,7 @@ ${capacityInfo}
         } else {
           botResponse = `I noted your query about infrastructure diagnostics. Based on findings for ${envData.ComputerName}, we have identified ${findingsData.length} findings, with the top risk being storage exhaustion and firewall disablement. Let me know if you want detailed remediation guides for these.`;
         }
+      }
       }
 
       setMessages(prev => [
@@ -1002,8 +1384,16 @@ ${capacityInfo}
     return matchesDomain && matchesSeverity && matchesSearch;
   });
 
+  const assessmentSource = DEMO_MODE ? "Demo Assessment" : (envDataState ? "Live Assessment" : "No Assessment Available");
+
   return (
-    <div className="app-container">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      {DEMO_MODE && (
+        <div className="demo-banner">
+          <span>⚠ Demo Data: This environment contains sample data.</span>
+        </div>
+      )}
+      <div className="app-container">
       {/* Sidebar Command Navigation */}
       <aside className="sidebar">
         <div className="sidebar-header">
@@ -1051,9 +1441,61 @@ ${capacityInfo}
             <TerminalIcon size={18} />
             <span>AI Guardian Chat</span>
           </button>
+
+          <button className={`menu-item ${activeTab === 'system-status' ? 'active' : ''}`} onClick={() => setActiveTab('system-status')}>
+            <Database size={18} />
+            <span>System Status</span>
+          </button>
+
+          <div style={{ margin: '16px 16px 4px 16px', fontSize: '9px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Coming Soon</div>
+
+          <button className={`menu-item ${activeTab === 'coming-soon-fleet' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-fleet')}>
+            <Globe size={18} />
+            <span style={{ flex: 1 }}>Fleet Management</span>
+            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
+          </button>
+
+          <button className={`menu-item ${activeTab === 'coming-soon-correlation' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-correlation')}>
+            <Activity size={18} />
+            <span style={{ flex: 1 }}>Correlation & Inference</span>
+            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
+          </button>
+
+          <button className={`menu-item ${activeTab === 'coming-soon-healing' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-healing')}>
+            <Shield size={18} />
+            <span style={{ flex: 1 }}>Auto-Healing</span>
+            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
+          </button>
+
+          <button className={`menu-item ${activeTab === 'coming-soon-ai-eng' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-ai-eng')}>
+            <TerminalIcon size={18} />
+            <span style={{ flex: 1 }}>AI Ops Engineer</span>
+            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
+          </button>
+
+          <button className={`menu-item ${activeTab === 'coming-soon-vuln' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-vuln')}>
+            <Package size={18} />
+            <span style={{ flex: 1 }}>Vulnerability Intel</span>
+            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
+          </button>
+
+          <button className={`menu-item ${activeTab === 'coming-soon-execution' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-execution')}>
+            <CheckCircleIcon size={18} color="currentColor" />
+            <span style={{ flex: 1 }}>Active Remediation</span>
+            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
+          </button>
         </nav>
 
-        <div className="sidebar-footer">
+        <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <button 
+            className="cyber-btn cyber-btn-danger" 
+            style={{ width: '100%', fontSize: '11px', padding: '8px', gap: '6px', justifyContent: 'center' }} 
+            onClick={() => setIsReportModalOpen(true)}
+          >
+            <AlertTriangle size={12} />
+            <span>Report System Issue</span>
+          </button>
+
           <div className="user-profile">
             <User size={36} className="cyber-badge badge-blue" style={{ padding: '6px', borderRadius: '50%' }} />
             <div>
@@ -1080,28 +1522,132 @@ ${capacityInfo}
               {activeTab === 'topology' && 'Draggable Dependency Graph'}
               {activeTab === 'importer' && 'Assessment Logs & Uploads'}
               {activeTab === 'ai' && 'AI Guardian Diagnostics Core'}
+              {activeTab === 'system-status' && 'System Operations Status'}
+              {activeTab.startsWith('coming-soon-') && 'Planned Platform Feature'}
             </h1>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button 
+              className="cyber-btn" 
+              style={{ padding: '6px 12px', fontSize: '11px', borderColor: 'rgba(236,72,153,0.3)', color: 'var(--color-pink)', height: '32px' }} 
+              onClick={() => setIsReportModalOpen(true)}
+            >
+              <AlertTriangle size={12} />
+              <span>Report Issue</span>
+            </button>
+
             <div className="system-threat-banner" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>HEALTH STATE:</span>
               <span className={`cyber-badge ${
+                !healthScoreDataState ? 'badge-blue' :
                 healthScoreData.OverallHealthScore >= 85 ? 'badge-green' : 
                 healthScoreData.OverallHealthScore >= 70 ? 'badge-orange' : 'badge-pink'
               }`}>
-                {healthScoreData.OverallHealthScore >= 85 ? '● STABLE' : 
+                {!healthScoreDataState ? '● NO DATA' :
+                 healthScoreData.OverallHealthScore >= 85 ? '● STABLE' : 
                  healthScoreData.OverallHealthScore >= 70 ? '▲ WARNING' : '⚠ COMPROMISED'}
               </span>
             </div>
           </div>
         </header>
 
+        {/* User Trust Indicators and Stale Warning */}
+        {envData && (
+          <>
+            {assessmentAgeInfo.isStale && (
+              <div className="stale-data-warning">
+                <AlertTriangle size={14} />
+                <span>Assessment may be outdated. Run a new assessment for accurate results.</span>
+                <button 
+                  className="cyber-btn" 
+                  style={{ padding: '2px 8px', fontSize: '10px', marginLeft: '12px', borderColor: 'rgba(245,158,11,0.4)', color: 'var(--color-orange)', height: '24px' }}
+                  onClick={() => setIsRefreshModalOpen(true)}
+                >
+                  Run New Assessment
+                </button>
+              </div>
+            )}
+            
+            <div className="trust-indicator-bar">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Assessment Source:</span>{' '}
+                  <strong style={{ color: 'var(--text-primary)' }}>{assessmentSource}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Collected:</span>{' '}
+                  <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{new Date(envData.CollectionTimestamp).toLocaleString()}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Age:</span>{' '}
+                  <span className={`cyber-badge ${
+                    assessmentAgeInfo.severity === 'green' ? 'badge-green' : 
+                    assessmentAgeInfo.severity === 'yellow' ? 'badge-orange' : 'badge-pink'
+                  }`} style={{ padding: '2px 8px', fontWeight: 'bold' }}>
+                    {assessmentAgeInfo.text}
+                  </span>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Machine:</span>{' '}
+                  <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{envData.ComputerName}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Schema:</span>{' '}
+                  <span className="cyber-badge badge-cyan" style={{ padding: '2px 8px' }}>v1.0</span>
+                </div>
+                {activeAssessmentId && (
+                  <div>
+                    <span style={{ color: 'var(--text-muted)' }}>ID:</span>{' '}
+                    <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{activeAssessmentId}</strong>
+                  </div>
+                )}
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Last Refresh:</span>{' '}
+                  <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{lastRefresh.toLocaleTimeString()}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>App Version:</span>{' '}
+                  <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>v1.0.0</strong>
+                </div>
+                <button className="cyber-btn cyber-btn-primary" style={{ padding: '4px 10px', fontSize: '11px' }} onClick={() => setIsRefreshModalOpen(true)}>
+                  <RefreshCw size={10} color="#060913" />
+                  <span>Refresh Assessment</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Content Area */}
         <div className="scroll-container">
-          
-          {/* 1. OVERVIEW TAB */}
-          {activeTab === 'overview' && (
+          {!envDataState && activeTab !== 'importer' && activeTab !== 'system-status' && !activeTab.startsWith('coming-soon-') ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', textAlign: 'center', padding: '40px' }}>
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '12px', padding: '48px', maxWidth: '500px', background: 'rgba(255,255,255,0.01)', backdropFilter: 'blur(16px)', boxShadow: '0 0 25px rgba(236,72,153,0.05)' }}>
+                <AlertTriangle size={48} color="var(--color-pink)" style={{ marginBottom: '20px' }} />
+                <h2 style={{ fontSize: '22px', fontWeight: 'bold', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>No Assessment Available</h2>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '24px' }}>
+                  Run the collector and import an assessment.
+                </p>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                  <button className="cyber-btn cyber-btn-primary" style={{ color: '#060913', fontWeight: 'bold' }} onClick={() => setIsRefreshModalOpen(true)}>
+                    <RefreshCw size={14} />
+                    <span>Refresh Assessment</span>
+                  </button>
+                  <button className="cyber-btn" onClick={() => setActiveTab('importer')}>
+                    <Settings size={14} />
+                    <span>Go to Importer</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* 1. OVERVIEW TAB */}
+              {activeTab === 'overview' && (
             <div>
               {/* Radial Gauges Row */}
               <h2 style={{ fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-secondary)', marginBottom: '16px' }}>Domain Health Score Indices</h2>
@@ -2234,17 +2780,115 @@ ${capacityInfo}
 
           {/* 8. SOFTWARE INTELLIGENCE */}
           {activeTab === 'software' && (
-            <SoftwareIntelligence onUpdateOverallHealth={(diff) => {
-              setHealthScoreData(prev => ({
-                ...prev,
-                OverallHealthScore: Math.min(100, Math.max(0, Math.round((prev.OverallHealthScore + diff) * 10) / 10))
-              }));
-            }} />
+            <SoftwareIntelligence 
+              demoMode={DEMO_MODE}
+              assessmentLoaded={!!envDataState}
+              assessmentSoftware={activeAssessmentSoftware}
+              onUpdateOverallHealth={(diff) => {
+                setHealthScoreData(prev => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    OverallHealthScore: Math.min(100, Math.max(0, Math.round((prev.OverallHealthScore + diff) * 10) / 10))
+                  };
+                });
+              }} 
+            />
           )}
 
-        </div>
+          {/* 9. SYSTEM STATUS PAGE */}
+          {activeTab === 'system-status' && (
+            <SystemStatusPage 
+              activeAssessmentId={activeAssessmentId}
+              activeMachineName={envDataState?.ComputerName || null}
+              nodesCount={nodes.length}
+              linksCount={graphLinks.length}
+              onPurgeDb={() => {
+                setEnvData(null);
+                setFindingsData([]);
+                setHealthScoreData(null);
+                setRiskMatrixData([]);
+                setCapacityForecastData(null);
+                setRawEvidenceData([]);
+                setActiveAssessmentSoftware([]);
+                setActiveAssessmentId(null);
+                setHistoryData([]);
+                setLogLines(prev => [...prev, '[Info] Database purged. Application is now in empty state.']);
+              }}
+            />
+          )}
+
+          {/* 10. COMING SOON PAGES */}
+          {activeTab.startsWith('coming-soon-') && (
+            <ComingSoonPage featureKey={activeTab} />
+          )}
+
+        </>
+      )}
+      </div>
       </main>
     </div>
+    
+    {isRefreshModalOpen && (
+      <RefreshAssessmentModal
+        onClose={() => setIsRefreshModalOpen(false)}
+        onSuccess={(parsedData) => {
+          if (parsedData.Machine) setEnvData(parsedData.Machine);
+          if (parsedData.Findings) {
+            const sanitized = parsedData.Findings.map((f: any) => ({
+              FindingId: f.FindingId || '',
+              Category: f.Category || '',
+              Domain: f.Domain || '',
+              Severity: f.Severity || 'Low',
+              Confidence: f.Confidence || 'Medium',
+              Priority: typeof f.Priority === 'number' ? f.Priority : 5,
+              Title: f.Title || '',
+              Description: f.Description || '',
+              Evidence: Array.isArray(f.Evidence) ? f.Evidence : [],
+              Impact: f.Impact || '',
+              BusinessRisk: f.BusinessRisk || '',
+              RootCauseHypothesis: f.RootCauseHypothesis || '',
+              RecommendedRemediation: f.RecommendedRemediation || '',
+              EstimatedEffort: f.EstimatedEffort || 'Medium',
+              VerificationMethod: f.VerificationMethod || '',
+              CreatedOn: f.CreatedOn || new Date().toISOString(),
+            }));
+            setFindingsData(sanitized);
+          }
+          if (parsedData.HealthScore) setHealthScoreData(parsedData.HealthScore);
+          if (parsedData.RiskMatrix) setRiskMatrixData(parsedData.RiskMatrix);
+          if (parsedData.CapacityForecast) setCapacityForecastData(parsedData.CapacityForecast);
+          if (parsedData.RawEvidence) setRawEvidenceData(parsedData.RawEvidence);
+          if (parsedData.Software) setActiveAssessmentSoftware(parsedData.Software);
+          
+          const newId = parsedData.AssessmentId || crypto.randomUUID();
+          setActiveAssessmentId(newId);
+
+          saveAssessment(parsedData).then(() => {
+            getHistoricalAssessments().then(hist => {
+              setHistoryData(hist);
+            });
+          });
+          
+          setLastRefresh(new Date());
+          setLogLines(prev => [...prev, `[Info] Refreshed assessment state with live data for ${parsedData.Machine?.ComputerName || 'machine'}.`]);
+        }}
+      />
+    )}
+
+    {isReportModalOpen && (
+      <ReportIssueModal 
+        onClose={() => setIsReportModalOpen(false)}
+        consoleErrors={consoleErrors}
+        activeTab={activeTab}
+        activeAssessmentId={activeAssessmentId}
+        machineName={envDataState?.ComputerName || null}
+        osName={envDataState?.OSName || null}
+        findingsCount={findingsData.length}
+        softwareCount={activeAssessmentSoftware.length}
+      />
+    )}
+  </div>
   );
 }
 
