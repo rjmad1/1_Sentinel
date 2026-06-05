@@ -11,6 +11,7 @@ interface ReportIssueModalProps {
   osName: string | null;
   findingsCount: number;
   softwareCount: number;
+  showToast: (message: string, type: 'success' | 'info' | 'warning' | 'error') => void;
 }
 
 export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
@@ -21,7 +22,8 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
   machineName,
   osName,
   findingsCount,
-  softwareCount
+  softwareCount,
+  showToast
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -30,8 +32,50 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
   const [notes, setNotes] = useState('');
   const [screenshot, setScreenshot] = useState<File | null>(null);
   
+  const [titleTouched, setTitleTouched] = useState(false);
+  const [descriptionTouched, setDescriptionTouched] = useState(false);
+
   const [step, setStep] = useState(1); // 1: form, 2: success
   const [loading, setLoading] = useState(false);
+
+  const modalRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusables = modalRef.current.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex="0"]'
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0] as HTMLElement;
+        const last = focusables[focusables.length - 1] as HTMLElement;
+        
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            last.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === last) {
+            first.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    
+    // Focus first input
+    setTimeout(() => {
+      const firstInput = modalRef.current?.querySelector('input');
+      firstInput?.focus();
+    }, 50);
+
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -41,15 +85,17 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setTitleTouched(true);
+    setDescriptionTouched(true);
+
     if (!title || !description) {
-      alert('Please fill out the Title and Description.');
+      showToast('Please fill out all required fields.', 'error');
       return;
     }
 
     setLoading(true);
 
     try {
-      // Gather diagnostic details (fully sanitized - no username, paths, cookies, or secrets)
       const appState = {
         ActiveTab: activeTab,
         ActiveAssessmentId: activeAssessmentId || 'N/A',
@@ -72,14 +118,12 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
         ScreenshotAttached: screenshot ? screenshot.name : 'None'
       };
 
-      // Generate ZIP using JSZip
       const zip = new JSZip();
       zip.file('Issue.json', JSON.stringify(issueDetails, null, 2));
       zip.file('ApplicationState.json', JSON.stringify(appState, null, 2));
       zip.file('ConsoleErrors.json', JSON.stringify(consoleErrors, null, 2));
 
       if (screenshot) {
-        // Read file as ArrayBuffer and add to zip
         const fileData = await new Promise<ArrayBuffer>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as ArrayBuffer);
@@ -89,10 +133,8 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
         zip.file(screenshot.name, fileData);
       }
 
-      // Generate zip blob
       const content = await zip.generateAsync({ type: 'blob' });
       
-      // Download ZIP file
       const link = document.createElement('a');
       link.href = URL.createObjectURL(content);
       link.download = 'EIIP-Diagnostic-Package.zip';
@@ -100,7 +142,6 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
       link.click();
       document.body.removeChild(link);
 
-      // Format Markdown for GitHub issue
       const markdown = `
 # EIIP Bug Report: ${title}
 
@@ -132,28 +173,26 @@ ${notes || 'None'}
 > Detailed logs and state maps are downloaded in \`EIIP-Diagnostic-Package.zip\`. Please attach the zip file to this issue.
 `;
 
-      // Copy markdown to clipboard
       await navigator.clipboard.writeText(markdown.trim());
-
+      showToast('Diagnostic package downloaded and Markdown summary copied to clipboard.', 'success');
       setStep(2);
       
-      // Open GitHub new issue page
       setTimeout(() => {
         window.open('https://github.com/rjmad1/1_Sentinel/issues/new', '_blank');
       }, 1500);
 
     } catch (err) {
-      alert('Failed to generate diagnostic package: ' + String(err));
+      showToast('Failed to generate diagnostic package: ' + String(err), 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '550px' }}>
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+      <div className="modal-content" ref={modalRef} style={{ maxWidth: '640px' }}>
         <div className="modal-header">
-          <h3 style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
+          <h3 id="report-modal-title" style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
             <AlertTriangle size={16} color="var(--color-pink)" />
             <span>Report System Issue</span>
           </h3>
@@ -176,7 +215,14 @@ ${notes || 'None'}
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  onBlur={() => setTitleTouched(true)}
+                  style={{ borderColor: titleTouched && !title ? 'var(--error-500)' : undefined }}
                 />
+                {titleTouched && !title && (
+                  <span style={{ color: 'var(--error-500)', fontSize: '11px', marginTop: '2px' }}>
+                    Title is required. Please provide a brief title describing the issue.
+                  </span>
+                )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -185,10 +231,16 @@ ${notes || 'None'}
                   className="cyber-input" 
                   placeholder="Describe the issue in detail..."
                   required
-                  style={{ height: '80px', resize: 'none' }}
+                  style={{ height: '80px', resize: 'none', borderColor: descriptionTouched && !description ? 'var(--error-500)' : undefined }}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  onBlur={() => setDescriptionTouched(true)}
                 />
+                {descriptionTouched && !description && (
+                  <span style={{ color: 'var(--error-500)', fontSize: '11px', marginTop: '2px' }}>
+                    Description is required. Please explain what happened.
+                  </span>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -238,7 +290,7 @@ ${notes || 'None'}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
                 <button type="button" className="cyber-btn" onClick={onClose}>Cancel</button>
-                <button type="submit" className="cyber-btn cyber-btn-primary" style={{ color: '#060913', fontWeight: 'bold' }} disabled={loading}>
+                <button type="submit" className="cyber-btn cyber-btn-primary" style={{ color: '#FAFAFA', fontWeight: 'bold' }} disabled={loading}>
                   {loading ? 'Generating Package...' : 'Download Diagnostics & Open GitHub'}
                 </button>
               </div>
@@ -269,7 +321,7 @@ ${notes || 'None'}
               <p style={{ color: 'var(--text-muted)', fontSize: '11px', fontStyle: 'italic' }}>
                 Please paste (Ctrl+V) the Markdown report into the description field on GitHub and upload the downloaded ZIP.
               </p>
-              <button className="cyber-btn cyber-btn-primary" style={{ color: '#060913', fontWeight: 'bold', marginTop: '12px', padding: '10px 24px' }} onClick={onClose}>
+              <button className="cyber-btn cyber-btn-primary" style={{ color: '#FAFAFA', fontWeight: 'bold', marginTop: '12px', padding: '10px 24px' }} onClick={onClose}>
                 Dismiss Window
               </button>
             </div>

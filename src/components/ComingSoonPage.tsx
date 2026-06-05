@@ -110,7 +110,7 @@ export const ComingSoonPage: React.FC<ComingSoonPageProps> = ({ featureKey }) =>
     return (
       <div className="coming-soon-panel" style={{ textAlign: 'center' }}>
         <h2 style={{ color: 'var(--color-pink)' }}>Feature Configuration Not Found</h2>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '12px' }}>The selected feature key could not be mapped to metadata.</p>
+        <p style={{ color: 'var(--text-secondary)', marginTop: 'var(--spacing-3)' }}>The selected feature key could not be mapped to metadata.</p>
       </div>
     );
   }
@@ -142,28 +142,28 @@ export const ComingSoonPage: React.FC<ComingSoonPageProps> = ({ featureKey }) =>
   return (
     <div className="coming-soon-panel">
       {/* Visual Header */}
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: 'var(--spacing-5)', alignItems: 'center', marginBottom: 'var(--spacing-6)', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--spacing-5)' }}>
         <div style={{
-          width: '64px',
-          height: '64px',
-          borderRadius: '12px',
-          background: 'rgba(6, 182, 212, 0.05)',
+          width: 'var(--spacing-16)',
+          height: 'var(--spacing-16)',
+          borderRadius: 'var(--radius-lg)',
+          background: 'rgba(59, 130, 246, 0.05)',
           border: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 0 15px rgba(6, 182, 212, 0.15)',
+          boxShadow: 'var(--elevation-1)',
           flexShrink: 0
         }}>
           {getFeatureIcon()}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--spacing-2)' }}>
             <div>
-              <h2 style={{ fontSize: '22px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{data.name}</h2>
-              <span style={{ fontSize: '12px', color: 'var(--color-cyan)', fontFamily: 'var(--font-mono)' }}>{data.subtitle}</span>
+              <h2 style={{ fontSize: 'var(--font-size-h5)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{data.name}</h2>
+              <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-cyan)', fontFamily: 'var(--font-mono)' }}>{data.subtitle}</span>
             </div>
-            <span className="cyber-badge badge-orange" style={{ padding: '4px 10px', fontSize: '10px' }}>
+            <span className="cyber-badge badge-orange" style={{ padding: 'var(--spacing-1) var(--spacing-3)', fontSize: 'var(--font-size-caption)' }}>
               ✦ {data.status}
             </span>
           </div>
@@ -171,38 +171,38 @@ export const ComingSoonPage: React.FC<ComingSoonPageProps> = ({ featureKey }) =>
       </div>
 
       {/* Main Details grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 'var(--spacing-6)' }}>
         {/* Left column: Purpose & Benefits */}
-        <div style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-5)' }}>
           <div>
-            <h3 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Scope & Core Purpose</h3>
-            <p style={{ color: 'var(--text-primary)', fontSize: '14px', lineHeight: '1.6', background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+            <h3 style={{ fontSize: 'var(--font-size-caption)', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-2)' }}>Scope & Core Purpose</h3>
+            <p style={{ color: 'var(--text-primary)', fontSize: 'var(--font-size-body-sm)', lineHeight: 'var(--line-height-body)', background: 'var(--bg-secondary)', padding: 'var(--spacing-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
               {data.purpose}
             </p>
           </div>
 
           <div>
-            <h3 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-secondary)', marginBottom: '10px' }}>Key Planned Capabilities</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <h3 style={{ fontSize: 'var(--font-size-caption)', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-2)' }}>Key Planned Capabilities</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
               {data.expectedBenefits.map((benefit, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div key={idx} style={{ display: 'flex', gap: 'var(--spacing-3)', alignItems: 'flex-start' }}>
                   <div style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
+                    width: 'var(--spacing-5)',
+                    height: 'var(--spacing-5)',
+                    borderRadius: 'var(--radius-pill)',
                     background: 'rgba(16, 185, 129, 0.1)',
                     border: '1px solid rgba(16, 185, 129, 0.2)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: 'var(--color-green)',
-                    fontSize: '11px',
+                    fontSize: 'var(--font-size-caption)',
                     flexShrink: 0,
-                    marginTop: '2px'
+                    marginTop: 'var(--spacing-1)'
                   }}>
                     ✓
                   </div>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                  <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--text-secondary)', lineHeight: 'var(--line-height-body)' }}>
                     {benefit}
                   </p>
                 </div>
@@ -212,21 +212,21 @@ export const ComingSoonPage: React.FC<ComingSoonPageProps> = ({ featureKey }) =>
         </div>
 
         {/* Right column: Target Phase & Interactive */}
-        <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: '20px', borderLeft: '1px solid rgba(255,255,255,0.05)', paddingLeft: '24px' }}>
-          <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
-            <h3 style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: '12px' }}>Deployment Target</h3>
+        <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-5)', borderLeft: '1px solid var(--border-color)', paddingLeft: 'var(--spacing-6)' }}>
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: 'var(--spacing-4)' }}>
+            <h3 style={{ fontSize: 'var(--font-size-caption)', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: 'var(--spacing-3)' }}>Deployment Target</h3>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Release Goal:</span>
-              <span className="cyber-badge badge-cyan" style={{ fontSize: '11px' }}>{data.plannedPhase}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-2)' }}>
+              <span style={{ fontSize: 'var(--font-size-caption)', fontWeight: 'bold' }}>Release Goal:</span>
+              <span className="cyber-badge badge-cyan" style={{ fontSize: 'var(--font-size-caption)' }}>{data.plannedPhase}</span>
             </div>
 
-            <div style={{ marginTop: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+            <div style={{ marginTop: 'var(--spacing-4)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-caption)', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-2)' }}>
                 <span>Phase Progress:</span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{data.phaseProgress}%</span>
               </div>
-              <div className="progress-bar-container" style={{ margin: 0, height: '8px' }}>
+              <div className="progress-bar-container" style={{ margin: 0, height: 'var(--spacing-2)' }}>
                 <div 
                   className="progress-bar-fill" 
                   style={{ 
@@ -238,20 +238,20 @@ export const ComingSoonPage: React.FC<ComingSoonPageProps> = ({ featureKey }) =>
             </div>
           </div>
 
-          <div style={{ background: 'rgba(6, 182, 212, 0.02)', border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '20px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Co-Pilot Early Adopters Program</div>
-            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+          <div style={{ background: 'rgba(59, 130, 246, 0.02)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', padding: 'var(--spacing-5)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
+            <div style={{ fontSize: 'var(--font-size-caption)', fontWeight: 'bold', color: 'var(--text-primary)' }}>Co-Pilot Early Adopters Program</div>
+            <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--text-secondary)', lineHeight: 'var(--line-height-body)' }}>
               Express interest in this module to prioritize development tasks and join the private developer preview.
             </p>
             
-            <div style={{ margin: '4px 0', fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--color-cyan)' }}>
-              {votes} <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal', letterSpacing: 'normal' }}>Commanders Interested</span>
+            <div style={{ margin: 'var(--spacing-1) 0', fontSize: 'var(--font-size-h5)', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--color-cyan)' }}>
+              {votes} <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--text-muted)', fontWeight: 'normal', letterSpacing: 'normal' }}>Commanders Interested</span>
             </div>
 
             <button 
               onClick={handleRequestAccess}
               className={`cyber-btn ${requested ? 'cyber-btn-primary' : ''}`}
-              style={{ width: '100%', padding: '10px', fontSize: '12px', fontWeight: 'bold', border: requested ? 'none' : '1px solid var(--border-color)' }}
+              style={{ width: '100%', padding: 'var(--spacing-2) var(--spacing-4)', fontSize: 'var(--font-size-caption)', fontWeight: 'bold', border: requested ? 'none' : '1px solid var(--border-color)' }}
             >
               {requested ? '✓ Early Access Requested' : 'Express Interest & Vote'}
             </button>

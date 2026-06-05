@@ -87,6 +87,44 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ onClose
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusables = modalRef.current.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex="0"]'
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0] as HTMLElement;
+        const last = focusables[focusables.length - 1] as HTMLElement;
+        
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            last.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === last) {
+            first.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    
+    setTimeout(() => {
+      const firstBtn = modalRef.current?.querySelector('button');
+      firstBtn?.focus();
+    }, 50);
+
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -136,10 +174,10 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ onClose
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="refresh-modal-title">
+      <div className="modal-content" ref={modalRef} style={{ maxWidth: '640px' }}>
         <div className="modal-header">
-          <h3 style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
+          <h3 id="refresh-modal-title" style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
             <RefreshCw size={16} className={step === 3 && loading ? "spin" : ""} />
             <span>Refresh System Assessment</span>
           </h3>
@@ -337,6 +375,90 @@ function App() {
   // Console logging state & modal control state
   const [consoleErrors, setConsoleErrors] = useState<string[]>([]);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // --- Toast Notification System ---
+  interface Toast {
+    id: string;
+    message: string;
+    type: 'success' | 'info' | 'warning' | 'error';
+  }
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  
+  const showToast = useCallback((message: string, type: 'success' | 'info' | 'warning' | 'error') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    if (type !== 'error') {
+      const duration = type === 'success' ? 4000 : type === 'info' ? 5000 : 6000;
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      }, duration);
+    }
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  // --- Keyboard Shortcuts ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && e.key >= '1' && e.key <= '9') {
+        const tabs: Array<'overview' | 'auditor' | 'remediation' | 'software' | 'forecasting' | 'topology' | 'importer' | 'ai' | 'system-status'> = [
+          'overview', 'auditor', 'remediation', 'software', 
+          'forecasting', 'topology', 'importer', 'ai', 'system-status'
+        ];
+        const index = parseInt(e.key) - 1;
+        if (index < tabs.length) {
+          e.preventDefault();
+          setActiveTab(tabs[index]);
+          showToast(`Switched view to ${tabs[index].replace('coming-soon-', '').replace('-', ' ').toUpperCase()}`, 'info');
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showToast]);
+
+  // --- Sidebar Enhancements ---
+  const [sidebarSearch, setSidebarSearch] = useState('');
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('sentinel-favorites');
+      return saved ? new Set(JSON.parse(saved)) : new Set(['overview', 'auditor']);
+    } catch {
+      return new Set(['overview', 'auditor']);
+    }
+  });
+  const [recentTabs, setRecentTabs] = useState<string[]>([]);
+
+  const toggleFavorite = (tab: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFavorites(prev => {
+      const next = new Set(prev);
+      if (next.has(tab)) {
+        next.delete(tab);
+        showToast(`Removed ${tab.replace('coming-soon-', '').toUpperCase()} from favorites`, 'info');
+      } else {
+        next.add(tab);
+        showToast(`Added ${tab.replace('coming-soon-', '').toUpperCase()} to favorites`, 'success');
+      }
+      localStorage.setItem('sentinel-favorites', JSON.stringify(Array.from(next)));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRecentTabs(prev => {
+      const filtered = prev.filter(t => t !== activeTab);
+      return [activeTab, ...filtered].slice(0, 3);
+    });
+  }, [activeTab]);
+
+  // --- Top Navigation States ---
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState('');
 
   useEffect(() => {
     const handleConsoleError = (event: ErrorEvent) => {
@@ -1384,6 +1506,11 @@ ${capacityInfo}
     return matchesDomain && matchesSeverity && matchesSearch;
   });
 
+  const handleGlobalSearchChange = (val: string) => {
+    setGlobalSearch(val);
+    setSearchQuery(val);
+  };
+
   const assessmentSource = DEMO_MODE ? "Demo Assessment" : (envDataState ? "Live Assessment" : "No Assessment Available");
 
   return (
@@ -1401,90 +1528,144 @@ ${capacityInfo}
           <div className="logo-text">SENTINEL</div>
         </div>
 
-        <nav className="sidebar-menu">
-          <button className={`menu-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
-            <Shield size={18} />
-            <span>Dashboard Overview</span>
-          </button>
-          
-          <button className={`menu-item ${activeTab === 'auditor' ? 'active' : ''}`} onClick={() => setActiveTab('auditor')}>
-            <FileIcon size={18} />
-            <span>Findings Auditor</span>
-          </button>
+        {/* Sidebar Search */}
+        <div style={{ padding: '12px 16px 4px 16px' }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              className="cyber-input" 
+              placeholder="Search navigation..." 
+              style={{ width: '100%', paddingLeft: '28px', paddingRight: '8px', fontSize: '11px', height: '32px' }}
+              value={sidebarSearch}
+              onChange={(e) => setSidebarSearch(e.target.value)}
+            />
+          </div>
+        </div>
 
-          <button className={`menu-item ${activeTab === 'remediation' ? 'active' : ''}`} onClick={() => setActiveTab('remediation')}>
-            <CheckCircleIcon size={18} color="currentColor" />
-            <span>Risk & Remediation</span>
-          </button>
+        <nav className="sidebar-menu" style={{ flex: 1, overflowY: 'auto' }}>
+          {/* Favorites Submenu */}
+          {favorites.size > 0 && sidebarSearch === '' && (
+            <div style={{ marginBottom: '8px' }}>
+              <div style={{ margin: '0 16px 4px 16px', fontSize: '9px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Favorites</div>
+              {Array.from(favorites).map(favKey => {
+                const labelMap: Record<string, string> = {
+                  'overview': 'Dashboard Overview', 'auditor': 'Findings Auditor', 'remediation': 'Risk & Remediation',
+                  'software': 'Software Intelligence', 'forecasting': 'Capacity Forecast', 'topology': 'Infrastructure Graph',
+                  'importer': 'Import & Log Stream', 'ai': 'AI Guardian Chat', 'system-status': 'System Status'
+                };
+                if (!labelMap[favKey]) return null;
+                return (
+                  <button 
+                    key={`fav-${favKey}`} 
+                    className={`menu-item ${activeTab === favKey ? 'active' : ''}`} 
+                    onClick={() => setActiveTab(favKey as any)}
+                    style={{ padding: '8px 16px', fontSize: '12px' }}
+                  >
+                    <span style={{ marginRight: '6px', color: 'var(--color-orange)' }}>★</span>
+                    <span>{labelMap[favKey]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-          <button className={`menu-item ${activeTab === 'software' ? 'active' : ''}`} onClick={() => setActiveTab('software')}>
-            <Package size={18} />
-            <span>Software Intelligence</span>
-          </button>
+          {/* Main Menu */}
+          <div style={{ margin: '8px 16px 4px 16px', fontSize: '9px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Modules</div>
 
-          <button className={`menu-item ${activeTab === 'forecasting' ? 'active' : ''}`} onClick={() => setActiveTab('forecasting')}>
-            <Activity size={18} />
-            <span>Capacity Forecast</span>
-          </button>
+          {[
+            { key: 'overview', label: 'Dashboard Overview', icon: <Shield size={16} /> },
+            { key: 'auditor', label: 'Findings Auditor', icon: <FileIcon size={16} /> },
+            { key: 'remediation', label: 'Risk & Remediation', icon: <CheckCircleIcon size={16} color="currentColor" /> },
+            { key: 'software', label: 'Software Intelligence', icon: <Package size={16} /> },
+            { key: 'forecasting', label: 'Capacity Forecast', icon: <Activity size={16} /> },
+            { key: 'topology', label: 'Infrastructure Graph', icon: <Globe size={16} /> },
+            { key: 'importer', label: 'Import & Log Stream', icon: <Settings size={16} /> },
+            { key: 'ai', label: 'AI Guardian Chat', icon: <TerminalIcon size={16} /> },
+            { key: 'system-status', label: 'System Status', icon: <Database size={16} /> }
+          ].filter(item => item.label.toLowerCase().includes(sidebarSearch.toLowerCase())).map((item, idx) => (
+            <button 
+              key={item.key} 
+              className={`menu-item ${activeTab === item.key ? 'active' : ''}`} 
+              onClick={() => setActiveTab(item.key as any)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', textAlign: 'left' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {item.icon}
+                <span>{item.label}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={(e: any) => e.stopPropagation()}>
+                <span 
+                  onClick={(e) => toggleFavorite(item.key, e)} 
+                  style={{ 
+                    cursor: 'pointer', 
+                    color: favorites.has(item.key) ? 'var(--color-orange)' : 'var(--text-muted)', 
+                    fontSize: '14px', 
+                    padding: '2px', 
+                    transition: 'color var(--motion-fast)' 
+                  }}
+                  title={favorites.has(item.key) ? "Remove from Favorites" : "Add to Favorites"}
+                >
+                  {favorites.has(item.key) ? '★' : '☆'}
+                </span>
+                <span style={{ fontSize: '9px', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>Alt+{idx+1}</span>
+              </div>
+            </button>
+          ))}
 
-          <button className={`menu-item ${activeTab === 'topology' ? 'active' : ''}`} onClick={() => setActiveTab('topology')}>
-            <Globe size={18} />
-            <span>Infrastructure Graph</span>
-          </button>
+          {/* Recent items */}
+          {recentTabs.length > 0 && sidebarSearch === '' && (
+            <div style={{ marginTop: '12px', borderTop: '1px solid var(--neutral-800)', paddingTop: '12px' }}>
+              <div style={{ margin: '0 16px 4px 16px', fontSize: '9px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Recent</div>
+              {recentTabs.map(tabKey => {
+                const labelMap: Record<string, string> = {
+                  'overview': 'Dashboard Overview', 'auditor': 'Findings Auditor', 'remediation': 'Risk & Remediation',
+                  'software': 'Software Intelligence', 'forecasting': 'Capacity Forecast', 'topology': 'Infrastructure Graph',
+                  'importer': 'Import & Log Stream', 'ai': 'AI Guardian Chat', 'system-status': 'System Status'
+                };
+                if (!labelMap[tabKey]) return null;
+                return (
+                  <button 
+                    key={`recent-${tabKey}`} 
+                    className="menu-item" 
+                    onClick={() => setActiveTab(tabKey as any)}
+                    style={{ padding: '6px 16px', fontSize: '11px', opacity: 0.8 }}
+                  >
+                    <span>{labelMap[tabKey]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-          <button className={`menu-item ${activeTab === 'importer' ? 'active' : ''}`} onClick={() => setActiveTab('importer')}>
-            <Settings size={18} />
-            <span>Import & Log Stream</span>
-          </button>
-
-          <button className={`menu-item ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveTab('ai')}>
-            <TerminalIcon size={18} />
-            <span>AI Guardian Chat</span>
-          </button>
-
-          <button className={`menu-item ${activeTab === 'system-status' ? 'active' : ''}`} onClick={() => setActiveTab('system-status')}>
-            <Database size={18} />
-            <span>System Status</span>
-          </button>
-
+          {/* Coming Soon Section */}
           <div style={{ margin: '16px 16px 4px 16px', fontSize: '9px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Coming Soon</div>
 
-          <button className={`menu-item ${activeTab === 'coming-soon-fleet' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-fleet')}>
-            <Globe size={18} />
-            <span style={{ flex: 1 }}>Fleet Management</span>
-            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
-          </button>
-
-          <button className={`menu-item ${activeTab === 'coming-soon-correlation' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-correlation')}>
-            <Activity size={18} />
-            <span style={{ flex: 1 }}>Correlation & Inference</span>
-            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
-          </button>
-
-          <button className={`menu-item ${activeTab === 'coming-soon-healing' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-healing')}>
-            <Shield size={18} />
-            <span style={{ flex: 1 }}>Auto-Healing</span>
-            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
-          </button>
-
-          <button className={`menu-item ${activeTab === 'coming-soon-ai-eng' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-ai-eng')}>
-            <TerminalIcon size={18} />
-            <span style={{ flex: 1 }}>AI Ops Engineer</span>
-            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
-          </button>
-
-          <button className={`menu-item ${activeTab === 'coming-soon-vuln' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-vuln')}>
-            <Package size={18} />
-            <span style={{ flex: 1 }}>Vulnerability Intel</span>
-            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
-          </button>
-
-          <button className={`menu-item ${activeTab === 'coming-soon-execution' ? 'active' : ''}`} onClick={() => setActiveTab('coming-soon-execution')}>
-            <CheckCircleIcon size={18} color="currentColor" />
-            <span style={{ flex: 1 }}>Active Remediation</span>
-            <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px', textTransform: 'uppercase' }}>Soon</span>
-          </button>
+          {[
+            { key: 'coming-soon-fleet', label: 'Fleet Management', icon: <Globe size={16} /> },
+            { key: 'coming-soon-correlation', label: 'Correlation & Inference', icon: <Activity size={16} /> },
+            { key: 'coming-soon-healing', label: 'Auto-Healing', icon: <Shield size={16} /> },
+            { key: 'coming-soon-ai-eng', label: 'AI Ops Engineer', icon: <TerminalIcon size={16} /> },
+            { key: 'coming-soon-vuln', label: 'Vulnerability Intel', icon: <Package size={16} /> },
+            { key: 'coming-soon-execution', label: 'Active Remediation', icon: <CheckCircleIcon size={16} color="currentColor" /> }
+          ].filter(item => item.label.toLowerCase().includes(sidebarSearch.toLowerCase())).map(item => (
+            <button 
+              key={item.key} 
+              className={`menu-item ${activeTab === item.key ? 'active' : ''}`} 
+              onClick={() => setActiveTab(item.key as any)}
+            >
+              {item.icon}
+              <span style={{ flex: 1 }}>{item.label}</span>
+              <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px' }}>Soon</span>
+            </button>
+          ))}
         </nav>
+
+        {/* Keyboard Shortcuts Helper */}
+        <div style={{ padding: '8px 16px', fontSize: '10px', color: 'var(--text-muted)', borderTop: '1px solid var(--neutral-800)', background: 'rgba(0,0,0,0.1)' }}>
+          <div><strong>Keyboard Shortcuts:</strong></div>
+          <div style={{ fontFamily: 'var(--font-mono)', marginTop: '2px' }}>Alt + [1-9]: Switch tab</div>
+        </div>
 
         <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <button 
@@ -1495,55 +1676,204 @@ ${capacityInfo}
             <AlertTriangle size={12} />
             <span>Report System Issue</span>
           </button>
-
-          <div className="user-profile">
-            <User size={36} className="cyber-badge badge-blue" style={{ padding: '6px', borderRadius: '50%' }} />
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 'bold' }}>COM. RAJAJ</div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span className="status-indicator pulse"></span>
-                <span>Security Officer</span>
-              </div>
-            </div>
-          </div>
         </div>
       </aside>
 
       {/* Main Content Window */}
       <main className="main-content">
-        <header className="content-header">
+        <header className="content-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', height: '64px', borderBottom: '1px solid var(--neutral-800)', backgroundColor: 'var(--bg-secondary)' }}>
+          {/* Current Location Title */}
           <div className="header-title-container">
-            <h1 style={{ textTransform: 'uppercase', letterSpacing: '1px' }}>
-              {activeTab === 'overview' && 'EIIP Operations Dashboard'}
-              {activeTab === 'auditor' && 'Infrastructure Findings Auditor'}
+            <h1 style={{ fontSize: '16px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-primary)', margin: 0 }}>
+              {activeTab === 'overview' && 'Dashboard Overview'}
+              {activeTab === 'auditor' && 'Findings Auditor'}
               {activeTab === 'remediation' && 'Remediation Command Center'}
-              {activeTab === 'software' && 'Software & Asset Lifecycle Intelligence'}
-              {activeTab === 'forecasting' && 'Capacity Saturation Forecast'}
-              {activeTab === 'topology' && 'Draggable Dependency Graph'}
-              {activeTab === 'importer' && 'Assessment Logs & Uploads'}
-              {activeTab === 'ai' && 'AI Guardian Diagnostics Core'}
+              {activeTab === 'software' && 'Software Intelligence'}
+              {activeTab === 'forecasting' && 'Capacity Forecast'}
+              {activeTab === 'topology' && 'Infrastructure Graph'}
+              {activeTab === 'importer' && 'Import & Log Stream'}
+              {activeTab === 'ai' && 'AI Guardian Chat'}
               {activeTab === 'system-status' && 'System Operations Status'}
               {activeTab.startsWith('coming-soon-') && 'Planned Platform Feature'}
             </h1>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <button 
-              className="cyber-btn" 
-              style={{ padding: '6px 12px', fontSize: '11px', borderColor: 'rgba(236,72,153,0.3)', color: 'var(--color-pink)', height: '32px' }} 
-              onClick={() => setIsReportModalOpen(true)}
-            >
-              <AlertTriangle size={12} />
-              <span>Report Issue</span>
-            </button>
+          {/* Global Search Bar */}
+          <div style={{ position: 'relative', width: '280px' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              className="cyber-input" 
+              placeholder="Search findings globally..." 
+              style={{ width: '100%', paddingLeft: '28px', paddingRight: '8px', fontSize: '11px', height: '32px' }}
+              value={globalSearch}
+              onChange={(e) => handleGlobalSearchChange(e.target.value)}
+            />
+          </div>
 
-            <div className="system-threat-banner" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>HEALTH STATE:</span>
+          {/* Right Side Icons & Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* Global Actions */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                className="cyber-btn cyber-btn-primary" 
+                style={{ padding: '6px 12px', fontSize: '11px', height: '32px' }} 
+                onClick={handleExportPackage}
+                title="Export Assessment Review Package"
+              >
+                <Package size={12} color="#FAFAFA" />
+                <span>Export Package</span>
+              </button>
+
+              <button 
+                className="cyber-btn" 
+                style={{ padding: '6px 12px', fontSize: '11px', height: '32px' }} 
+                onClick={() => setIsRefreshModalOpen(true)}
+              >
+                <RefreshCw size={12} />
+                <span>Refresh</span>
+              </button>
+            </div>
+
+            {/* Notifications Bell */}
+            <div style={{ position: 'relative' }}>
+              <button 
+                className="cyber-btn" 
+                style={{ padding: '6px 10px', height: '32px', position: 'relative' }} 
+                onClick={() => { setNotificationsOpen(!notificationsOpen); setProfileOpen(false); }}
+                aria-label="View notifications"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {findingsData.length > 0 && (
+                  <span style={{ 
+                    position: 'absolute', 
+                    top: '-4px', 
+                    right: '-4px', 
+                    backgroundColor: 'var(--error-500)', 
+                    color: 'white', 
+                    fontSize: '8px', 
+                    borderRadius: '50%', 
+                    width: '14px', 
+                    height: '14px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    fontWeight: 'bold'
+                  }}>
+                    {findingsData.length}
+                  </span>
+                )}
+              </button>
+
+              {notificationsOpen && (
+                <div style={{ 
+                  position: 'absolute', 
+                  top: '40px', 
+                  right: 0, 
+                  width: '320px', 
+                  backgroundColor: 'var(--neutral-900)', 
+                  border: '1px solid var(--neutral-700)', 
+                  borderRadius: 'var(--radius-md)', 
+                  boxShadow: 'var(--elevation-3)', 
+                  zIndex: 1000, 
+                  padding: '12px' 
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--neutral-800)', paddingBottom: '8px', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold' }}>SYSTEM NOTIFICATIONS</span>
+                    <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '10px', cursor: 'pointer' }} onClick={() => setNotificationsOpen(false)}>Close</button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                    {findingsData.length === 0 ? (
+                      <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '11px' }}>No warnings or findings registered.</div>
+                    ) : (
+                      findingsData.slice(0, 5).map(f => (
+                        <div key={f.FindingId} style={{ display: 'flex', gap: '8px', padding: '6px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px' }}>
+                          <span style={{ color: f.Severity === 'Critical' || f.Severity === 'High' ? 'var(--color-pink)' : 'var(--color-orange)', fontSize: '12px' }}>●</span>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{f.Title}</span>
+                            <span style={{ fontSize: '9px', color: 'var(--text-secondary)' }}>{f.Domain} • Priority {f.Priority}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  {findingsData.length > 5 && (
+                    <div style={{ borderTop: '1px solid var(--neutral-800)', paddingTop: '8px', marginTop: '8px', textAlign: 'center' }}>
+                      <button className="cyber-btn" style={{ fontSize: '10px', padding: '4px 8px' }} onClick={() => { setActiveTab('auditor'); setNotificationsOpen(false); }}>View All Findings</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Profile Dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button 
+                className="cyber-btn" 
+                style={{ padding: '6px 12px', height: '32px', display: 'flex', alignItems: 'center', gap: '8px' }} 
+                onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false); }}
+                aria-label="User profile options"
+              >
+                <User size={14} />
+                <span style={{ fontSize: '11px', fontWeight: '600' }}>RAJAJ</span>
+              </button>
+
+              {profileOpen && (
+                <div style={{ 
+                  position: 'absolute', 
+                  top: '40px', 
+                  right: 0, 
+                  width: '240px', 
+                  backgroundColor: 'var(--neutral-900)', 
+                  border: '1px solid var(--neutral-700)', 
+                  borderRadius: 'var(--radius-md)', 
+                  boxShadow: 'var(--elevation-3)', 
+                  zIndex: 1000, 
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <User size={32} className="cyber-badge badge-blue" style={{ padding: '6px', borderRadius: '50%' }} />
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold' }}>Commander Rajaj</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Security Officer</div>
+                    </div>
+                  </div>
+                  <div style={{ borderTop: '1px solid var(--neutral-800)', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Status:</span>
+                      <span style={{ color: 'var(--color-green)' }}>● Operational</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Session:</span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>Active</span>
+                    </div>
+                  </div>
+                  <button 
+                    className="cyber-btn cyber-btn-danger" 
+                    style={{ width: '100%', fontSize: '11px', padding: '6px' }}
+                    onClick={() => {
+                      setProfileOpen(false);
+                      showToast('User session locked.', 'info');
+                    }}
+                  >
+                    Lock Session
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Threat Level Badge */}
+            <div className="system-threat-banner" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px', border: '1px solid var(--neutral-800)', borderRadius: 'var(--radius-xs)' }}>
               <span className={`cyber-badge ${
                 !healthScoreDataState ? 'badge-blue' :
                 healthScoreData.OverallHealthScore >= 85 ? 'badge-green' : 
                 healthScoreData.OverallHealthScore >= 70 ? 'badge-orange' : 'badge-pink'
-              }`}>
+              }`} style={{ padding: '2px 8px' }}>
                 {!healthScoreDataState ? '● NO DATA' :
                  healthScoreData.OverallHealthScore >= 85 ? '● STABLE' : 
                  healthScoreData.OverallHealthScore >= 70 ? '▲ WARNING' : '⚠ COMPROMISED'}
@@ -2784,6 +3114,7 @@ ${capacityInfo}
               demoMode={DEMO_MODE}
               assessmentLoaded={!!envDataState}
               assessmentSoftware={activeAssessmentSoftware}
+              showToast={showToast}
               onUpdateOverallHealth={(diff) => {
                 setHealthScoreData(prev => {
                   if (!prev) return prev;
@@ -2803,6 +3134,7 @@ ${capacityInfo}
               activeMachineName={envDataState?.ComputerName || null}
               nodesCount={nodes.length}
               linksCount={graphLinks.length}
+              showToast={showToast}
               onPurgeDb={() => {
                 setEnvData(null);
                 setFindingsData([]);
@@ -2886,8 +3218,19 @@ ${capacityInfo}
         osName={envDataState?.OSName || null}
         findingsCount={findingsData.length}
         softwareCount={activeAssessmentSoftware.length}
+        showToast={showToast}
       />
     )}
+
+    {/* Toast Container Stack */}
+    <div className="toast-container" role="log" aria-live="polite">
+      {toasts.map(toast => (
+        <div key={toast.id} className={`toast-message toast-${toast.type}`} role="status">
+          <span>{toast.message}</span>
+          <button className="toast-close-btn" onClick={() => removeToast(toast.id)} aria-label="Close notification">×</button>
+        </div>
+      ))}
+    </div>
   </div>
   );
 }

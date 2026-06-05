@@ -141,3 +141,5 @@ Simply upload the exported `MachineReviewPackage.zip` file directly to a advance
 ## 📄 License & Wiki
 
 For full platform details, user guides, and troubleshooting steps, check out the markdown files in the [docs/](file:///c:/AIProjects/1_Sentinel/docs) folder. They are ready to be uploaded straight to your GitHub Wiki!
+
+To understand the architecture and how the individual files work in layman terms, check out the [Sentinel Code Walkthrough](docs/CodeWalkthrough.md).

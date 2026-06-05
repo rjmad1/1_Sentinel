@@ -19,6 +19,7 @@ interface SoftwareIntelligenceProps {
   assessmentLoaded?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   assessmentSoftware?: any[];
+  showToast: (message: string, type: 'success' | 'info' | 'warning' | 'error') => void;
   onUpdateOverallHealth?: (healthDiff: number) => void;
 }
 
@@ -26,6 +27,7 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
   demoMode = false,
   assessmentLoaded = false,
   assessmentSoftware = [],
+  showToast,
   onUpdateOverallHealth 
 }) => {
   const isE2E = typeof window !== 'undefined' && (
@@ -133,6 +135,29 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
   const [riskFilter, setRiskFilter] = useState<'ALL' | 'Critical' | 'High' | 'Medium' | 'None'>('ALL');
   const [scopeFilter, setScopeFilter] = useState<'ALL' | 'Current User' | 'Machine-Wide' | 'System Component'>('ALL');
   const [sourceFilter, setSourceFilter] = useState<string>('ALL');
+
+  // --- Pagination, Column Visibility, Row Heights ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [rowHeight, setRowHeight] = useState<'compact' | 'default' | 'comfortable'>('default');
+  const [columnsPanelOpen, setColumnsPanelOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    checkbox: true,
+    name: true,
+    installedVersion: true,
+    latestVersion: true,
+    status: true,
+    publisher: true,
+    scope: true,
+    source: true,
+    risk: true,
+    actions: true
+  });
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrentPage(1);
+  }, [searchQuery, searchField, searchMode, updateFilter, riskFilter, scopeFilter, sourceFilter]);
 
   // Operations Planner States
   const [activePlanType, setActivePlanType] = useState<'none' | 'upgrade' | 'bulk-upgrade' | 'uninstall'>('none');
@@ -256,19 +281,19 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
     });
   }, [packages, searchQuery, searchField, searchMode, updateFilter, riskFilter, scopeFilter, sourceFilter, sortBy, sortOrder]);
 
-  // Grouping logic
+  // Grouping & Paginated logic
   const groupedPackages = useMemo(() => {
+    const paginated = filteredPackages.slice((currentPage - 1) * pageSize, currentPage * pageSize);
     if (groupBy === 'none') {
-      return { 'All Packages': filteredPackages };
+      return { 'All Packages': paginated };
     }
 
     const groups: Record<string, NormalizedPackage[]> = {};
-    filteredPackages.forEach(pkg => {
+    paginated.forEach(pkg => {
       let key = 'Other';
       if (groupBy === 'vendor') {
         key = pkg.Vendor || 'Unknown';
       } else if (groupBy === 'source') {
-        // Since a package can have multiple instances with different sources, we group by its primary source
         key = pkg.Instances[0]?.Source || 'Registry';
       } else if (groupBy === 'scope') {
         key = pkg.Scope || 'User';
@@ -281,7 +306,7 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
     });
 
     return groups;
-  }, [filteredPackages, groupBy]);
+  }, [filteredPackages, groupBy, currentPage, pageSize]);
 
   // Toggle Single Selection
   const toggleSelect = (name: string) => {
@@ -418,6 +443,7 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
             return p;
           }));
           if (onUpdateOverallHealth) onUpdateOverallHealth(2.5); // Boost health score slightly!
+          showToast(`Successfully upgraded ${selectedPackage.Name} to version ${selectedPackage.LatestVersion}.`, 'success');
         } else if (activePlanType === 'bulk-upgrade') {
           const upgradedCount = packages.filter(p => selectedNames.has(p.Name) && p.UpdateState === 'Update Available').length;
           setPackages(prev => prev.map(p => {
@@ -434,6 +460,7 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
           }));
           setSelectedNames(new Set());
           if (onUpdateOverallHealth) onUpdateOverallHealth(upgradedCount * 2.0); // Boost health score!
+          showToast(`Successfully upgraded ${upgradedCount} packages.`, 'success');
         } else if (activePlanType === 'uninstall' && selectedPackage) {
           // Delete selected package and potentially its dependents
           const namesToRemove = new Set([selectedPackage.Name]);
@@ -446,20 +473,26 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
           setPackages(prev => prev.filter(p => !namesToRemove.has(p.Name)));
           setSelectedPackage(null);
           setSelectedNames(new Set());
+          showToast(`Clean uninstallation of ${selectedPackage.Name} completed successfully.`, 'success');
         }
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [isSimulating, simulationStep, activePlanType, selectedPackage, conflictWarning, packages, selectedNames, onUpdateOverallHealth]);
+  }, [isSimulating, simulationStep, activePlanType, selectedPackage, conflictWarning, packages, selectedNames, onUpdateOverallHealth, showToast]);
 
   // Run validation scan simulation
   const runValidationScan = () => {
     setScanStatus('scanning');
+    showToast('Starting system software discovery scan...', 'info');
     setTimeout(() => {
       setScanStatus('complete');
+      setPackages(MOCK_SOFTWARE_CATALOG);
+      showToast('System software scan complete. 18 packages detected.', 'success');
       setTimeout(() => setScanStatus('idle'), 3000);
     }, 2000);
   };
+
+  const visibleColCount = Object.values(visibleColumns).filter(Boolean).length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -641,15 +674,67 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                 </select>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: 'auto' }}>
-                <label style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Grouping</label>
-                <select className="cyber-input" value={groupBy} onChange={(e) => setGroupBy(e.target.value as typeof groupBy)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '110px' }}>
-                  <option value="none">No Grouping</option>
-                  <option value="vendor">Group by Vendor</option>
-                  <option value="source">Group by Source</option>
-                  <option value="scope">Group by Scope</option>
-                  <option value="status">Group by Status</option>
-                </select>
+              <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Grouping</label>
+                  <select className="cyber-input" value={groupBy} onChange={(e) => setGroupBy(e.target.value as typeof groupBy)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '110px' }}>
+                    <option value="none">No Grouping</option>
+                    <option value="vendor">Group by Vendor</option>
+                    <option value="source">Group by Source</option>
+                    <option value="scope">Group by Scope</option>
+                    <option value="status">Group by Status</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Row Density</label>
+                  <select className="cyber-input" value={rowHeight} onChange={(e) => setRowHeight(e.target.value as 'compact' | 'default' | 'comfortable')} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '100px' }}>
+                    <option value="compact">Compact</option>
+                    <option value="default">Default</option>
+                    <option value="comfortable">Comfortable</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
+                  <label style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Columns</label>
+                  <button 
+                    className="cyber-btn" 
+                    style={{ padding: '6px 10px', fontSize: '11px', height: '32px', minWidth: '80px' }} 
+                    onClick={() => setColumnsPanelOpen(!columnsPanelOpen)}
+                    type="button"
+                  >
+                    Select Columns ▼
+                  </button>
+                  {columnsPanelOpen && (
+                    <div style={{ 
+                      position: 'absolute', 
+                      top: '44px', 
+                      right: 0, 
+                      backgroundColor: 'var(--neutral-900)', 
+                      border: '1px solid var(--neutral-700)', 
+                      borderRadius: 'var(--radius-sm)', 
+                      boxShadow: 'var(--elevation-2)', 
+                      zIndex: 200, 
+                      padding: '10px', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '6px',
+                      minWidth: '160px'
+                    }}>
+                      {Object.keys(visibleColumns).filter(c => c !== 'checkbox' && c !== 'actions').map(col => (
+                        <label key={col} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={visibleColumns[col]} 
+                            onChange={() => setVisibleColumns(prev => ({ ...prev, [col]: !prev[col] }))} 
+                          />
+                          <span>{col.replace(/([A-Z])/g, ' $1').toUpperCase()}</span>
+                        </label>
+                      ))}
+                      <button className="cyber-btn" style={{ padding: '2px 8px', fontSize: '10px', marginTop: '4px' }} onClick={() => setColumnsPanelOpen(false)}>Apply</button>
+                    </div>
+                  )}
+                </div>
               </div>
 
             </div>
@@ -677,106 +762,233 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
           </div>
 
           {/* Catalog Data Grid */}
-          <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.1)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-              <thead>
-                <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border-color)', height: '40px' }}>
-                  <th style={{ width: '40px', textAlign: 'center' }}>
-                    <input type="checkbox" checked={selectedNames.size === filteredPackages.length && filteredPackages.length > 0} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
-                  </th>
-                  <th style={{ padding: '10px 14px', textAlign: 'left', cursor: 'pointer' }} onClick={() => { setSortBy('name'); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); }}>NAME</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'left' }}>INSTALLED VERSION</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'left' }}>LATEST VERSION</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'center', cursor: 'pointer' }} onClick={() => { setSortBy('status'); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); }}>LIFECYCLE STATUS</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'left' }}>PUBLISHER</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'center' }}>SCOPE</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'center' }}>SOURCE</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'center', cursor: 'pointer' }} onClick={() => { setSortBy('risk'); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); }}>RISK</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'center' }}>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(groupedPackages).map(([groupName, pkgs]) => (
-                  <React.Fragment key={groupName}>
-                    {groupBy !== 'none' && (
-                      <tr style={{ background: 'rgba(6,182,212,0.04)', height: '32px' }}>
-                        <td colSpan={10} style={{ padding: '6px 14px', fontWeight: 'bold', color: 'var(--color-cyan)', fontSize: '11px', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                          {groupName} ({pkgs.length} packages)
-                        </td>
-                      </tr>
-                    )}
-                    {pkgs.length === 0 ? (
-                      <tr>
-                        <td colSpan={10} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                          No software items match the active query rules.
-                        </td>
-                      </tr>
-                    ) : (
-                      pkgs.map(pkg => {
-                        const isSelected = selectedNames.has(pkg.Name);
-                        // Get primary version display
-                        const instVer = pkg.Instances.length > 1 
-                          ? `${pkg.Instances[0].InstalledVersion} (+${pkg.Instances.length - 1} more)`
-                          : pkg.Instances[0]?.InstalledVersion || 'n/a';
-                        
-                        return (
-                          <tr key={pkg.Name} 
-                              onClick={() => { setSelectedPackage(pkg); setDetailTab('overview'); }}
-                              style={{ 
-                                borderBottom: '1px solid rgba(255,255,255,0.01)', 
-                                cursor: 'pointer',
-                                background: isSelected ? 'rgba(6,182,212,0.02)' : 'transparent',
-                                borderLeft: pkg.Name === selectedPackage?.Name ? '3px solid var(--color-cyan)' : '3px solid transparent'
-                              }}
-                              className="table-row-hover"
-                          >
-                            <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                              <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(pkg.Name)} style={{ cursor: 'pointer' }} />
-                            </td>
-                            <td style={{ padding: '12px 14px', fontWeight: 'bold', color: 'var(--text-primary)' }}>{pkg.Name}</td>
-                            <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)' }}>{instVer}</td>
-                            <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)' }}>{pkg.LatestVersion}</td>
-                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                              <span className={`cyber-badge ${
-                                pkg.UpdateState === 'Up-To-Date' ? 'badge-green' :
-                                pkg.UpdateState === 'Update Available' ? 'badge-orange' : 'badge-pink'
-                              }`}>
-                                {pkg.UpdateState}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>{pkg.Publisher}</td>
-                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{pkg.Scope}</span>
-                            </td>
-                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                              <span className="cyber-badge badge-blue" style={{ fontSize: '10px', padding: '2px 6px' }}>{pkg.Instances[0]?.Source || 'Registry'}</span>
-                            </td>
-                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                              <span className={`cyber-badge ${pkg.SecurityRisk === 'Critical' || pkg.SecurityRisk === 'High' ? 'badge-pink' : pkg.SecurityRisk === 'Medium' ? 'badge-orange' : 'badge-green'}`}>
-                                {pkg.SecurityRisk}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px 14px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                                {pkg.UpdateState === 'Update Available' && (
-                                  <button className="cyber-btn" style={{ padding: '4px 8px', fontSize: '10px' }} title="Automated Upgrade" onClick={() => startSingleUpgrade(pkg)}>
-                                    <Wrench size={10} color="var(--color-orange)" />
-                                  </button>
-                                )}
-                                <button className="cyber-btn cyber-btn-danger" style={{ padding: '4px 8px', fontSize: '10px' }} title="Clean Uninstall" onClick={() => startUninstall(pkg)}>
-                                  <Trash2 size={10} />
-                                </button>
-                              </div>
+          {packages.length === 0 ? (
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              padding: 'var(--spacing-12) var(--spacing-6)', 
+              textAlign: 'center', 
+              background: 'var(--bg-secondary)', 
+              border: '1px dashed var(--neutral-700)', 
+              borderRadius: 'var(--radius-md)',
+              gap: 'var(--spacing-4)'
+            }}>
+              <Package size={48} color="var(--neutral-500)" />
+              <h3 style={{ fontSize: 'var(--font-size-h6)', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                Software Catalog Empty
+              </h3>
+              <p style={{ fontSize: 'var(--font-size-body-sm)', color: 'var(--text-secondary)', maxWidth: '440px', lineHeight: 'var(--line-height-body)' }}>
+                No software packages have been discovered or loaded into the active assessment database yet.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--spacing-2)', color: 'var(--text-secondary)', fontSize: 'var(--font-size-body-sm)' }}>
+                <strong>Suggested Actions:</strong>
+                <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-1)' }}>
+                  <li>• Connect an active assessment source file using the file loader.</li>
+                  <li>• Run a manual local system discovery scan.</li>
+                </ul>
+              </div>
+              <button 
+                className="cyber-btn cyber-btn-primary" 
+                onClick={runValidationScan}
+                disabled={scanStatus === 'scanning'}
+                style={{ marginTop: 'var(--spacing-2)' }}
+              >
+                <RefreshCw size={14} className={scanStatus === 'scanning' ? 'spin' : ''} style={{ marginRight: '8px' }} />
+                {scanStatus === 'scanning' ? 'Scanning Local System...' : 'Run Local System Discovery Scan'}
+              </button>
+            </div>
+          ) : filteredPackages.length === 0 ? (
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              padding: 'var(--spacing-12) var(--spacing-6)', 
+              textAlign: 'center', 
+              background: 'var(--bg-secondary)', 
+              border: '1px dashed var(--neutral-700)', 
+              borderRadius: 'var(--radius-md)',
+              gap: 'var(--spacing-4)'
+            }}>
+              <Package size={48} color="var(--neutral-500)" />
+              <h3 style={{ fontSize: 'var(--font-size-h6)', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                No matching software found
+              </h3>
+              <p style={{ fontSize: 'var(--font-size-body-sm)', color: 'var(--text-secondary)', maxWidth: '440px', lineHeight: 'var(--line-height-body)' }}>
+                We searched the software catalog but couldn't find any packages matching your active filters and search query.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--spacing-2)', color: 'var(--text-secondary)', fontSize: 'var(--font-size-body-sm)' }}>
+                <strong>Suggested Actions:</strong>
+                <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-1)' }}>
+                  <li>• Clear your search query or check spelling.</li>
+                  <li>• Widen your update state, security risk, scope, or source filters.</li>
+                  <li>• Re-scan the catalog to refresh detected software packages.</li>
+                </ul>
+              </div>
+              <button 
+                className="cyber-btn cyber-btn-primary" 
+                onClick={() => {
+                  setSearchQuery('');
+                  setUpdateFilter('ALL');
+                  setRiskFilter('ALL');
+                  setScopeFilter('ALL');
+                  setSourceFilter('ALL');
+                  showToast('Search filters reset successfully.', 'success');
+                }}
+                style={{ marginTop: 'var(--spacing-2)' }}
+              >
+                Reset All Filters
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: 'rgba(0,0,0,0.1)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border-color)', height: '40px' }}>
+                      {visibleColumns.checkbox && (
+                        <th style={{ width: '40px', textAlign: 'center' }}>
+                          <input type="checkbox" checked={selectedNames.size === filteredPackages.length && filteredPackages.length > 0} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
+                        </th>
+                      )}
+                      {visibleColumns.name && <th style={{ padding: '10px 14px', textAlign: 'left', cursor: 'pointer' }} onClick={() => { setSortBy('name'); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); }}>NAME</th>}
+                      {visibleColumns.installedVersion && <th style={{ padding: '10px 14px', textAlign: 'left' }}>INSTALLED VERSION</th>}
+                      {visibleColumns.latestVersion && <th style={{ padding: '10px 14px', textAlign: 'left' }}>LATEST VERSION</th>}
+                      {visibleColumns.status && <th style={{ padding: '10px 14px', textAlign: 'center', cursor: 'pointer' }} onClick={() => { setSortBy('status'); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); }}>LIFECYCLE STATUS</th>}
+                      {visibleColumns.publisher && <th style={{ padding: '10px 14px', textAlign: 'left' }}>PUBLISHER</th>}
+                      {visibleColumns.scope && <th style={{ padding: '10px 14px', textAlign: 'center' }}>SCOPE</th>}
+                      {visibleColumns.source && <th style={{ padding: '10px 14px', textAlign: 'center' }}>SOURCE</th>}
+                      {visibleColumns.risk && <th style={{ padding: '10px 14px', textAlign: 'center', cursor: 'pointer' }} onClick={() => { setSortBy('risk'); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); }}>RISK</th>}
+                      {visibleColumns.actions && <th style={{ padding: '10px 14px', textAlign: 'center' }}>ACTIONS</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(groupedPackages).map(([groupName, pkgs]) => (
+                      <React.Fragment key={groupName}>
+                        {groupBy !== 'none' && (
+                          <tr style={{ background: 'rgba(6,182,212,0.04)', height: '32px' }}>
+                            <td colSpan={visibleColCount} style={{ padding: '6px 14px', fontWeight: 'bold', color: 'var(--color-cyan)', fontSize: '11px', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                              {groupName} ({pkgs.length} packages)
                             </td>
                           </tr>
-                        );
-                      })
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        )}
+                        {pkgs.map(pkg => {
+                          const isSelected = selectedNames.has(pkg.Name);
+                          const instVer = pkg.Instances.length > 1 
+                            ? `${pkg.Instances[0].InstalledVersion} (+${pkg.Instances.length - 1} more)`
+                            : pkg.Instances[0]?.InstalledVersion || 'n/a';
+                          
+                          const rowPadding = rowHeight === 'compact' ? '6px 14px' : rowHeight === 'comfortable' ? '16px 14px' : '10px 14px';
+
+                          return (
+                            <tr key={pkg.Name} 
+                                onClick={() => { setSelectedPackage(pkg); setDetailTab('overview'); }}
+                                style={{ 
+                                  borderBottom: '1px solid rgba(255,255,255,0.01)', 
+                                  cursor: 'pointer',
+                                  background: isSelected ? 'rgba(6,182,212,0.02)' : 'transparent',
+                                  borderLeft: pkg.Name === selectedPackage?.Name ? '3px solid var(--color-cyan)' : '3px solid transparent'
+                                }}
+                                className="table-row-hover"
+                            >
+                              {visibleColumns.checkbox && (
+                                <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                                  <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(pkg.Name)} style={{ cursor: 'pointer' }} />
+                                </td>
+                              )}
+                              {visibleColumns.name && <td style={{ padding: rowPadding, fontWeight: 'bold', color: 'var(--text-primary)' }}>{pkg.Name}</td>}
+                              {visibleColumns.installedVersion && <td style={{ padding: rowPadding, fontFamily: 'var(--font-mono)' }}>{instVer}</td>}
+                              {visibleColumns.latestVersion && <td style={{ padding: rowPadding, fontFamily: 'var(--font-mono)' }}>{pkg.LatestVersion}</td>}
+                              {visibleColumns.status && (
+                                <td style={{ padding: rowPadding, textAlign: 'center' }}>
+                                  <span className={`cyber-badge ${
+                                    pkg.UpdateState === 'Up-To-Date' ? 'badge-green' :
+                                    pkg.UpdateState === 'Update Available' ? 'badge-orange' : 'badge-pink'
+                                  }`}>
+                                    {pkg.UpdateState}
+                                  </span>
+                                </td>
+                              )}
+                              {visibleColumns.publisher && <td style={{ padding: rowPadding, color: 'var(--text-secondary)' }}>{pkg.Publisher}</td>}
+                              {visibleColumns.scope && (
+                                <td style={{ padding: rowPadding, textAlign: 'center' }}>
+                                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{pkg.Scope}</span>
+                                </td>
+                              )}
+                              {visibleColumns.source && (
+                                <td style={{ padding: rowPadding, textAlign: 'center' }}>
+                                  <span className="cyber-badge badge-blue" style={{ fontSize: '10px', padding: '2px 6px' }}>{pkg.Instances[0]?.Source || 'Registry'}</span>
+                                </td>
+                              )}
+                              {visibleColumns.risk && (
+                                <td style={{ padding: rowPadding, textAlign: 'center' }}>
+                                  <span className={`cyber-badge ${pkg.SecurityRisk === 'Critical' || pkg.SecurityRisk === 'High' ? 'badge-pink' : pkg.SecurityRisk === 'Medium' ? 'badge-orange' : 'badge-green'}`}>
+                                    {pkg.SecurityRisk}
+                                  </span>
+                                </td>
+                              )}
+                              {visibleColumns.actions && (
+                                <td style={{ padding: rowPadding, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                    {pkg.UpdateState === 'Update Available' && (
+                                      <button className="cyber-btn" style={{ padding: '4px 8px', fontSize: '10px' }} title="Automated Upgrade" onClick={() => startSingleUpgrade(pkg)}>
+                                        <Wrench size={10} color="var(--color-orange)" />
+                                      </button>
+                                    )}
+                                    <button className="cyber-btn cyber-btn-danger" style={{ padding: '4px 8px', fontSize: '10px' }} title="Clean Uninstall" onClick={() => startUninstall(pkg)}>
+                                      <Trash2 size={10} />
+                                    </button>
+                                  </div>
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Table Pagination Controls */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '12px' }}>
+                <div style={{ color: 'var(--text-secondary)' }}>
+                  Showing <strong>{Math.min(filteredPackages.length, (currentPage - 1) * pageSize + 1)}</strong> to <strong>{Math.min(filteredPackages.length, currentPage * pageSize)}</strong> of <strong>{filteredPackages.length}</strong> packages
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>Page Size:</span>
+                    <select className="cyber-input" value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value)); setCurrentPage(1); }} style={{ padding: '4px 8px', fontSize: '11px' }}>
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button 
+                      className="cyber-btn" 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} 
+                      disabled={currentPage === 1}
+                      style={{ padding: '4px 10px', fontSize: '11px' }}
+                    >
+                      Previous
+                    </button>
+                    <button 
+                      className="cyber-btn" 
+                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredPackages.length / pageSize), prev + 1))} 
+                      disabled={currentPage >= Math.ceil(filteredPackages.length / pageSize)}
+                      style={{ padding: '4px 10px', fontSize: '11px' }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right side Detail inspector Drawer */}
@@ -1012,14 +1224,14 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                       )}
 
                       <button className="cyber-btn" style={{ width: '100%' }} onClick={() => {
-                        alert(`Re-scan and validation command spawned for ${selectedPackage.Name}. Properties verified.`);
+                        showToast(`Re-scan and validation command spawned for ${selectedPackage.Name}. Properties verified.`, 'info');
                       }}>
                         <Check size={14} />
                         <span>Run Postcheck Verification</span>
                       </button>
 
                       <button className="cyber-btn" style={{ width: '100%' }} onClick={() => {
-                        alert(`Repair utility invoked for ${selectedPackage.Name}. Reinstalling config hashes.`);
+                        showToast(`Repair utility invoked for ${selectedPackage.Name}. Reinstalling config hashes.`, 'info');
                       }}>
                         <Settings size={14} />
                         <span>Repair Configuration</span>
