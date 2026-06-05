@@ -1,7 +1,8 @@
 {
-  "name": "sentinel",
+  "name": "sentinel-eiip",
+  "description": "Enterprise Infrastructure Intelligence Platform (EIIP) - A local-first infrastructure scanning, dependency visualization, and AI review package generator.",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

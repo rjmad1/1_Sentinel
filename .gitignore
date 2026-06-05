@@ -27,3 +27,5 @@ dist-ssr
 test-results/
 lint_output.txt
 
+
+.vercel
