@@ -1,0 +1,174 @@
+{
+  "input": {
+    "Environment": {
+      "PlatformFamily": "Windows",
+      "SupportedPlatform": true,
+      "ExecutionMode": "Audit",
+      "IsElevated": true,
+      "ComputerName": "LOWDISK-WS09",
+      "UserName": "jsmith",
+      "Domain": "WORK-GROUP",
+      "PowerShellVersion": "7.4.0",
+      "OSName": "Microsoft Windows 10 Enterprise",
+      "OSVersion": "10.0.19045",
+      "OSBuild": "19045",
+      "Manufacturer": "HP",
+      "Model": "HP EliteBook 840",
+      "SerialNumber": "HP-3F4G5H",
+      "LastBootTime": "2026-06-02T10:00:00.0000000Z",
+      "CollectionTimestamp": "2026-06-05T12:00:00.0000000Z"
+    },
+    "RawEvidence": [
+      {
+        "Source": "OS",
+        "Name": "FreePhysicalMemoryKB",
+        "Value": 8388608,
+        "ValidationState": "Validated",
+        "Collector": "Get-OperatingSystemEvidence"
+      },
+      {
+        "Source": "OS",
+        "Name": "TotalVisibleMemoryKB",
+        "Value": 16777216,
+        "ValidationState": "Validated",
+        "Collector": "Get-OperatingSystemEvidence"
+      },
+      {
+        "Source": "CPU",
+        "Name": "NumberOfCores",
+        "Value": 4,
+        "ValidationState": "Validated",
+        "Collector": "Get-ProcessorEvidence"
+      },
+      {
+        "Source": "CPU",
+        "Name": "NumberOfLogicalProcessors",
+        "Value": 8,
+        "ValidationState": "Validated",
+        "Collector": "Get-ProcessorEvidence"
+      },
+      {
+        "Source": "Disk",
+        "Name": "LogicalDisks",
+        "Value": [
+          {
+            "DeviceID": "C:",
+            "Size": 128849018880,
+            "FreeSpace": 12884901888,
+            "DriveType": 3
+          }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-DiskEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "DefenderStatus",
+        "Value": {
+          "AntivirusEnabled": true,
+          "RealTimeProtectionEnabled": true,
+          "AntivirusSignatureVersion": "1.399.1234.0"
+        },
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "FirewallProfiles",
+        "Value": [
+          { "Name": "Domain", "Enabled": true },
+          { "Name": "Private", "Enabled": true },
+          { "Name": "Public", "Enabled": true }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "BitLockerVolumes",
+        "Value": [
+          { "MountPoint": "C:", "ProtectionStatus": 1 }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "TPM",
+        "Value": {"TpmPresent": true, "TpmReady": true},
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "LocalAdministrators",
+        "Value": [
+          { "Name": "Administrator", "ObjectClass": "User" }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Service",
+        "Name": "AutomaticServicesNotRunning",
+        "Value": [],
+        "ValidationState": "Validated",
+        "Collector": "Get-ServiceEvidence"
+      },
+      {
+        "Source": "Startup",
+        "Name": "StartupCommandCount",
+        "Value": 2,
+        "ValidationState": "Validated",
+        "Collector": "Get-StartupEvidence"
+      }
+    ]
+  },
+  "expected": {
+    "Findings": [
+      {
+        "FindingId": "PERF-DISKFREE-C",
+        "Domain": "Performance",
+        "Severity": "High",
+        "Title": "Low free space on C:"
+      },
+      {
+        "FindingId": "CORR-STOR-001",
+        "Domain": "Correlation",
+        "Severity": "High",
+        "Title": "Storage capacity pressure creates outage risk"
+      }
+    ],
+    "HealthScore": {
+      "OverallHealthScore": 97.0,
+      "PerformanceScore": 85,
+      "SecurityScore": 100,
+      "ReliabilityScore": 100,
+      "ScalabilityScore": 100,
+      "ServiceabilityScore": 100,
+      "UsabilityScore": 100
+    },
+    "RiskMatrix": [
+      { "Severity": "Critical", "FindingCount": 0 },
+      { "Severity": "High", "FindingCount": 2 },
+      { "Severity": "Medium", "FindingCount": 0 },
+      { "Severity": "Low", "FindingCount": 0 }
+    ],
+    "CapacityForecast": {
+      "Storage": { "Confidence": "High", "Note": "Predicted exhaustion: 95 days." }
+    },
+    "Graph": {
+      "nodes": [
+        { "id": "machine", "type": "machine", "status": "normal" },
+        { "id": "disk_c", "type": "storage", "status": "error" }
+      ],
+      "links": [
+        { "source": "machine", "target": "disk_c", "rel": "HAS_STORAGE" }
+      ]
+    },
+    "Recommendations": [
+      "Free disk space, archive stale artifacts, move large datasets, or expand the volume.",
+      "Treat storage cleanup or expansion as a near-term remediation priority."
+    ]
+  }
+}

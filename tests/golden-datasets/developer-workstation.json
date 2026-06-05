@@ -1,0 +1,174 @@
+{
+  "input": {
+    "Environment": {
+      "PlatformFamily": "Windows",
+      "SupportedPlatform": true,
+      "ExecutionMode": "Audit",
+      "IsElevated": true,
+      "ComputerName": "DEV-LAPTOP04",
+      "UserName": "developer",
+      "Domain": "CORP-DOMAIN",
+      "PowerShellVersion": "7.4.0",
+      "OSName": "Microsoft Windows 11 Enterprise",
+      "OSVersion": "10.0.22631",
+      "OSBuild": "22631",
+      "Manufacturer": "Lenovo",
+      "Model": "ThinkPad T14s",
+      "SerialNumber": "L3-N4O5P6",
+      "LastBootTime": "2026-06-03T09:00:00.0000000Z",
+      "CollectionTimestamp": "2026-06-05T12:00:00.0000000Z"
+    },
+    "RawEvidence": [
+      {
+        "Source": "OS",
+        "Name": "FreePhysicalMemoryKB",
+        "Value": 8388608,
+        "ValidationState": "Validated",
+        "Collector": "Get-OperatingSystemEvidence"
+      },
+      {
+        "Source": "OS",
+        "Name": "TotalVisibleMemoryKB",
+        "Value": 16777216,
+        "ValidationState": "Validated",
+        "Collector": "Get-OperatingSystemEvidence"
+      },
+      {
+        "Source": "CPU",
+        "Name": "NumberOfCores",
+        "Value": 2,
+        "ValidationState": "Validated",
+        "Collector": "Get-ProcessorEvidence"
+      },
+      {
+        "Source": "CPU",
+        "Name": "NumberOfLogicalProcessors",
+        "Value": 4,
+        "ValidationState": "Validated",
+        "Collector": "Get-ProcessorEvidence"
+      },
+      {
+        "Source": "Disk",
+        "Name": "LogicalDisks",
+        "Value": [
+          {
+            "DeviceID": "C:",
+            "Size": 256000000000,
+            "FreeSpace": 90000000000,
+            "DriveType": 3
+          }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-DiskEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "DefenderStatus",
+        "Value": {
+          "AntivirusEnabled": true,
+          "RealTimeProtectionEnabled": true,
+          "AntivirusSignatureVersion": "1.399.1234.0"
+        },
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "FirewallProfiles",
+        "Value": [
+          { "Name": "Domain", "Enabled": true },
+          { "Name": "Private", "Enabled": true },
+          { "Name": "Public", "Enabled": true }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "BitLockerVolumes",
+        "Value": [
+          { "MountPoint": "C:", "ProtectionStatus": 1 }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "TPM",
+        "Value": {"TpmPresent": true, "TpmReady": true},
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "LocalAdministrators",
+        "Value": [
+          { "Name": "Administrator", "ObjectClass": "User" }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Service",
+        "Name": "AutomaticServicesNotRunning",
+        "Value": [],
+        "ValidationState": "Validated",
+        "Collector": "Get-ServiceEvidence"
+      },
+      {
+        "Source": "Startup",
+        "Name": "StartupCommandCount",
+        "Value": 16,
+        "ValidationState": "Validated",
+        "Collector": "Get-StartupEvidence"
+      }
+    ]
+  },
+  "expected": {
+    "Findings": [
+      {
+        "FindingId": "SCALE-CPU-ARCH-001",
+        "Domain": "Scalability",
+        "Severity": "Low",
+        "Title": "Logical processor count limits growth headroom for multi-threaded workloads"
+      },
+      {
+        "FindingId": "USE-STARTUP-001",
+        "Domain": "Usability",
+        "Severity": "Medium",
+        "Title": "High startup item count may increase boot and sign-in friction"
+      }
+    ],
+    "HealthScore": {
+      "OverallHealthScore": 98.75,
+      "PerformanceScore": 100,
+      "SecurityScore": 100,
+      "ReliabilityScore": 100,
+      "ScalabilityScore": 97,
+      "ServiceabilityScore": 100,
+      "UsabilityScore": 92
+    },
+    "RiskMatrix": [
+      { "Severity": "Critical", "FindingCount": 0 },
+      { "Severity": "High", "FindingCount": 0 },
+      { "Severity": "Medium", "FindingCount": 1 },
+      { "Severity": "Low", "FindingCount": 1 }
+    ],
+    "CapacityForecast": {
+      "Storage": { "Confidence": "High", "Note": "Comfortable storage space." }
+    },
+    "Graph": {
+      "nodes": [
+        { "id": "machine", "type": "machine", "status": "normal" },
+        { "id": "cpu", "type": "hardware", "status": "warn" }
+      ],
+      "links": [
+        { "source": "machine", "target": "cpu", "rel": "HAS_HARDWARE" }
+      ]
+    },
+    "Recommendations": [
+      "Review startup entries and remove or delay non-essential launch items.",
+      "Evaluate workload class and consider higher-core configuration for AI, build, or shared engineering use."
+    ]
+  }
+}

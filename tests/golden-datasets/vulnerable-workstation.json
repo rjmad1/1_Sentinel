@@ -1,0 +1,204 @@
+{
+  "input": {
+    "Environment": {
+      "PlatformFamily": "Windows",
+      "SupportedPlatform": true,
+      "ExecutionMode": "Audit",
+      "IsElevated": true,
+      "ComputerName": "VULN-LAPTOP15",
+      "UserName": "testuser",
+      "Domain": "WORK-GROUP",
+      "PowerShellVersion": "7.4.0",
+      "OSName": "Microsoft Windows 11 Home",
+      "OSVersion": "10.0.22631",
+      "OSBuild": "22631",
+      "Manufacturer": "ASUSTeK COMPUTER INC.",
+      "Model": "ROG Zephyrus G14",
+      "SerialNumber": "AS-1234567890",
+      "LastBootTime": "2026-06-05T01:00:00.0000000Z",
+      "CollectionTimestamp": "2026-06-05T12:00:00.0000000Z"
+    },
+    "RawEvidence": [
+      {
+        "Source": "OS",
+        "Name": "FreePhysicalMemoryKB",
+        "Value": 8388608,
+        "ValidationState": "Validated",
+        "Collector": "Get-OperatingSystemEvidence"
+      },
+      {
+        "Source": "OS",
+        "Name": "TotalVisibleMemoryKB",
+        "Value": 16777216,
+        "ValidationState": "Validated",
+        "Collector": "Get-OperatingSystemEvidence"
+      },
+      {
+        "Source": "CPU",
+        "Name": "NumberOfCores",
+        "Value": 8,
+        "ValidationState": "Validated",
+        "Collector": "Get-ProcessorEvidence"
+      },
+      {
+        "Source": "CPU",
+        "Name": "NumberOfLogicalProcessors",
+        "Value": 16,
+        "ValidationState": "Validated",
+        "Collector": "Get-ProcessorEvidence"
+      },
+      {
+        "Source": "Disk",
+        "Name": "LogicalDisks",
+        "Value": [
+          {
+            "DeviceID": "C:",
+            "Size": 512110190592,
+            "FreeSpace": 256055095296,
+            "DriveType": 3
+          }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-DiskEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "DefenderStatus",
+        "Value": {
+          "AntivirusEnabled": true,
+          "RealTimeProtectionEnabled": false,
+          "AntivirusSignatureVersion": "1.399.1234.0"
+        },
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "FirewallProfiles",
+        "Value": [
+          { "Name": "Domain", "Enabled": true },
+          { "Name": "Private", "Enabled": false },
+          { "Name": "Public", "Enabled": false }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "BitLockerVolumes",
+        "Value": [
+          { "MountPoint": "C:", "ProtectionStatus": "Off", "VolumeType": "OperatingSystem" }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "TPM",
+        "Value": { "TpmPresent": false, "TpmReady": false },
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "LocalAdministrators",
+        "Value": [
+          { "Name": "Administrator", "ObjectClass": "User" },
+          { "Name": "testuser", "ObjectClass": "User" },
+          { "Name": "localadmin1", "ObjectClass": "User" },
+          { "Name": "localadmin2", "ObjectClass": "User" }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Service",
+        "Name": "AutomaticServicesNotRunning",
+        "Value": [],
+        "ValidationState": "Validated",
+        "Collector": "Get-ServiceEvidence"
+      },
+      {
+        "Source": "Startup",
+        "Name": "StartupCommandCount",
+        "Value": 2,
+        "ValidationState": "Validated",
+        "Collector": "Get-StartupEvidence"
+      }
+    ]
+  },
+  "expected": {
+    "Findings": [
+      {
+        "FindingId": "SEC-FW-001",
+        "Domain": "Security",
+        "Severity": "High",
+        "Title": "One or more firewall profiles are disabled"
+      },
+      {
+        "FindingId": "SEC-DEF-001",
+        "Domain": "Security",
+        "Severity": "High",
+        "Title": "Real-time antimalware protection is not enabled"
+      },
+      {
+        "FindingId": "SEC-BDE-001",
+        "Domain": "Security",
+        "Severity": "High",
+        "Title": "Operating system volume is not protected by BitLocker"
+      },
+      {
+        "FindingId": "SEC-TPM-001",
+        "Domain": "Security",
+        "Severity": "Medium",
+        "Title": "TPM is absent or not ready"
+      },
+      {
+        "FindingId": "SEC-LADM-001",
+        "Domain": "Security",
+        "Severity": "Medium",
+        "Title": "Local Administrators group membership is broader than expected"
+      }
+    ],
+    "HealthScore": {
+      "OverallHealthScore": 84.75,
+      "PerformanceScore": 100,
+      "SecurityScore": 39,
+      "ReliabilityScore": 100,
+      "ScalabilityScore": 100,
+      "ServiceabilityScore": 100,
+      "UsabilityScore": 100
+    },
+    "RiskMatrix": [
+      { "Severity": "Critical", "FindingCount": 0 },
+      { "Severity": "High", "FindingCount": 3 },
+      { "Severity": "Medium", "FindingCount": 2 },
+      { "Severity": "Low", "FindingCount": 0 }
+    ],
+    "CapacityForecast": {
+      "Storage": { "Confidence": "High", "Note": "Adequate storage capacity." }
+    },
+    "Graph": {
+      "nodes": [
+        { "id": "machine", "type": "machine", "status": "normal" },
+        { "id": "os", "type": "os", "status": "normal" },
+        { "id": "defender", "type": "security", "status": "error" },
+        { "id": "firewall", "type": "security", "status": "error" },
+        { "id": "local_admins", "type": "user", "status": "warn" }
+      ],
+      "links": [
+        { "source": "machine", "target": "os", "rel": "HOSTS" },
+        { "source": "os", "target": "defender", "rel": "MANAGES" },
+        { "source": "os", "target": "firewall", "rel": "MANAGES" },
+        { "source": "os", "target": "local_admins", "rel": "HAS_GROUP" }
+      ]
+    },
+    "Recommendations": [
+      "Re-enable disabled firewall profiles and validate required allow rules.",
+      "Validate security platform ownership and ensure real-time protection is enabled or an equivalent control is active.",
+      "Enable and escrow BitLocker protection on operating system volumes where policy requires it.",
+      "Review firmware settings and TPM provisioning state. Enable and initialize TPM where supported.",
+      "Review local admin membership and remove non-essential accounts and groups."
+    ]
+  }
+}

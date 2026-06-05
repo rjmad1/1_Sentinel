@@ -1,0 +1,207 @@
+{
+  "input": {
+    "Environment": {
+      "PlatformFamily": "Windows",
+      "SupportedPlatform": true,
+      "ExecutionMode": "Audit",
+      "IsElevated": true,
+      "ComputerName": "DB-PROD-SRV12",
+      "UserName": "dbadmin",
+      "Domain": "CORP-DOMAIN",
+      "PowerShellVersion": "7.4.0",
+      "OSName": "Microsoft Windows Server 2022 Datacenter",
+      "OSVersion": "10.0.20348",
+      "OSBuild": "20348",
+      "Manufacturer": "VMware, Inc.",
+      "Model": "VMware Virtual Platform",
+      "SerialNumber": "VMware-56 4d b8 cc 38 f5 1c f3",
+      "LastBootTime": "2026-05-10T00:00:00.0000000Z",
+      "CollectionTimestamp": "2026-06-05T12:00:00.0000000Z"
+    },
+    "RawEvidence": [
+      {
+        "Source": "OS",
+        "Name": "FreePhysicalMemoryKB",
+        "Value": 2202009,
+        "ValidationState": "Validated",
+        "Collector": "Get-OperatingSystemEvidence"
+      },
+      {
+        "Source": "OS",
+        "Name": "TotalVisibleMemoryKB",
+        "Value": 33554432,
+        "ValidationState": "Validated",
+        "Collector": "Get-OperatingSystemEvidence"
+      },
+      {
+        "Source": "CPU",
+        "Name": "NumberOfCores",
+        "Value": 8,
+        "ValidationState": "Validated",
+        "Collector": "Get-ProcessorEvidence"
+      },
+      {
+        "Source": "CPU",
+        "Name": "NumberOfLogicalProcessors",
+        "Value": 16,
+        "ValidationState": "Validated",
+        "Collector": "Get-ProcessorEvidence"
+      },
+      {
+        "Source": "CPUCounter",
+        "Name": "Samples",
+        "Value": [
+          { "Path": "\\Processor(_Total)\\% Processor Time", "Value": 88.5 },
+          { "Path": "\\System\\Processor Queue Length", "Value": 5.1 }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-ProcessorEvidence"
+      },
+      {
+        "Source": "Disk",
+        "Name": "LogicalDisks",
+        "Value": [
+          {
+            "DeviceID": "C:",
+            "Size": 107374182400,
+            "FreeSpace": 40960000000,
+            "DriveType": 3
+          }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-DiskEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "DefenderStatus",
+        "Value": {
+          "AntivirusEnabled": true,
+          "RealTimeProtectionEnabled": true,
+          "AntivirusSignatureVersion": "1.399.1234.0"
+        },
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "FirewallProfiles",
+        "Value": [
+          { "Name": "Domain", "Enabled": true },
+          { "Name": "Private", "Enabled": true },
+          { "Name": "Public", "Enabled": true }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "BitLockerVolumes",
+        "Value": [
+          { "MountPoint": "C:", "ProtectionStatus": 1 }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "TPM",
+        "Value": {"TpmPresent": true, "TpmReady": true},
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Security",
+        "Name": "LocalAdministrators",
+        "Value": [
+          { "Name": "Administrator", "ObjectClass": "User" }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-SecurityEvidence"
+      },
+      {
+        "Source": "Service",
+        "Name": "AutomaticServicesNotRunning",
+        "Value": [
+          { "Name": "MSSQLSERVER", "DisplayName": "SQL Server (MSSQLSERVER)", "Status": "Stopped", "StartType": "Automatic" }
+        ],
+        "ValidationState": "Validated",
+        "Collector": "Get-ServiceEvidence"
+      },
+      {
+        "Source": "Startup",
+        "Name": "StartupCommandCount",
+        "Value": 2,
+        "ValidationState": "Validated",
+        "Collector": "Get-StartupEvidence"
+      }
+    ]
+  },
+  "expected": {
+    "Findings": [
+      {
+        "FindingId": "PERF-CPU-001",
+        "Domain": "Performance",
+        "Severity": "High",
+        "Title": "Sustained CPU utilization is elevated"
+      },
+      {
+        "FindingId": "PERF-CPUQUEUE-001",
+        "Domain": "Performance",
+        "Severity": "Medium",
+        "Title": "Processor queue length is elevated"
+      },
+      {
+        "FindingId": "REL-SVC-001",
+        "Domain": "Reliability",
+        "Severity": "Medium",
+        "Title": "Automatic services are not running"
+      },
+      {
+        "FindingId": "SCALE-MEM-001",
+        "Domain": "Scalability",
+        "Severity": "High",
+        "Title": "Memory headroom is critically low"
+      },
+      {
+        "FindingId": "CORR-PR-001",
+        "Domain": "Correlation",
+        "Severity": "High",
+        "Title": "Performance pressure is likely contributing to reliability risk"
+      }
+    ],
+    "HealthScore": {
+      "OverallHealthScore": 91.55,
+      "PerformanceScore": 77,
+      "SecurityScore": 100,
+      "ReliabilityScore": 92,
+      "ScalabilityScore": 85,
+      "ServiceabilityScore": 100,
+      "UsabilityScore": 100
+    },
+    "RiskMatrix": [
+      { "Severity": "Critical", "FindingCount": 0 },
+      { "Severity": "High", "FindingCount": 3 },
+      { "Severity": "Medium", "FindingCount": 2 },
+      { "Severity": "Low", "FindingCount": 0 }
+    ],
+    "CapacityForecast": {
+      "Storage": { "Confidence": "High", "Note": "Adequate storage capacity." }
+    },
+    "Graph": {
+      "nodes": [
+        { "id": "machine", "type": "machine", "status": "normal" },
+        { "id": "cpu", "type": "hardware", "status": "error" },
+        { "id": "svc_spooler", "type": "service", "status": "error" }
+      ],
+      "links": [
+        { "source": "machine", "target": "cpu", "rel": "HAS_HARDWARE" }
+      ]
+    },
+    "Recommendations": [
+      "Review top CPU consumers, tune workloads, and consider scaling or process isolation.",
+      "Review high-thread processes and right-size workload concurrency.",
+      "Review service dependencies and recent service-related events, then restore expected service state through standard change control.",
+      "Reduce memory-heavy workloads, tune application limits, or increase RAM capacity."
+    ]
+  }
+}
