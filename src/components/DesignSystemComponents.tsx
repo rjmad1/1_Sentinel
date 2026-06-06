@@ -3,6 +3,7 @@ import {
   Terminal,
   AlertTriangle
 } from '../utils/icons';
+import type { HistoricalAssessment } from '../utils/mockData';
 
 // Simple Icons defined inline or imported
 export const CheckCircleIcon: React.FC<{ size?: number; color?: string }> = ({ size = 16, color = 'var(--color-success)' }) => (
@@ -575,28 +576,14 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({ evidence }) => {
 };
 
 export interface TimelinePoint {
-  run: {
-    AssessmentId: string;
-    Timestamp: string;
-    OverallHealth: number;
-    Performance: number;
-    Security: number;
-    Reliability: number;
-  };
+  run: HistoricalAssessment;
   x: number;
   y: number;
 }
 
 // 10. Timeline Component
 interface TimelineComponentProps {
-  historyData: Array<{
-    AssessmentId: string;
-    Timestamp: string;
-    OverallHealth: number;
-    Performance: number;
-    Security: number;
-    Reliability: number;
-  }>;
+  historyData: HistoricalAssessment[];
   onPointClick: (assessmentId: string) => void;
   hoveredPoint: TimelinePoint | null;
   onPointEnter: (point: TimelinePoint) => void;
