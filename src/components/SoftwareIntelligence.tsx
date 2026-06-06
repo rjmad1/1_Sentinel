@@ -222,16 +222,14 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
       // 1. Search Query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        let matchField: string;
-        if (searchField === 'name') matchField = pkg.Name;
-        else if (searchField === 'vendor') matchField = pkg.Vendor;
-        else if (searchField === 'publisher') matchField = pkg.Publisher;
-        else if (searchField === 'path') matchField = pkg.Instances.map(i => i.InstallPath).join(' ');
-        else {
-          matchField = `${pkg.Name} ${pkg.Vendor} ${pkg.Publisher} ${pkg.Tags.join(' ')}`;
-        }
-
-        matchField = matchField.toLowerCase();
+        const matchFieldRaw = (
+          searchField === 'name' ? pkg.Name :
+          searchField === 'vendor' ? pkg.Vendor :
+          searchField === 'publisher' ? pkg.Publisher :
+          searchField === 'path' ? pkg.Instances.map(i => i.InstallPath).join(' ') :
+          `${pkg.Name} ${pkg.Vendor} ${pkg.Publisher} ${pkg.Tags.join(' ')}`
+        );
+        const matchField = matchFieldRaw.toLowerCase();
 
         if (searchMode === 'exact') {
           if (searchField === 'all') {

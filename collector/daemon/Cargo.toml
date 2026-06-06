@@ -1,0 +1,11 @@
+[package]
+name = "sentinel-collector"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+tiny_http = "0.12.0"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
+sysinfo = "0.30.7"
+chrono = { version = "0.4.35", features = ["serde"] }

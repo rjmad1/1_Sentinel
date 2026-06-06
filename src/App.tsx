@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Shield,
   Activity,
@@ -79,15 +79,39 @@ interface GraphNode {
 interface RefreshAssessmentModalProps {
   onClose: () => void;
   onSuccess: (data: any) => void;
+  daemonState: 'connected' | 'disconnected' | 'scanning' | 'error' | 'upgrade-required';
+  daemonVersion: string;
+  daemonPlatform: string;
+  daemonError: string;
+  runDaemonScan: () => Promise<void>;
+  checkDaemonStatus: () => Promise<void>;
 }
 
-const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ onClose, onSuccess }) => {
-  const [step, setStep] = useState(1);
+const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ 
+  onClose, 
+  onSuccess,
+  daemonState,
+  daemonVersion,
+  daemonPlatform,
+  daemonError,
+  runDaemonScan,
+  checkDaemonStatus
+}) => {
+  // 0 = Live Mode Check, 1 = Legacy Download, 2 = Legacy Run, 3 = Legacy Import, 4 = Finish
+  const [step, setStep] = useState<number>(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Automatically sync scanning state to step
+  useEffect(() => {
+    if (daemonState === 'scanning' && step !== 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStep(0);
+    }
+  }, [daemonState, step]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -173,12 +197,21 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ onClose
     }
   };
 
+  const triggerScanAndTransit = () => {
+    runDaemonScan().then(() => {
+      // onSuccess is handled by the parent App callback upon successful scan completion
+      setStep(4);
+    }).catch(() => {
+      // error state set by parent
+    });
+  };
+
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="refresh-modal-title">
       <div className="modal-content" ref={modalRef} style={{ maxWidth: '640px' }}>
         <div className="modal-header">
           <h3 id="refresh-modal-title" style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
-            <RefreshCw size={16} className={step === 3 && loading ? "spin" : ""} />
+            <RefreshCw size={16} className={(step === 3 && loading) || daemonState === 'scanning' ? "spin" : ""} />
             <span>Refresh System Assessment</span>
           </h3>
           <button className="cyber-btn" style={{ padding: '4px 8px', fontSize: '10px' }} onClick={onClose}>Close</button>
@@ -187,6 +220,10 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ onClose
         <div className="modal-body">
           {/* Progress Bar */}
           <div className="wizard-steps">
+            <div className={`wizard-step ${step === 0 ? 'active' : 'completed'}`}>
+              <div className="wizard-step-circle">L</div>
+              <div className="wizard-step-label">Live Mode</div>
+            </div>
             <div className={`wizard-step ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}`}>
               <div className="wizard-step-circle">{step > 1 ? "✓" : "1"}</div>
               <div className="wizard-step-label">Download</div>
@@ -206,11 +243,149 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ onClose
           </div>
 
           {/* Step Contents */}
+          {step === 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {daemonState === 'connected' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '6px' }}>
+                    <span className="status-indicator pulse" style={{ width: '10px', height: '10px', backgroundColor: 'var(--color-green)' }}></span>
+                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-green)' }}>
+                      Local Daemon Connected (v{daemonVersion}) | OS: {daemonPlatform}
+                    </span>
+                  </div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
+                    Sentinel is connected to the endpoint background service. You can trigger a live, zero-friction system diagnostic scan without executing scripts or uploading files.
+                  </p>
+                  <button 
+                    className="cyber-btn cyber-btn-primary" 
+                    style={{ textDecoration: 'none', color: '#060913', fontWeight: 'bold', padding: '12px', marginTop: '8px', textAlign: 'center', justifyContent: 'center' }}
+                    onClick={triggerScanAndTransit}
+                  >
+                    <span>Run Telemetry Scan</span>
+                  </button>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+                    <button className="cyber-btn" onClick={() => setStep(3)}>Manual Legacy Upload</button>
+                  </div>
+                </div>
+              )}
+
+              {daemonState === 'scanning' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center', padding: '20px 0' }}>
+                  <RefreshCw size={40} className="spin" color="var(--color-cyan)" />
+                  <h4 style={{ fontWeight: 'bold', fontSize: '16px', color: 'var(--color-cyan)' }}>Harvesting Live Telemetry</h4>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6', maxWidth: '400px' }}>
+                    Querying local system instrumentation metrics, CPU loads, storage limits, and active software registries. Please stand by...
+                  </p>
+                </div>
+              )}
+
+              {daemonState === 'upgrade-required' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '6px' }}>
+                    <span className="status-indicator pulse" style={{ width: '10px', height: '10px', backgroundColor: 'var(--color-orange)' }}></span>
+                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-orange)' }}>
+                      Daemon Upgrade Required (v{daemonVersion})
+                    </span>
+                  </div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
+                    The daemon running on your host is outdated. Version v1.0.0 or higher is required to support the V1 live scanning framework.
+                  </p>
+                  <a 
+                    href="/Invoke-EIIPAssessment.ps1" 
+                    download="Invoke-EIIPAssessment.ps1"
+                    className="cyber-btn cyber-btn-primary"
+                    style={{ textDecoration: 'none', color: '#060913', fontWeight: 'bold', padding: '12px', marginTop: '8px', textAlign: 'center' }}
+                    onClick={() => setStep(1)}
+                  >
+                    <span>Download Latest Daemon Pack</span>
+                  </a>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
+                    <button className="cyber-btn" onClick={checkDaemonStatus}>Retry Connection</button>
+                    <button className="cyber-btn" onClick={() => setStep(3)}>Manual Legacy Upload</button>
+                  </div>
+                </div>
+              )}
+
+              {daemonState === 'error' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px' }}>
+                    <span className="status-indicator" style={{ width: '10px', height: '10px', backgroundColor: 'var(--color-pink)' }}></span>
+                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-pink)' }}>
+                      Daemon Error: {daemonError || 'Permission Denied'}
+                    </span>
+                  </div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
+                    The background daemon reported an issue or lacked administrator permissions to query system hardware components.
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <button 
+                      className="cyber-btn cyber-btn-primary" 
+                      style={{ flex: 1, color: '#060913', fontWeight: 'bold', padding: '12px' }}
+                      onClick={triggerScanAndTransit}
+                    >
+                      Retry Live Scan
+                    </button>
+                    <button 
+                      className="cyber-btn" 
+                      style={{ flex: 1, padding: '12px' }}
+                      onClick={checkDaemonStatus}
+                    >
+                      Reconnect Daemon
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+                    <button className="cyber-btn" onClick={() => setStep(3)}>Manual Legacy Upload</button>
+                  </div>
+                </div>
+              )}
+
+              {daemonState === 'disconnected' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                    <span className="status-indicator" style={{ width: '10px', height: '10px', backgroundColor: 'var(--text-muted)' }}></span>
+                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                      Sentinel Local Collector Offline
+                    </span>
+                  </div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
+                    To unlock live assessments and bypass script execution & upload procedures, install the **Sentinel background daemon service** on your local endpoint.
+                  </p>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                    <button 
+                      className="cyber-btn cyber-btn-primary" 
+                      style={{ color: '#060913', fontWeight: 'bold', padding: '12px', justifyContent: 'center' }} 
+                      onClick={() => setStep(1)}
+                    >
+                      Download Daemon Installation Pack
+                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        className="cyber-btn" 
+                        style={{ flex: 1, padding: '10px' }}
+                        onClick={checkDaemonStatus}
+                      >
+                        Retry Connection
+                      </button>
+                      <button 
+                        className="cyber-btn" 
+                        style={{ flex: 1, padding: '10px' }}
+                        onClick={() => setStep(3)}
+                      >
+                        Manual Legacy Upload
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h4 style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: 'var(--color-cyan)' }}>Step 1: Download the Assessment Collector</h4>
               <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
-                To gather the latest evidence from your local system, download the PowerShell collector script.
+                To gather the latest evidence from your local system, download the PowerShell collector script or daemon source.
               </p>
               <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '12px' }}>
                 <strong style={{ color: 'var(--text-primary)' }}>Bundle Contents:</strong>
@@ -229,6 +404,9 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ onClose
               >
                 <span>Download Collector Script</span>
               </a>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
+                <button className="cyber-btn" onClick={() => setStep(0)}>Back to Live Mode</button>
+              </div>
             </div>
           )}
 
@@ -321,7 +499,7 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ onClose
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
-                <button className="cyber-btn" onClick={() => setStep(2)}>Back</button>
+                <button className="cyber-btn" onClick={() => setStep(0)}>Back to Live Mode</button>
               </div>
             </div>
           )}
@@ -345,7 +523,7 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ onClose
               </div>
               <h4 style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-green)' }}>Assessment Refreshed Successfully</h4>
               <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6', maxWidth: '400px' }}>
-                All views, dependency graphs, findings tables, and status meters have been refreshed with the latest CIM telemetry.
+                All views, dependency graphs, findings tables, and status meters have been refreshed with the latest telemetry.
               </p>
               <button className="cyber-btn cyber-btn-primary" style={{ color: '#060913', fontWeight: 'bold', marginTop: '12px', padding: '10px 24px' }} onClick={onClose}>
                 Finish & View Dashboard
@@ -448,7 +626,6 @@ function App() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRecentTabs(prev => {
       const filtered = prev.filter(t => t !== activeTab);
       return [activeTab, ...filtered].slice(0, 3);
@@ -506,14 +683,212 @@ function App() {
   const [logLines, setLogLines] = useState<string[]>(DEMO_MODE ? MOCK_LOGS : []);
   const [activeAssessmentSoftware, setActiveAssessmentSoftware] = useState<any[]>(DEMO_MODE ? [] : []);
   const [activeAssessmentId, setActiveAssessmentId] = useState<string | null>(DEMO_MODE ? "hist-004" : null);
+  // Remediation Checklists
+  const [completedRemediations, setCompletedRemediations] = useState<Record<string, boolean>>({});
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [assessmentAgeInfo, setAssessmentAgeInfo] = useState<{ text: string; severity: 'green' | 'yellow' | 'red'; isStale: boolean }>({ text: 'N/A', severity: 'red', isStale: true });
   const [isRefreshModalOpen, setIsRefreshModalOpen] = useState(false);
 
+  // Ref to track if file upload happened before database seed finishes (E2E race condition fix)
+  const hasUploadedRef = useRef(false);
+
+  // Export warning modal control
+  const [isExportWarningOpen, setIsExportWarningOpen] = useState(false);
+
+  // Local Collector Daemon Connectivity States
+  const [daemonState, setDaemonState] = useState<'connected' | 'disconnected' | 'scanning' | 'error' | 'upgrade-required'>('disconnected');
+  const [daemonVersion, setDaemonVersion] = useState<string>('');
+  const [daemonPlatform, setDaemonPlatform] = useState<string>('');
+  const [daemonError, setDaemonError] = useState<string>('');
+
+  // Polling to discover local daemon status
+  useEffect(() => {
+    const checkDaemonStatus = async () => {
+      try {
+        const res = await fetch('http://localhost:1337/api/status');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.connected) {
+            setDaemonVersion(data.version || '1.0.0');
+            setDaemonPlatform(data.platform || 'windows');
+            if (data.version && data.version.startsWith('0.')) {
+              setDaemonState('upgrade-required');
+            } else {
+              setDaemonState('connected');
+            }
+          } else {
+            setDaemonState('disconnected');
+          }
+        } else {
+          setDaemonState('disconnected');
+        }
+      } catch {
+        setDaemonState('disconnected');
+      }
+    };
+    checkDaemonStatus();
+    const interval = setInterval(checkDaemonStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const runDaemonScan = async () => {
+    setDaemonState('scanning');
+    setLogLines(prev => [...prev, '[Info] Connecting to Sentinel Local Collector Daemon...']);
+    setLogLines(prev => [...prev, '[Info] Executing local WMI and software registry telemetry harvest...']);
+
+    try {
+      const res = await fetch('http://localhost:1337/api/scan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Sentinel-Token': 'sentinel-local-daemon-auth-token-1337-secret'
+        }
+      });
+
+      if (res.ok) {
+        const parsedData = await res.json();
+        
+        hasUploadedRef.current = true;
+        if (parsedData.Machine) setEnvData(parsedData.Machine);
+        if (parsedData.Findings) {
+          const sanitized = parsedData.Findings.map((f: any) => ({
+            FindingId: f.FindingId || '',
+            Category: f.Category || '',
+            Domain: f.Domain || '',
+            Severity: f.Severity || 'Low',
+            Confidence: f.Confidence || 'Medium',
+            Priority: typeof f.Priority === 'number' ? f.Priority : 5,
+            Title: f.Title || '',
+            Description: f.Description || '',
+            Evidence: Array.isArray(f.Evidence) ? f.Evidence : [],
+            Impact: f.Impact || '',
+            BusinessRisk: f.BusinessRisk || '',
+            RootCauseHypothesis: f.RootCauseHypothesis || '',
+            RecommendedRemediation: f.RecommendedRemediation || '',
+            EstimatedEffort: f.EstimatedEffort || 'Medium',
+            VerificationMethod: f.VerificationMethod || '',
+            CreatedOn: f.CreatedOn || new Date().toISOString(),
+          }));
+          setFindingsData(sanitized);
+        }
+        if (parsedData.HealthScore) setHealthScoreData(parsedData.HealthScore);
+        if (parsedData.RiskMatrix) setRiskMatrixData(parsedData.RiskMatrix);
+        if (parsedData.CapacityForecast) setCapacityForecastData(parsedData.CapacityForecast);
+        if (parsedData.RawEvidence) setRawEvidenceData(parsedData.RawEvidence);
+        if (parsedData.Software) setActiveAssessmentSoftware(parsedData.Software);
+        if (parsedData.completedRemediations) setCompletedRemediations(parsedData.completedRemediations);
+        else setCompletedRemediations({});
+        
+        const newId = parsedData.AssessmentId || crypto.randomUUID();
+        setActiveAssessmentId(newId);
+
+        await saveAssessment(parsedData);
+        const hist = await getHistoricalAssessments();
+        setHistoryData(hist);
+        
+        setLastRefresh(new Date());
+        setLogLines(prev => [...prev, `[Info] Successfully harvested live telemetry for ${parsedData.Machine?.ComputerName || 'host'}.`]);
+        setDaemonState('connected');
+        showToast('Local scan completed successfully!', 'success');
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        const errMsg = errData.error || `HTTP ${res.status}`;
+        setDaemonError(errMsg);
+        setDaemonState('error');
+        setLogLines(prev => [...prev, `[Error] Daemon telemetry scan failed: ${errMsg}`]);
+        showToast(`Daemon scan failed: ${errMsg}`, 'error');
+        throw new Error(errMsg);
+      }
+    } catch (err: any) {
+      setDaemonError(err.message || 'Connection Refused');
+      setDaemonState('error');
+      setLogLines(prev => [...prev, `[Error] Failed to communicate with collector daemon: ${err.message || 'Connection Refused'}`]);
+      showToast('Collector daemon connection error', 'error');
+      throw err;
+    }
+  };
+
+  const checkDaemonStatusManual = async () => {
+    try {
+      const res = await fetch('http://localhost:1337/api/status');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.connected) {
+          setDaemonVersion(data.version || '1.0.0');
+          setDaemonPlatform(data.platform || 'windows');
+          if (data.version && data.version.startsWith('0.')) {
+            setDaemonState('upgrade-required');
+          } else {
+            setDaemonState('connected');
+          }
+          showToast('Local collector daemon connected!', 'success');
+        } else {
+          setDaemonState('disconnected');
+          showToast('Local collector daemon is offline.', 'warning');
+        }
+      } else {
+        setDaemonState('disconnected');
+        showToast('Local collector daemon connection failed.', 'error');
+      }
+    } catch {
+      setDaemonState('disconnected');
+      showToast('Local collector daemon not detected.', 'error');
+    }
+  };
+
   // Non-nullable convenience variables for JSX rendering to satisfy strict null checks
   const envData = envDataState || MOCK_ENVIRONMENT;
-  const healthScoreData = healthScoreDataState || MOCK_HEALTH_SCORE;
   const capacityForecastData = capacityForecastDataState || MOCK_CAPACITY_FORECAST;
+
+  // Recalculate health score based on completed remediations dynamically
+  const healthScoreData = useMemo(() => {
+    const base = healthScoreDataState || MOCK_HEALTH_SCORE;
+    if (!base) return MOCK_HEALTH_SCORE;
+
+    const completedCount = Object.values(completedRemediations).filter(Boolean).length;
+    if (completedCount === 0) {
+      return base;
+    }
+
+    let performance = base.PerformanceScore;
+    let security = base.SecurityScore;
+    let reliability = base.ReliabilityScore;
+    let scalability = base.ScalabilityScore;
+    let serviceability = base.ServiceabilityScore;
+    let usability = base.UsabilityScore;
+
+    Object.entries(completedRemediations).forEach(([findingId, completed]) => {
+      if (!completed) return;
+      const finding = findingsData.find(f => f.FindingId === findingId);
+      if (!finding) return;
+
+      const delta = finding.Severity === 'Critical' ? 15 
+                  : finding.Severity === 'High' ? 10 
+                  : finding.Severity === 'Medium' ? 5 
+                  : finding.Severity === 'Low' ? 2 : 0;
+
+      const domain = finding.Domain.toLowerCase();
+      if (domain === 'performance') performance = Math.min(100, performance + delta);
+      else if (domain === 'security') security = Math.min(100, security + delta);
+      else if (domain === 'reliability') reliability = Math.min(100, reliability + delta);
+      else if (domain === 'scalability') scalability = Math.min(100, scalability + delta);
+      else if (domain === 'serviceability') serviceability = Math.min(100, serviceability + delta);
+      else if (domain === 'usability') usability = Math.min(100, usability + delta);
+    });
+
+    const overall = performance * 0.20 + security * 0.25 + reliability * 0.20 + scalability * 0.15 + serviceability * 0.10 + usability * 0.10;
+
+    return {
+      Formula: base.Formula,
+      OverallHealthScore: Math.round(overall * 100) / 100,
+      PerformanceScore: Math.round(performance * 100) / 100,
+      SecurityScore: Math.round(security * 100) / 100,
+      ReliabilityScore: Math.round(reliability * 100) / 100,
+      ScalabilityScore: Math.round(scalability * 100) / 100,
+      ServiceabilityScore: Math.round(serviceability * 100) / 100,
+      UsabilityScore: Math.round(usability * 100) / 100
+    };
+  }, [healthScoreDataState, completedRemediations, findingsData]);
 
   useEffect(() => {
     const updateAge = () => {
@@ -571,9 +946,6 @@ function App() {
     return record ? record.Value : null;
   }, [rawEvidenceData]);
 
-  // Remediation Checklists
-  const [completedRemediations, setCompletedRemediations] = useState<Record<string, boolean>>({});
-
   // Node Graph Custom Positions State
   const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
   const [activeDraggedNode, setActiveDraggedNode] = useState<string | null>(null);
@@ -618,13 +990,15 @@ function App() {
     const seedDatabase = async () => {
       try {
         const hist = await getHistoricalAssessments();
+        if (hasUploadedRef.current) return;
+
         if (hist.length > 0) {
           setHistoryData(hist);
           
           // Load the latest assessment to active view
           const latestId = hist[hist.length - 1].AssessmentId;
           const data = await loadAssessmentDetails(latestId);
-          if (data) {
+          if (data && !hasUploadedRef.current) {
             setActiveAssessmentId(latestId);
             if (data.Machine) setEnvData(data.Machine);
             if (data.Findings) setFindingsData(data.Findings);
@@ -633,6 +1007,8 @@ function App() {
             if (data.CapacityForecast) setCapacityForecastData(data.CapacityForecast);
             if (data.RawEvidence) setRawEvidenceData(data.RawEvidence);
             if (data.Software) setActiveAssessmentSoftware(data.Software);
+            if (data.completedRemediations) setCompletedRemediations(data.completedRemediations);
+            else setCompletedRemediations({});
           }
         } else if (DEMO_MODE) {
           // Database is empty. Seed it with the 4 historical runs ONLY when DEMO_MODE is true
@@ -679,13 +1055,14 @@ function App() {
             await saveAssessment(item);
           }
           
+          if (hasUploadedRef.current) return;
           const freshHist = await getHistoricalAssessments();
           setHistoryData(freshHist);
 
           // Load latest seeded
           const latestId = freshHist[freshHist.length - 1].AssessmentId;
           const data = await loadAssessmentDetails(latestId);
-          if (data) {
+          if (data && !hasUploadedRef.current) {
             setActiveAssessmentId(latestId);
             if (data.Machine) setEnvData(data.Machine);
             if (data.Findings) setFindingsData(data.Findings);
@@ -694,6 +1071,8 @@ function App() {
             if (data.CapacityForecast) setCapacityForecastData(data.CapacityForecast);
             if (data.RawEvidence) setRawEvidenceData(data.RawEvidence);
             if (data.Software) setActiveAssessmentSoftware(data.Software);
+            if (data.completedRemediations) setCompletedRemediations(data.completedRemediations);
+            else setCompletedRemediations({});
           }
         }
       } catch (err) {
@@ -1098,6 +1477,45 @@ function App() {
     );
   };
 
+  // Save separate components of an assessment to IndexedDB
+  const updateAndSavePart = async (key: string, value: any) => {
+    hasUploadedRef.current = true;
+    let consolidated: any = null;
+    let currentId = activeAssessmentId;
+    if (currentId) {
+      consolidated = await loadAssessmentDetails(currentId);
+    }
+    if (!consolidated) {
+      currentId = crypto.randomUUID();
+      consolidated = {
+        AssessmentId: currentId,
+        Machine: envDataState || MOCK_ENVIRONMENT,
+        Findings: findingsData || MOCK_FINDINGS,
+        HealthScore: healthScoreDataState || MOCK_HEALTH_SCORE,
+        RiskMatrix: riskMatrixData || MOCK_RISK_MATRIX,
+        CapacityForecast: capacityForecastDataState || MOCK_CAPACITY_FORECAST,
+        RawEvidence: rawEvidenceData || [],
+        Software: activeAssessmentSoftware || [],
+        completedRemediations: completedRemediations || {}
+      };
+    }
+
+    if (key === 'Machine') consolidated.Machine = value;
+    else if (key === 'Findings') consolidated.Findings = value;
+    else if (key === 'HealthScore') consolidated.HealthScore = value;
+    else if (key === 'RiskMatrix') consolidated.RiskMatrix = value;
+    else if (key === 'CapacityForecast') consolidated.CapacityForecast = value;
+    else if (key === 'RawEvidence') consolidated.RawEvidence = value;
+    else if (key === 'Software') consolidated.Software = value;
+
+    const savedId = await saveAssessment(consolidated);
+    if (!activeAssessmentId || activeAssessmentId !== savedId) {
+      setActiveAssessmentId(savedId);
+    }
+    const hist = await getHistoricalAssessments();
+    setHistoryData(hist);
+  };
+
   // Parsing JSON/Log reports upload
   const handleJsonUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -1122,6 +1540,7 @@ function App() {
           
           // Unified V1 Assessment.json check
           if (parsed && parsed.AssessmentId) {
+            hasUploadedRef.current = true;
             if (parsed.Machine) setEnvData(parsed.Machine);
             if (parsed.Findings) {
               const sanitized = parsed.Findings.map((f: any) => ({
@@ -1150,6 +1569,8 @@ function App() {
             if (parsed.RawEvidence) setRawEvidenceData(parsed.RawEvidence);
             if (parsed.Software) setActiveAssessmentSoftware(parsed.Software);
             if (parsed.AssessmentId) setActiveAssessmentId(parsed.AssessmentId);
+            if (parsed.completedRemediations) setCompletedRemediations(parsed.completedRemediations);
+            else setCompletedRemediations({});
 
             saveAssessment(parsed).then(() => {
               getHistoricalAssessments().then(hist => {
@@ -1161,8 +1582,10 @@ function App() {
             return;
           }
 
+          // Separate component uploads
           if (name.includes('environmentoverview') || (parsed && parsed.PlatformFamily && parsed.ComputerName)) {
             setEnvData(parsed);
+            updateAndSavePart('Machine', parsed);
             setLogLines(prev => [...prev, `[Info] Loaded and updated environment details for ${parsed.ComputerName}.`]);
           } else if (name.includes('findings') || (Array.isArray(parsed) && parsed.length > 0 && 'FindingId' in parsed[0])) {
             const sanitized = (parsed as Partial<Finding>[]).map((f) => ({
@@ -1184,22 +1607,29 @@ function App() {
               CreatedOn: f.CreatedOn || new Date().toISOString(),
             }));
             setFindingsData(sanitized);
+            updateAndSavePart('Findings', sanitized);
             setLogLines(prev => [...prev, `[Info] Loaded and parsed ${parsed.length} health findings.`]);
           } else if (name.includes('healthscore') || (parsed && parsed.OverallHealthScore !== undefined)) {
             setHealthScoreData(parsed);
+            updateAndSavePart('HealthScore', parsed);
             setLogLines(prev => [...prev, `[Info] Loaded and updated system health index scores: Overall = ${parsed.OverallHealthScore}.`]);
           } else if (name.includes('riskmatrix') || (Array.isArray(parsed) && parsed.length > 0 && 'TechnicalImpact' in parsed[0])) {
             setRiskMatrixData(parsed);
+            updateAndSavePart('RiskMatrix', parsed);
             setLogLines(prev => [...prev, `[Info] Loaded and parsed Risk Matrix entries.`]);
           } else if (name.includes('capacityforecast') || (parsed && parsed.Storage && parsed.Memory)) {
             setCapacityForecastData(parsed);
+            updateAndSavePart('CapacityForecast', parsed);
             setLogLines(prev => [...prev, `[Info] Loaded and updated Capacity Forecasting indices.`]);
           } else if (name.includes('rawevidence') || (Array.isArray(parsed) && parsed.length > 0 && 'Source' in parsed[0] && 'ValidationState' in parsed[0])) {
             setRawEvidenceData(parsed);
+            updateAndSavePart('RawEvidence', parsed);
             setLogLines(prev => [...prev, `[Info] Loaded and parsed ${parsed.length} raw evidence records.`]);
           } else if (name.includes('sentinelhistory') || (Array.isArray(parsed) && parsed.length > 0 && 'OverallHealth' in parsed[0])) {
             setHistoryData(parsed);
             setLogLines(prev => [...prev, `[Info] Loaded historical assessments log (${parsed.length} runs).`]);
+          } else {
+            setLogLines(prev => [...prev, `[Error] Unrecognized JSON schema structure in file "${file.name}".`]);
           }
         } catch {
           setLogLines(prev => [...prev, `[Error] Failed to parse file "${file.name}": Invalid format.`]);
@@ -1438,7 +1868,18 @@ ${capacityInfo}
 
   // Toggle remediation step checkboxes
   const handleToggleRemediation = (findingId: string) => {
-    setCompletedRemediations(prev => ({ ...prev, [findingId]: !prev[findingId] }));
+    setCompletedRemediations(prev => {
+      const next = { ...prev, [findingId]: !prev[findingId] };
+      if (activeAssessmentId) {
+        loadAssessmentDetails(activeAssessmentId).then(consolidated => {
+          if (consolidated) {
+            consolidated.completedRemediations = next;
+            saveAssessment(consolidated);
+          }
+        });
+      }
+      return next;
+    });
   };
 
   // Helper to render evidence structures nicely
@@ -1526,6 +1967,81 @@ ${capacityInfo}
         <div className="sidebar-header">
           <div className="logo-glow">S</div>
           <div className="logo-text">SENTINEL</div>
+        </div>
+
+        {/* Live Daemon Connection Badge */}
+        <div style={{ padding: '12px 16px 4px 16px' }}>
+          <div 
+            onClick={() => setIsRefreshModalOpen(true)}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              padding: '10px 14px', 
+              background: 'rgba(255, 255, 255, 0.01)', 
+              border: '1px solid rgba(255, 255, 255, 0.04)', 
+              borderRadius: '8px', 
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: 'inset 0 0 12px rgba(255,255,255,0.01)'
+            }}
+            className="daemon-status-panel"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.01)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.04)';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span 
+                className="status-indicator pulse" 
+                style={{ 
+                  width: '10px', 
+                  height: '10px', 
+                  borderRadius: '50%',
+                  backgroundColor: 
+                    daemonState === 'connected' ? 'var(--color-green)' :
+                    daemonState === 'scanning' ? 'var(--color-cyan)' :
+                    daemonState === 'upgrade-required' ? 'var(--color-orange)' :
+                    daemonState === 'error' ? 'var(--color-pink)' :
+                    'var(--neutral-500)',
+                  boxShadow: 
+                    daemonState === 'connected' ? '0 0 10px var(--color-green)' :
+                    daemonState === 'scanning' ? '0 0 10px var(--color-cyan)' :
+                    daemonState === 'upgrade-required' ? '0 0 10px var(--color-orange)' :
+                    daemonState === 'error' ? '0 0 10px var(--color-pink)' :
+                    'none',
+                  animation: 
+                    daemonState === 'connected' ? 'pulse-green 2s infinite' :
+                    daemonState === 'scanning' ? 'pulse-blue 1.5s infinite' :
+                    daemonState === 'upgrade-required' ? 'pulse-orange 2s infinite' :
+                    daemonState === 'error' ? 'pulse-pink 2s infinite' :
+                    'none'
+                }} 
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '9px', fontWeight: 'bold', letterSpacing: '1px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>LOCAL AGENT</span>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  {daemonState === 'connected' && 'Online'}
+                  {daemonState === 'scanning' && 'Scanning...'}
+                  {daemonState === 'disconnected' && 'Offline'}
+                  {daemonState === 'error' && 'Error'}
+                  {daemonState === 'upgrade-required' && 'Update Required'}
+                </span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                {daemonVersion ? `v${daemonVersion}` : 'N/A'}
+              </span>
+              <span style={{ fontSize: '8px', color: 'var(--text-muted)', textDecoration: 'underline' }}>
+                Manage
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Sidebar Search */}
@@ -1718,7 +2234,7 @@ ${capacityInfo}
               <button 
                 className="cyber-btn cyber-btn-primary" 
                 style={{ padding: '6px 12px', fontSize: '11px', height: '32px' }} 
-                onClick={handleExportPackage}
+                onClick={() => setIsExportWarningOpen(true)}
                 title="Export Assessment Review Package"
               >
                 <Package size={12} color="#FAFAFA" />
@@ -3073,7 +3589,7 @@ ${capacityInfo}
                     <button 
                       className="cyber-btn cyber-btn-primary" 
                       style={{ width: '100%', padding: '10px', display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold' }} 
-                      onClick={handleExportPackage}
+                      onClick={() => setIsExportWarningOpen(true)}
                     >
                       <Package size={14} />
                       <span>Generate AI Review Package</span>
@@ -3164,7 +3680,14 @@ ${capacityInfo}
     {isRefreshModalOpen && (
       <RefreshAssessmentModal
         onClose={() => setIsRefreshModalOpen(false)}
+        daemonState={daemonState}
+        daemonVersion={daemonVersion}
+        daemonPlatform={daemonPlatform}
+        daemonError={daemonError}
+        runDaemonScan={runDaemonScan}
+        checkDaemonStatus={checkDaemonStatusManual}
         onSuccess={(parsedData) => {
+          hasUploadedRef.current = true;
           if (parsedData.Machine) setEnvData(parsedData.Machine);
           if (parsedData.Findings) {
             const sanitized = parsedData.Findings.map((f: any) => ({
@@ -3192,6 +3715,8 @@ ${capacityInfo}
           if (parsedData.CapacityForecast) setCapacityForecastData(parsedData.CapacityForecast);
           if (parsedData.RawEvidence) setRawEvidenceData(parsedData.RawEvidence);
           if (parsedData.Software) setActiveAssessmentSoftware(parsedData.Software);
+          if (parsedData.completedRemediations) setCompletedRemediations(parsedData.completedRemediations);
+          else setCompletedRemediations({});
           
           const newId = parsedData.AssessmentId || crypto.randomUUID();
           setActiveAssessmentId(newId);
@@ -3220,6 +3745,81 @@ ${capacityInfo}
         softwareCount={activeAssessmentSoftware.length}
         showToast={showToast}
       />
+    )}
+
+    {isExportWarningOpen && (
+      <div className="modal-overlay" onClick={() => setIsExportWarningOpen(false)}>
+        <div 
+          className="glass-panel" 
+          style={{ 
+            width: '100%', 
+            maxWidth: '520px', 
+            padding: '28px', 
+            border: '1px solid var(--error-500)', 
+            boxShadow: '0 0 25px rgba(239, 68, 68, 0.15)',
+            background: 'var(--bg-secondary)',
+            margin: '20px'
+          }} 
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="panel-header" style={{ borderBottomColor: 'rgba(239, 68, 68, 0.15)', paddingBottom: '16px', marginBottom: '20px' }}>
+            <h2 className="panel-title" style={{ color: 'var(--color-pink)' }}>
+              <AlertTriangle size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+              Sensitive Data & Privacy Warning
+            </h2>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
+            <p>
+              You are about to export an <strong>AI Diagnostics Review Package</strong> (<code>MachineReviewPackage.zip</code>).
+            </p>
+            <p>
+              This archive contains comprehensive host configuration metadata, including:
+            </p>
+            <ul style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <li>• Complete environment inventory & system name details</li>
+              <li>• System health scores, priorities, and technical findings</li>
+              <li>• Host software catalog (including potential vulnerabilities)</li>
+              <li>• Topology structure graph and dependency relationships</li>
+              <li>• Local raw evidence files and custom execution logs</li>
+            </ul>
+            <p style={{ marginTop: '6px', color: 'var(--text-primary)', fontWeight: 500 }}>
+              IMPORTANT SECURITY GUIDANCE:
+            </p>
+            <div style={{ background: 'rgba(239, 68, 68, 0.03)', border: '1px solid rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: '6px', fontSize: '12px' }}>
+              If you plan to paste these contents or upload this package to third-party Large Language Models (LLMs) or AI assistants for diagnostic analysis, ensure that no sensitive company secrets, hardcoded credentials, API keys, or personally identifiable information (PII) are present.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '28px', borderTop: '1px solid var(--neutral-800)', paddingTop: '16px' }}>
+            <button 
+              className="cyber-btn" 
+              style={{ fontSize: '12px', padding: '8px 16px' }}
+              onClick={() => setIsExportWarningOpen(false)}
+            >
+              Cancel
+            </button>
+            <button 
+              className="cyber-btn cyber-btn-danger" 
+              style={{ 
+                fontSize: '12px', 
+                padding: '8px 20px', 
+                fontWeight: 'bold', 
+                backgroundColor: 'var(--error-500)', 
+                borderColor: 'var(--error-700)',
+                color: 'white'
+              }}
+              onClick={() => {
+                setIsExportWarningOpen(false);
+                handleExportPackage();
+              }}
+            >
+              <Package size={14} style={{ marginRight: '6px' }} />
+              Acknowledge & Export
+            </button>
+          </div>
+        </div>
+      </div>
     )}
 
     {/* Toast Container Stack */}
