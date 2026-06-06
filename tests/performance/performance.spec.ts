@@ -54,7 +54,7 @@ test.describe('EIIP Client UI SLA Performance Checks', () => {
     await page.goto('/');
     
     // Load dataset first so there are items to filter
-    await page.click('button.menu-item:has-text("Import & Log Stream")');
+    await page.click('button.menu-item:has-text("Imports")');
     await page.setInputFiles('input[type="file"]', filesToUpload);
 
     await page.click('button.menu-item:has-text("Software Intelligence")');

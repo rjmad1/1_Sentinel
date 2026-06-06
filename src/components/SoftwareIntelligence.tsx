@@ -13,6 +13,7 @@ import {
 } from '../utils/icons';
 import { MOCK_SOFTWARE_CATALOG } from '../utils/softwareMockData';
 import type { NormalizedPackage } from '../utils/softwareMockData';
+import { EmptyState } from './DesignSystemComponents';
 
 interface SoftwareIntelligenceProps {
   demoMode?: boolean;
@@ -21,6 +22,7 @@ interface SoftwareIntelligenceProps {
   assessmentSoftware?: any[];
   showToast: (message: string, type: 'success' | 'info' | 'warning' | 'error') => void;
   onUpdateOverallHealth?: (healthDiff: number) => void;
+  onNavigateToTab?: (tab: string) => void;
 }
 
 export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({ 
@@ -28,7 +30,8 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
   assessmentLoaded = false,
   assessmentSoftware = [],
   showToast,
-  onUpdateOverallHealth 
+  onUpdateOverallHealth,
+  onNavigateToTab
 }) => {
   const isE2E = typeof window !== 'undefined' && (
     !!window.navigator.webdriver || 
@@ -761,42 +764,30 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
 
           {/* Catalog Data Grid */}
           {packages.length === 0 ? (
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              padding: 'var(--spacing-12) var(--spacing-6)', 
-              textAlign: 'center', 
-              background: 'var(--bg-secondary)', 
-              border: '1px dashed var(--neutral-700)', 
-              borderRadius: 'var(--radius-md)',
-              gap: 'var(--spacing-4)'
-            }}>
-              <Package size={48} color="var(--neutral-500)" />
-              <h3 style={{ fontSize: 'var(--font-size-h6)', fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                Software Catalog Empty
-              </h3>
-              <p style={{ fontSize: 'var(--font-size-body-sm)', color: 'var(--text-secondary)', maxWidth: '440px', lineHeight: 'var(--line-height-body)' }}>
-                No software packages have been discovered or loaded into the active assessment database yet.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--spacing-2)', color: 'var(--text-secondary)', fontSize: 'var(--font-size-body-sm)' }}>
-                <strong>Suggested Actions:</strong>
-                <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-1)' }}>
-                  <li>• Connect an active assessment source file using the file loader.</li>
-                  <li>• Run a manual local system discovery scan.</li>
-                </ul>
-              </div>
-              <button 
-                className="cyber-btn cyber-btn-primary" 
-                onClick={runValidationScan}
-                disabled={scanStatus === 'scanning'}
-                style={{ marginTop: 'var(--spacing-2)' }}
-              >
-                <RefreshCw size={14} className={scanStatus === 'scanning' ? 'spin' : ''} style={{ marginRight: '8px' }} />
-                {scanStatus === 'scanning' ? 'Scanning Local System...' : 'Run Local System Discovery Scan'}
-              </button>
-            </div>
+            <EmptyState
+              title="No software inventory detected"
+              description="No software packages have been discovered or loaded into the active assessment database yet."
+              causes={[
+                "Discovery not run: The host agent has not performed a Winget/Chocolatey registry sweep.",
+                "Data not imported: No assessment files containing software details have been uploaded.",
+                "Permissions unavailable: The local daemon was not run with administrator privileges."
+              ]}
+              actions={[
+                {
+                  label: "Run Discovery",
+                  primary: true,
+                  onClick: runValidationScan
+                },
+                {
+                  label: "Import Data",
+                  onClick: () => onNavigateToTab?.('importer')
+                },
+                {
+                  label: "View Documentation",
+                  onClick: () => showToast("Tip: Run Winget/Chocolatey package manager to verify software installation.", "info")
+                }
+              ]}
+            />
           ) : filteredPackages.length === 0 ? (
             <div style={{ 
               display: 'flex', 

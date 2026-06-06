@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../utils/db';
-import { Database, Shield, Activity, HardDrive, RefreshCw, Trash2, Settings } from '../utils/icons';
+import { Database, Shield, HardDrive, RefreshCw, Trash2, Settings } from '../utils/icons';
 
 interface SystemStatusProps {
   activeAssessmentId: string | null;
@@ -133,72 +133,102 @@ export const SystemStatusPage: React.FC<SystemStatusProps> = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-6)' }}>
       
-      {/* Visual System Overview Row */}
-      <div className="stats-container">
-        
-        <div className="glass-panel">
-          <div className="panel-title">
-            <Database size={16} color="var(--color-cyan)" /> 
-            <span>IndexedDB State</span>
-          </div>
-          <div className="metric-value" style={{ color: dbOpen ? 'var(--color-green)' : 'var(--color-pink)' }}>
-            {dbOpen ? 'CONNECTED' : 'DISCONNECTED'}
-          </div>
-          <div className="metric-label" style={{ marginTop: 'var(--spacing-2)' }}>
-            Store: {db.name} (v{db.verno})
-          </div>
-        </div>
-
-        <div className="glass-panel">
-          <div className="panel-title">
-            <Shield size={16} color="var(--color-blue)" /> 
-            <span>Active Assessment</span>
-          </div>
-          <div className="metric-value" style={{ fontSize: activeAssessmentId ? 'var(--font-size-h6)' : 'var(--font-size-h5)', wordBreak: 'break-all' }}>
-            {activeAssessmentId ? activeMachineName : 'NONE'}
-          </div>
-          <div className="metric-label" style={{ marginTop: 'var(--spacing-2)' }}>
-            {activeAssessmentId ? `ID: ${activeAssessmentId.substring(0, 8)}...` : 'No file loaded'}
-          </div>
-        </div>
-
-        <div className="glass-panel">
-          <div className="panel-title">
-            <Activity size={16} color="var(--color-cyan)" /> 
-            <span>Total Imports</span>
-          </div>
-          <div className="metric-value">{counts.assessments}</div>
-          <div className="metric-label" style={{ marginTop: 'var(--spacing-2)' }}>
-            Historical Runs Stored
-          </div>
-        </div>
-
-        <div className="glass-panel">
-          <div className="panel-title">
-            <HardDrive size={16} color="var(--color-pink)" /> 
-            <span>Storage Used</span>
-          </div>
-          <div className="metric-value" style={{ fontSize: 'var(--font-size-h5)' }}>{storage.used}</div>
-          <div className="metric-label" style={{ marginTop: 'var(--spacing-2)' }}>
-            Est. Quota: {storage.quota}
-          </div>
-        </div>
-
-      </div>
-
+      {/* 5-Section Layout grid */}
       <div className="dashboard-grid">
         
-        {/* Table Rows Count */}
+        {/* 1. Platform Health */}
+        <div className="glass-panel" style={{ gridColumn: 'span 4' }}>
+          <div className="panel-header">
+            <h2 className="panel-title">
+              <Database size={16} color="var(--color-cyan)" /> 
+              <span>Platform Health</span>
+            </h2>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>IndexedDB Connection:</span>
+              <strong style={{ color: dbOpen ? 'var(--color-green)' : 'var(--color-pink)' }}>
+                {dbOpen ? 'CONNECTED' : 'DISCONNECTED'}
+              </strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>DB Store Name:</span>
+              <strong style={{ fontFamily: 'var(--font-mono)' }}>{db.name} (v{db.verno})</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Application Version:</span>
+              <strong style={{ color: 'var(--color-cyan)', fontFamily: 'var(--font-mono)' }}>v1.0.0</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Build Timestamp:</span>
+              <strong style={{ fontFamily: 'var(--font-mono)' }}>2026-06-05.1</strong>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Assessment Health */}
+        <div className="glass-panel" style={{ gridColumn: 'span 4' }}>
+          <div className="panel-header">
+            <h2 className="panel-title">
+              <Shield size={16} color="var(--color-blue)" /> 
+              <span>Assessment Health</span>
+            </h2>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Active Host:</span>
+              <strong style={{ fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>{activeAssessmentId ? activeMachineName : 'NONE'}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Assessment ID:</span>
+              <strong style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{activeAssessmentId ? activeAssessmentId : 'No file loaded'}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Total Historical Imports:</span>
+              <strong style={{ fontFamily: 'var(--font-mono)' }}>{counts.assessments}</strong>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Storage Health */}
+        <div className="glass-panel" style={{ gridColumn: 'span 4' }}>
+          <div className="panel-header">
+            <h2 className="panel-title">
+              <HardDrive size={16} color="var(--color-pink)" /> 
+              <span>Storage Health</span>
+            </h2>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>IndexedDB Storage Used:</span>
+              <strong style={{ fontFamily: 'var(--font-mono)' }}>{storage.used}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Browser Allocation Quota:</span>
+              <strong style={{ fontFamily: 'var(--font-mono)' }}>{storage.quota}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>LocalStorage Usage:</span>
+              <strong style={{ fontFamily: 'var(--font-mono)' }}>{localStorageUsage}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Storage Quota Used %:</span>
+              <strong style={{ fontFamily: 'var(--font-mono)' }}>{storage.percentage}%</strong>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Data Health */}
         <div className="glass-panel" style={{ gridColumn: 'span 7' }}>
           <div className="panel-header">
-            <h2 className="panel-title"><Database size={16} /> Database Table Statistics</h2>
+            <h2 className="panel-title"><Database size={16} /> Data Health & Table Statistics</h2>
             <button className="cyber-btn" style={{ padding: 'var(--spacing-2) var(--spacing-3)', fontSize: 'var(--font-size-caption)' }} onClick={fetchStats} disabled={loading}>
               <RefreshCw size={12} className={loading ? 'spin' : ''} />
               <span>Refresh Stats</span>
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {[
               { name: 'assessments', label: 'Assessments Master', count: counts.assessments, desc: 'Stores core host metrics & config blocks.' },
               { name: 'findings', label: 'Findings Registry', count: counts.findings, desc: 'Aggregated list of security & performance alerts.' },
@@ -207,13 +237,13 @@ export const SystemStatusPage: React.FC<SystemStatusProps> = ({
               { name: 'risks', label: 'Risk Indices', count: counts.risks, desc: 'Historical severity counters and drift levels.' },
               { name: 'exports', label: 'Export Packages', count: counts.exports, desc: 'Stored diagnostic snapshots.' }
             ].map(table => (
-              <div key={table.name} style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--spacing-2)' }}>
+              <div key={table.name} style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
                 <div>
-                  <div style={{ fontWeight: 'bold', fontSize: 'var(--font-size-caption)' }}>{table.label}</div>
-                  <div style={{ fontSize: 'var(--font-size-caption)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>table: {table.name} • {table.desc}</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-primary)' }}>{table.label}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>table: {table.name} • {table.desc}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-3)' }}>
-                  <span className="cyber-badge badge-cyan" style={{ fontSize: 'var(--font-size-caption)', minWidth: '48px', justifyContent: 'center' }}>
+                  <span className="cyber-badge badge-cyan" style={{ fontSize: '11px', minWidth: '48px', justifyContent: 'center' }}>
                     {table.count}
                   </span>
                 </div>
@@ -222,52 +252,36 @@ export const SystemStatusPage: React.FC<SystemStatusProps> = ({
           </div>
         </div>
 
-        {/* Telemetry and System Info */}
+        {/* 5. System Diagnostics */}
         <div className="glass-panel" style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
             <div className="panel-header">
               <h2 className="panel-title"><Settings size={16} /> System Diagnostics</h2>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)', fontSize: 'var(--font-size-caption)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--spacing-2)' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>LocalStorage Size:</span>
-                <strong style={{ fontFamily: 'var(--font-mono)' }}>{localStorageUsage}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--spacing-2)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Graph Nodes Loaded:</span>
                 <strong style={{ fontFamily: 'var(--font-mono)' }}>{nodesCount} Nodes</strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--spacing-2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Graph Links Rendered:</span>
                 <strong style={{ fontFamily: 'var(--font-mono)' }}>{linksCount} Links</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--spacing-2)' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Storage quota allocation:</span>
-                <strong style={{ fontFamily: 'var(--font-mono)' }}>{storage.percentage}%</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--spacing-2)' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Application Version:</span>
-                <strong style={{ color: 'var(--color-cyan)', fontFamily: 'var(--font-mono)' }}>v1.0.0</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--spacing-2)' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Build Timestamp:</span>
-                <strong style={{ fontFamily: 'var(--font-mono)' }}>2026-06-05.1</strong>
               </div>
             </div>
           </div>
 
-          <div style={{ marginTop: 'var(--spacing-6)' }}>
+          <div style={{ marginTop: '24px' }}>
             <button 
               className="cyber-btn cyber-btn-danger" 
-              style={{ width: '100%', gap: 'var(--spacing-2)', padding: 'var(--spacing-3)' }}
+              style={{ width: '100%', gap: '8px', padding: '12px' }}
               onClick={handleClearDatabase}
               disabled={isPurging}
             >
               <Trash2 size={14} />
               <span>{isPurging ? 'Purging Tables...' : 'Purge Assessment Database'}</span>
             </button>
-            <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--text-muted)', marginTop: 'var(--spacing-2)', textAlign: 'center', lineHeight: 'var(--line-height-body)' }}>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center', lineHeight: '1.4' }}>
               Purging deletes all raw metrics, tables, and history in IndexedDB. Use with caution.
             </p>
           </div>

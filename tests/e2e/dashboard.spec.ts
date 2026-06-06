@@ -54,8 +54,8 @@ test.describe('EIIP Operations Command Center E2E Tests', () => {
     await expect(page).toHaveTitle(/SENTINEL/);
 
     // Scenario 2: Upload Assessment JSON
-    // Navigate to Import & Log Stream tab
-    await page.click('button.menu-item:has-text("Import & Log Stream")');
+    // Navigate to Imports tab
+    await page.click('button.menu-item:has-text("Imports")');
     
     // Set input files to trigger the JSON parser upload handler
     await page.setInputFiles('input[type="file"]', Object.values(filesToUpload));
@@ -65,7 +65,7 @@ test.describe('EIIP Operations Command Center E2E Tests', () => {
     await expect(page.locator('body')).toContainText(/findings/i);
 
     // Scenario 3: Render Dashboard Overview
-    await page.click('button.menu-item:has-text("Dashboard Overview")');
+    await page.click('button.menu-item:has-text("Overview")');
     
     // Check Threat Status banner
     await expect(page.locator('.system-threat-banner')).toContainText(/WARNING/i);
@@ -111,7 +111,7 @@ test.describe('EIIP Operations Command Center E2E Tests', () => {
     await page.click('.glass-panel:has-text("Upgrade Plan") button:has-text("Close")');
 
     // Scenario 8: Export AI Review Package / Chat Commands
-    await page.click('button.menu-item:has-text("AI Guardian Chat")');
+    await page.click('button.menu-item:has-text("AI Guardian")');
     await page.fill('input[placeholder="Type a query or /help..."]', '/help');
     await page.press('input[placeholder="Type a query or /help..."]', 'Enter');
     
@@ -136,16 +136,16 @@ test.describe('EIIP Operations Command Center E2E Tests', () => {
 
     // Scenario 11: Risk Checkbox Mitigation updates score
     // Switch to Dashboard Overview first to capture initial pending count
-    await page.click('button.menu-item:has-text("Dashboard Overview")');
+    await page.click('button.menu-item:has-text("Overview")');
     const pendingBadge = page.locator('.glass-panel:has-text("Audit Action Panel") .badge-orange');
     const initialText = await pendingBadge.innerText();
     
-    // Switch to Risk & Remediation to perform mitigation check-off
-    await page.click('button.menu-item:has-text("Risk & Remediation")');
+    // Switch to Action Center to perform mitigation check-off
+    await page.click('button.menu-item:has-text("Action Center")');
     await page.locator('input[type="checkbox"]').first().click();
     
     // Switch back to Dashboard Overview to verify pending badge decrements
-    await page.click('button.menu-item:has-text("Dashboard Overview")');
+    await page.click('button.menu-item:has-text("Overview")');
     const updatedText = await pendingBadge.innerText();
     expect(parseInt(updatedText)).toBeLessThan(parseInt(initialText));
   });
