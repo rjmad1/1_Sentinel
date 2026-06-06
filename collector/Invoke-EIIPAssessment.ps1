@@ -1,4 +1,4 @@
-#requires -Version 7.0
+#requires -Version 5.1
 <#
 .SYNOPSIS
     Enterprise Machine Health Assessment Framework
@@ -46,6 +46,17 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Define platform variables for PowerShell 5.1 compatibility
+if ($null -eq (Get-Variable -Name 'IsWindows' -ErrorAction SilentlyContinue)) {
+    $IsWindows = $true
+}
+if ($null -eq (Get-Variable -Name 'IsLinux' -ErrorAction SilentlyContinue)) {
+    $IsLinux = $false
+}
+if ($null -eq (Get-Variable -Name 'IsMacOS' -ErrorAction SilentlyContinue)) {
+    $IsMacOS = $false
+}
 
 #region ── Script-level state ─────────────────────────────────────────────────
 
@@ -2320,7 +2331,7 @@ $assessmentContext = [ordered]@{
     HostName                   = $env:COMPUTERNAME
     UserName                   = [System.Environment]::UserName
     PowerShellVersion          = $PSVersionTable.PSVersion.ToString()
-    Platform                   = $PSVersionTable.Platform
+    Platform                   = if ($PSVersionTable.ContainsKey('Platform')) { $PSVersionTable.Platform } else { 'Win32' }
     OS                         = [System.Environment]::OSVersion.VersionString
 }
 
