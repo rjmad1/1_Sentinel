@@ -14,6 +14,7 @@ import {
 import { MOCK_SOFTWARE_CATALOG } from '../utils/softwareMockData';
 import type { NormalizedPackage } from '../utils/softwareMockData';
 import { EmptyState } from './DesignSystemComponents';
+import { Box, Flex, Heading, Text, SimpleGrid, Button, Input, VStack } from '@chakra-ui/react';
 
 interface SoftwareIntelligenceProps {
   demoMode?: boolean;
@@ -496,70 +497,70 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
   const visibleColCount = Object.values(visibleColumns).filter(Boolean).length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <Flex direction="column" gap="6">
       
       {/* 1. Dashboard Widget Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+      <SimpleGrid columns={{ base: 1, md: 5 }} gap="4">
         
-        <div className="glass-panel" style={{ padding: '16px 20px' }}>
-          <div className="metric-label" style={{ fontSize: '10px' }}>Total Normalized</div>
-          <div className="metric-value" style={{ fontSize: '26px', color: 'var(--color-cyan)' }}>
-            {stats.totalNormalized} <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>({stats.totalInstances} Inst)</span>
-          </div>
-          <div className="progress-bar-container" style={{ height: '3px', marginTop: '8px' }}>
-            <div className="progress-bar-fill" style={{ width: '100%', backgroundColor: 'var(--color-cyan)' }}></div>
-          </div>
-        </div>
+        <Box className="glass-panel" p="4" bg="bg.card" border="1px solid rgba(255,255,255,0.1)" borderRadius="12px">
+          <Text fontSize="10px" color="text.muted" textTransform="uppercase" letterSpacing="1px">Total Normalized</Text>
+          <Text fontSize="26px" fontWeight="bold" fontFamily="mono" color="#06B6D4" mt="2">
+            {stats.totalNormalized} <Text as="span" fontSize="11px" color="text.secondary">({stats.totalInstances} Inst)</Text>
+          </Text>
+          <Box bg="rgba(255,255,255,0.05)" borderRadius="full" h="1" mt="2" overflow="hidden">
+            <Box h="full" bg="#06B6D4" w="100%" />
+          </Box>
+        </Box>
 
-        <div className="glass-panel" style={{ padding: '16px 20px' }}>
-          <div className="metric-label" style={{ fontSize: '10px' }}>Up-To-Date</div>
-          <div className="metric-value" style={{ fontSize: '26px', color: 'var(--color-green)' }}>
+        <Box className="glass-panel" p="4" bg="bg.card" border="1px solid rgba(255,255,255,0.1)" borderRadius="12px">
+          <Text fontSize="10px" color="text.muted" textTransform="uppercase" letterSpacing="1px">Up-To-Date</Text>
+          <Text fontSize="26px" fontWeight="bold" fontFamily="mono" color="#16C784" mt="2">
             {stats.upToDate}
-          </div>
-          <div className="progress-bar-container" style={{ height: '3px', marginTop: '8px' }}>
-            <div className="progress-bar-fill" style={{ width: `${(stats.upToDate / stats.totalNormalized) * 100}%`, backgroundColor: 'var(--color-green)' }}></div>
-          </div>
-        </div>
+          </Text>
+          <Box bg="rgba(255,255,255,0.05)" borderRadius="full" h="1" mt="2" overflow="hidden">
+            <Box h="full" bg="#16C784" w={`${(stats.upToDate / stats.totalNormalized) * 100}%`} />
+          </Box>
+        </Box>
 
-        <div className="glass-panel" style={{ padding: '16px 20px' }}>
-          <div className="metric-label" style={{ fontSize: '10px' }}>Upgradeable</div>
-          <div className="metric-value" style={{ fontSize: '26px', color: 'var(--color-orange)' }}>
+        <Box className="glass-panel" p="4" bg="bg.card" border="1px solid rgba(255,255,255,0.1)" borderRadius="12px">
+          <Text fontSize="10px" color="text.muted" textTransform="uppercase" letterSpacing="1px">Upgradeable</Text>
+          <Text fontSize="26px" fontWeight="bold" fontFamily="mono" color="#F5A524" mt="2">
             {stats.upgradeable}
-          </div>
-          <div className="progress-bar-container" style={{ height: '3px', marginTop: '8px' }}>
-            <div className="progress-bar-fill" style={{ width: `${(stats.upgradeable / stats.totalNormalized) * 100}%`, backgroundColor: 'var(--color-orange)' }}></div>
-          </div>
-        </div>
+          </Text>
+          <Box bg="rgba(255,255,255,0.05)" borderRadius="full" h="1" mt="2" overflow="hidden">
+            <Box h="full" bg="#F5A524" w={`${(stats.upgradeable / stats.totalNormalized) * 100}%`} />
+          </Box>
+        </Box>
 
-        <div className="glass-panel" style={{ padding: '16px 20px' }}>
-          <div className="metric-label" style={{ fontSize: '10px' }}>Unsupported / EOL</div>
-          <div className="metric-value" style={{ fontSize: '26px', color: 'var(--color-pink)' }}>
+        <Box className="glass-panel" p="4" bg="bg.card" border="1px solid rgba(255,255,255,0.1)" borderRadius="12px">
+          <Text fontSize="10px" color="text.muted" textTransform="uppercase" letterSpacing="1px">Unsupported / EOL</Text>
+          <Text fontSize="26px" fontWeight="bold" fontFamily="mono" color="#EF4444" mt="2">
             {stats.unsupported + stats.eol}
-          </div>
-          <div className="progress-bar-container" style={{ height: '3px', marginTop: '8px' }}>
-            <div className="progress-bar-fill" style={{ width: `${((stats.unsupported + stats.eol) / stats.totalNormalized) * 100}%`, backgroundColor: 'var(--color-pink)' }}></div>
-          </div>
-        </div>
+          </Text>
+          <Box bg="rgba(255,255,255,0.05)" borderRadius="full" h="1" mt="2" overflow="hidden">
+            <Box h="full" bg="#EF4444" w={`${((stats.unsupported + stats.eol) / stats.totalNormalized) * 100}%`} />
+          </Box>
+        </Box>
 
-        <div className="glass-panel" style={{ padding: '16px 20px' }}>
-          <div className="metric-label" style={{ fontSize: '10px' }}>Security Alerts</div>
-          <div className="metric-value" style={{ fontSize: '26px', color: stats.critical > 0 ? 'var(--color-pink)' : 'var(--color-green)' }}>
+        <Box className="glass-panel" p="4" bg="bg.card" border="1px solid rgba(255,255,255,0.1)" borderRadius="12px">
+          <Text fontSize="10px" color="text.muted" textTransform="uppercase" letterSpacing="1px">Security Alerts</Text>
+          <Text fontSize="26px" fontWeight="bold" fontFamily="mono" color={stats.critical > 0 ? '#EF4444' : '#16C784'} mt="2">
             {stats.critical}
-          </div>
-          <div className="progress-bar-container" style={{ height: '3px', marginTop: '8px' }}>
-            <div className="progress-bar-fill" style={{ width: `${(stats.critical / stats.totalNormalized) * 100}%`, backgroundColor: stats.critical > 0 ? 'var(--color-pink)' : 'var(--color-green)' }}></div>
-          </div>
-        </div>
+          </Text>
+          <Box bg="rgba(255,255,255,0.05)" borderRadius="full" h="1" mt="2" overflow="hidden">
+            <Box h="full" bg={stats.critical > 0 ? '#EF4444' : '#16C784'} w={`${(stats.critical / stats.totalNormalized) * 100}%`} />
+          </Box>
+        </Box>
 
-      </div>
+      </SimpleGrid>
 
       {/* 2. Package Managers Distribution */}
-      <div className="glass-panel" style={{ padding: '16px 24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.5px' }}>Ecosystem Distribution (Discovery Sweeps)</span>
-          <span className="cyber-badge badge-cyan" style={{ fontSize: '10px' }}>ACTIVE AGENTS: 9</span>
-        </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '11px' }}>
+      <Box className="glass-panel" px="6" py="4" bg="bg.card" border="1px solid rgba(255,255,255,0.1)" borderRadius="12px">
+        <Flex justify="space-between" align="center" mb="2">
+          <Text fontSize="11px" fontWeight="bold" textTransform="uppercase" color="text.secondary" letterSpacing="0.5px">Ecosystem Distribution (Discovery Sweeps)</Text>
+          <Box className="cyber-badge badge-cyan" fontSize="10px">ACTIVE AGENTS: 9</Box>
+        </Flex>
+        <Flex gap="2" wrap="wrap" fontSize="11px">
           {Object.entries(stats.sourceCounts).map(([src, count]) => {
             const colors: Record<string, string> = {
               Winget: 'badge-cyan', Chocolatey: 'badge-orange', Scoop: 'badge-blue',
@@ -572,42 +573,48 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
               </span>
             );
           })}
-        </div>
-      </div>
+        </Flex>
+      </Box>
 
       {/* 3. Main Workspace Grid */}
-      <div className="dashboard-grid">
+      <SimpleGrid columns={{ base: 1, lg: 12 }} gap="6">
         
         {/* Inventory list */}
-        <div className="glass-panel" style={{ gridColumn: 'span 8' }}>
-          <div className="panel-header" style={{ marginBottom: '16px' }}>
-            <h2 className="panel-title"><Package size={16} color="var(--color-cyan)" /> Normalized Software Catalog</h2>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="cyber-btn" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={runValidationScan} disabled={scanStatus === 'scanning'}>
-                <RefreshCw size={12} className={scanStatus === 'scanning' ? 'spin' : ''} />
-                <span>{scanStatus === 'scanning' ? 'Re-Scanning...' : scanStatus === 'complete' ? 'Scan Complete!' : 'Re-Scan Catalog'}</span>
-              </button>
-            </div>
-          </div>
+        <Box className="glass-panel" gridColumn={{ lg: 'span 8' }} display="flex" flexDirection="column" gap="4">
+          <Flex className="panel-header" align="center" justify="space-between">
+            <Heading as="h2" className="panel-title"><Package size={16} color="#06B6D4" /> Normalized Software Catalog</Heading>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={runValidationScan}
+              disabled={scanStatus === 'scanning'}
+              borderColor="rgba(255,255,255,0.15)"
+              _hover={{ bg: 'rgba(255,255,255,0.05)' }}
+            >
+              <RefreshCw size={12} className={scanStatus === 'scanning' ? 'spin' : ''} />
+              <Text as="span">{scanStatus === 'scanning' ? 'Re-Scanning...' : scanStatus === 'complete' ? 'Scan Complete!' : 'Re-Scan Catalog'}</Text>
+            </Button>
+          </Flex>
 
           {/* Filtering / Search Toolbar */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+          <Flex direction="column" gap="3">
             
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              
-              <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
-                <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-secondary)' }} />
-                <input
+            <Flex gap="3" wrap="wrap">
+              <Box position="relative" flex="1" minW="200px">
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'rgba(255,255,255,0.4)' }} />
+                <Input
                   type="text"
-                  className="cyber-input"
                   placeholder="Search catalog software..."
-                  style={{ width: '100%', paddingLeft: '36px' }}
+                  pl="9"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  bg="bg.primary"
+                  borderColor="rgba(255,255,255,0.15)"
+                  _focus={{ borderColor: 'info' }}
                 />
-              </div>
+              </Box>
 
-              <select className="cyber-input" value={searchField} onChange={(e) => setSearchField(e.target.value as typeof searchField)} style={{ minWidth: '100px', fontSize: '12px' }}>
+              <select className="cyber-input" value={searchField} onChange={(e) => setSearchField(e.target.value as any)} style={{ minWidth: '110px', fontSize: '12px' }}>
                 <option value="all">All Fields</option>
                 <option value="name">Name Only</option>
                 <option value="vendor">Vendor</option>
@@ -615,21 +622,20 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                 <option value="path">Install Path</option>
               </select>
 
-              <select className="cyber-input" value={searchMode} onChange={(e) => setSearchMode(e.target.value as typeof searchMode)} style={{ minWidth: '100px', fontSize: '12px' }}>
+              <select className="cyber-input" value={searchMode} onChange={(e) => setSearchMode(e.target.value as any)} style={{ minWidth: '110px', fontSize: '12px' }}>
                 <option value="contains">Contains</option>
                 <option value="starts">Starts With</option>
                 <option value="exact">Exact Match</option>
                 <option value="regex">Regex Search</option>
               </select>
-
-            </div>
+            </Flex>
 
             {/* Collapsible filters bar */}
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
+            <Flex gap="3" wrap="wrap" p="3" bg="rgba(255,255,255,0.01)" borderRadius="6px" border="1px solid rgba(255,255,255,0.03)" align="flex-end">
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Update State</label>
-                <select className="cyber-input" value={updateFilter} onChange={(e) => setUpdateFilter(e.target.value as typeof updateFilter)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '110px' }}>
+              <Box display="flex" flexDirection="column" gap="1">
+                <Text as="label" fontSize="9px" textTransform="uppercase" color="text.muted">Update State</Text>
+                <select className="cyber-input" value={updateFilter} onChange={(e) => setUpdateFilter(e.target.value as any)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '110px' }}>
                   <option value="ALL">All Updates</option>
                   <option value="Up-To-Date">Up-To-Date</option>
                   <option value="Update Available">Update Available</option>
@@ -637,31 +643,31 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                   <option value="Deprecated">Deprecated</option>
                   <option value="End-of-Life">End-of-Life</option>
                 </select>
-              </div>
+              </Box>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Security Risk</label>
-                <select className="cyber-input" value={riskFilter} onChange={(e) => setRiskFilter(e.target.value as typeof riskFilter)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '110px' }}>
+              <Box display="flex" flexDirection="column" gap="1">
+                <Text as="label" fontSize="9px" textTransform="uppercase" color="text.muted">Security Risk</Text>
+                <select className="cyber-input" value={riskFilter} onChange={(e) => setRiskFilter(e.target.value as any)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '110px' }}>
                   <option value="ALL">All Risks</option>
                   <option value="Critical">Critical</option>
                   <option value="High">High</option>
                   <option value="Medium">Medium</option>
                   <option value="None">None</option>
                 </select>
-              </div>
+              </Box>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Scope</label>
-                <select className="cyber-input" value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value as typeof scopeFilter)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '110px' }}>
+              <Box display="flex" flexDirection="column" gap="1">
+                <Text as="label" fontSize="9px" textTransform="uppercase" color="text.muted">Scope</Text>
+                <select className="cyber-input" value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value as any)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '110px' }}>
                   <option value="ALL">All Scopes</option>
                   <option value="Current User">Current User</option>
                   <option value="Machine-Wide">Machine-Wide</option>
                   <option value="System Component">System Component</option>
                 </select>
-              </div>
+              </Box>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Source Agent</label>
+              <Box display="flex" flexDirection="column" gap="1">
+                <Text as="label" fontSize="9px" textTransform="uppercase" color="text.muted">Source Agent</Text>
                 <select className="cyber-input" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '110px' }}>
                   <option value="ALL">All Sources</option>
                   <option value="Winget">Winget</option>
@@ -673,55 +679,57 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                   <option value="Node">Node (npm)</option>
                   <option value="Store">Windows Store</option>
                 </select>
-              </div>
+              </Box>
 
-              <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Grouping</label>
-                  <select className="cyber-input" value={groupBy} onChange={(e) => setGroupBy(e.target.value as typeof groupBy)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '110px' }}>
+              <Flex gap="2" ml="auto" wrap="wrap" align="flex-end">
+                <Box display="flex" flexDirection="column" gap="1">
+                  <Text as="label" fontSize="9px" textTransform="uppercase" color="text.muted">Grouping</Text>
+                  <select className="cyber-input" value={groupBy} onChange={(e) => setGroupBy(e.target.value as any)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '110px' }}>
                     <option value="none">No Grouping</option>
                     <option value="vendor">Group by Vendor</option>
                     <option value="source">Group by Source</option>
                     <option value="scope">Group by Scope</option>
                     <option value="status">Group by Status</option>
                   </select>
-                </div>
+                </Box>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Row Density</label>
-                  <select className="cyber-input" value={rowHeight} onChange={(e) => setRowHeight(e.target.value as 'compact' | 'default' | 'comfortable')} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '100px' }}>
+                <Box display="flex" flexDirection="column" gap="1">
+                  <Text as="label" fontSize="9px" textTransform="uppercase" color="text.muted">Row Density</Text>
+                  <select className="cyber-input" value={rowHeight} onChange={(e) => setRowHeight(e.target.value as any)} style={{ padding: '6px 10px', fontSize: '11px', minWidth: '100px' }}>
                     <option value="compact">Compact</option>
                     <option value="default">Default</option>
                     <option value="comfortable">Comfortable</option>
                   </select>
-                </div>
+                </Box>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
-                  <label style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Columns</label>
-                  <button 
-                    className="cyber-btn" 
+                <Box display="flex" flexDirection="column" gap="1" position="relative">
+                  <Text as="label" fontSize="9px" textTransform="uppercase" color="text.muted">Columns</Text>
+                  <Button 
+                    variant="outline"
+                    size="sm"
                     style={{ padding: '6px 10px', fontSize: '11px', height: '32px', minWidth: '80px' }} 
                     onClick={() => setColumnsPanelOpen(!columnsPanelOpen)}
-                    type="button"
+                    borderColor="rgba(255,255,255,0.15)"
+                    _hover={{ bg: 'rgba(255,255,255,0.05)' }}
                   >
                     Select Columns ▼
-                  </button>
+                  </Button>
                   {columnsPanelOpen && (
-                    <div style={{ 
-                      position: 'absolute', 
-                      top: '44px', 
-                      right: 0, 
-                      backgroundColor: 'var(--neutral-900)', 
-                      border: '1px solid var(--neutral-700)', 
-                      borderRadius: 'var(--radius-sm)', 
-                      boxShadow: 'var(--elevation-2)', 
-                      zIndex: 200, 
-                      padding: '10px', 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      gap: '6px',
-                      minWidth: '160px'
-                    }}>
+                    <Box 
+                      position="absolute" 
+                      top="44px" 
+                      right="0" 
+                      bg="rgba(17,24,39,0.95)" 
+                      border="1px solid rgba(255,255,255,0.1)" 
+                      borderRadius="8px" 
+                      boxShadow="0 8px 24px rgba(0, 0, 0, 0.25)" 
+                      zIndex="200" 
+                      p="3" 
+                      display="flex" 
+                      flexDirection="column" 
+                      gap="2"
+                      minW="160px"
+                    >
                       {Object.keys(visibleColumns).filter(c => c !== 'checkbox' && c !== 'actions').map(col => (
                         <label key={col} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', cursor: 'pointer' }}>
                           <input 
@@ -729,38 +737,38 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                             checked={visibleColumns[col]} 
                             onChange={() => setVisibleColumns(prev => ({ ...prev, [col]: !prev[col] }))} 
                           />
-                          <span>{col.replace(/([A-Z])/g, ' $1').toUpperCase()}</span>
+                          <span style={{ textTransform: 'uppercase' }}>{col.replace(/([A-Z])/g, ' $1')}</span>
                         </label>
                       ))}
-                      <button className="cyber-btn" style={{ padding: '2px 8px', fontSize: '10px', marginTop: '4px' }} onClick={() => setColumnsPanelOpen(false)}>Apply</button>
-                    </div>
+                      <Button size="xs" colorPalette="cyber" onClick={() => setColumnsPanelOpen(false)}>Apply</Button>
+                    </Box>
                   )}
-                </div>
-              </div>
+                </Box>
+              </Flex>
 
-            </div>
+            </Flex>
 
             {/* Bulk Action Panel when selected */}
             {selectedNames.size > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.25)', borderRadius: '6px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{selectedNames.size} packages selected for operations</span>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="cyber-btn cyber-btn-primary" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={startBulkUpgrade}>
+              <Flex align="center" justify="space-between" p="3" px="4" bg="rgba(6,182,212,0.06)" border="1px solid rgba(6,182,212,0.25)" borderRadius="6px">
+                <Text fontSize="12px" fontWeight="bold">{selectedNames.size} packages selected for operations</Text>
+                <Flex gap="2">
+                  <Button colorPalette="cyber" size="sm" onClick={startBulkUpgrade}>
                     <Wrench size={12} />
-                    <span>Upgrade Selected</span>
-                  </button>
-                  <button className="cyber-btn cyber-btn-danger" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={() => {
+                    <Text as="span">Upgrade Selected</Text>
+                  </Button>
+                  <Button colorPalette="red" size="sm" onClick={() => {
                     const toDelete = packages.find(p => selectedNames.has(p.Name));
                     if (toDelete) startUninstall(toDelete);
                   }}>
                     <Trash2 size={12} />
-                    <span>Uninstall Selected</span>
-                  </button>
-                </div>
-              </div>
+                    <Text as="span">Uninstall Selected</Text>
+                  </Button>
+                </Flex>
+              </Flex>
             )}
 
-          </div>
+          </Flex>
 
           {/* Catalog Data Grid */}
           {packages.length === 0 ? (
@@ -789,35 +797,35 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
               ]}
             />
           ) : filteredPackages.length === 0 ? (
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              padding: 'var(--spacing-12) var(--spacing-6)', 
-              textAlign: 'center', 
-              background: 'var(--bg-secondary)', 
-              border: '1px dashed var(--neutral-700)', 
-              borderRadius: 'var(--radius-md)',
-              gap: 'var(--spacing-4)'
-            }}>
-              <Package size={48} color="var(--neutral-500)" />
-              <h3 style={{ fontSize: 'var(--font-size-h6)', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+            <Flex
+              direction="column"
+              align="center"
+              justify="center"
+              p="12"
+              textAlign="center"
+              bg="bg.secondary"
+              border="1px dashed"
+              borderColor="rgba(255,255,255,0.1)"
+              borderRadius="12px"
+              gap="4"
+            >
+              <Package size={48} color="rgba(255,255,255,0.2)" />
+              <Heading as="h3" fontSize="16px" fontWeight="bold" color="text.primary">
                 No matching software found
-              </h3>
-              <p style={{ fontSize: 'var(--font-size-body-sm)', color: 'var(--text-secondary)', maxWidth: '440px', lineHeight: 'var(--line-height-body)' }}>
+              </Heading>
+              <Text fontSize="13px" color="text.secondary" maxW="440px" lineHeight="1.5">
                 We searched the software catalog but couldn't find any packages matching your active filters and search query.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--spacing-2)', color: 'var(--text-secondary)', fontSize: 'var(--font-size-body-sm)' }}>
-                <strong>Suggested Actions:</strong>
-                <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-1)' }}>
-                  <li>• Clear your search query or check spelling.</li>
-                  <li>• Widen your update state, security risk, scope, or source filters.</li>
-                  <li>• Re-scan the catalog to refresh detected software packages.</li>
-                </ul>
-              </div>
-              <button 
-                className="cyber-btn cyber-btn-primary" 
+              </Text>
+              <VStack align="center" gap="2" color="text.secondary" fontSize="13px">
+                <Text as="strong">Suggested Actions:</Text>
+                <VStack align="stretch" gap="1" as="ul" style={{ listStyleType: 'none', padding: 0 }}>
+                  <Text as="li">• Clear your search query or check spelling.</Text>
+                  <Text as="li">• Widen your update state, security risk, scope, or source filters.</Text>
+                  <Text as="li">• Re-scan the catalog to refresh detected software packages.</Text>
+                </VStack>
+              </VStack>
+              <Button 
+                colorPalette="cyber" 
                 onClick={() => {
                   setSearchQuery('');
                   setUpdateFilter('ALL');
@@ -826,17 +834,17 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                   setSourceFilter('ALL');
                   showToast('Search filters reset successfully.', 'success');
                 }}
-                style={{ marginTop: 'var(--spacing-2)' }}
+                mt="2"
               >
                 Reset All Filters
-              </button>
-            </div>
+              </Button>
+            </Flex>
           ) : (
             <>
-              <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: 'rgba(0,0,0,0.1)' }}>
+              <Box overflowX="auto" border="1px solid rgba(255,255,255,0.1)" borderRadius="12px" bg="rgba(0,0,0,0.1)">
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <thead>
-                    <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border-color)', height: '40px' }}>
+                    <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.1)', height: '40px' }}>
                       {visibleColumns.checkbox && (
                         <th style={{ width: '40px', textAlign: 'center' }}>
                           <input type="checkbox" checked={selectedNames.size === filteredPackages.length && filteredPackages.length > 0} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
@@ -858,7 +866,7 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                       <React.Fragment key={groupName}>
                         {groupBy !== 'none' && (
                           <tr style={{ background: 'rgba(6,182,212,0.04)', height: '32px' }}>
-                            <td colSpan={visibleColCount} style={{ padding: '6px 14px', fontWeight: 'bold', color: 'var(--color-cyan)', fontSize: '11px', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                            <td colSpan={visibleColCount} style={{ padding: '6px 14px', fontWeight: 'bold', color: '#06B6D4', fontSize: '11px', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                               {groupName} ({pkgs.length} packages)
                             </td>
                           </tr>
@@ -875,10 +883,10 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                             <tr key={pkg.Name} 
                                 onClick={() => { setSelectedPackage(pkg); setDetailTab('overview'); }}
                                 style={{ 
-                                  borderBottom: '1px solid rgba(255,255,255,0.01)', 
+                                  borderBottom: '1px solid rgba(255,255,255,0.03)', 
                                   cursor: 'pointer',
                                   background: isSelected ? 'rgba(6,182,212,0.02)' : 'transparent',
-                                  borderLeft: pkg.Name === selectedPackage?.Name ? '3px solid var(--color-cyan)' : '3px solid transparent'
+                                  borderLeft: pkg.Name === selectedPackage?.Name ? '3px solid #06B6D4' : '3px solid transparent'
                                 }}
                                 className="table-row-hover"
                             >
@@ -888,8 +896,8 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                                 </td>
                               )}
                               {visibleColumns.name && <td style={{ padding: rowPadding, fontWeight: 'bold', color: 'var(--text-primary)' }}>{pkg.Name}</td>}
-                              {visibleColumns.installedVersion && <td style={{ padding: rowPadding, fontFamily: 'var(--font-mono)' }}>{instVer}</td>}
-                              {visibleColumns.latestVersion && <td style={{ padding: rowPadding, fontFamily: 'var(--font-mono)' }}>{pkg.LatestVersion}</td>}
+                              {visibleColumns.installedVersion && <td style={{ padding: rowPadding, fontFamily: 'monospace' }}>{instVer}</td>}
+                              {visibleColumns.latestVersion && <td style={{ padding: rowPadding, fontFamily: 'monospace' }}>{pkg.LatestVersion}</td>}
                               {visibleColumns.status && (
                                 <td style={{ padding: rowPadding, textAlign: 'center' }}>
                                   <span className={`cyber-badge ${
@@ -900,10 +908,10 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                                   </span>
                                 </td>
                               )}
-                              {visibleColumns.publisher && <td style={{ padding: rowPadding, color: 'var(--text-secondary)' }}>{pkg.Publisher}</td>}
+                              {visibleColumns.publisher && <td style={{ padding: rowPadding, color: 'text.secondary' }}>{pkg.Publisher}</td>}
                               {visibleColumns.scope && (
                                 <td style={{ padding: rowPadding, textAlign: 'center' }}>
-                                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{pkg.Scope}</span>
+                                  <span style={{ fontSize: '10px', color: 'text.secondary' }}>{pkg.Scope}</span>
                                 </td>
                               )}
                               {visibleColumns.source && (
@@ -920,16 +928,16 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                               )}
                               {visibleColumns.actions && (
                                 <td style={{ padding: rowPadding, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                  <Flex gap="1.5" justify="center">
                                     {pkg.UpdateState === 'Update Available' && (
                                       <button className="cyber-btn" style={{ padding: '4px 8px', fontSize: '10px' }} title="Automated Upgrade" onClick={() => startSingleUpgrade(pkg)}>
-                                        <Wrench size={10} color="var(--color-orange)" />
+                                        <Wrench size={10} color="#F5A524" />
                                       </button>
                                     )}
                                     <button className="cyber-btn cyber-btn-danger" style={{ padding: '4px 8px', fontSize: '10px' }} title="Clean Uninstall" onClick={() => startUninstall(pkg)}>
                                       <Trash2 size={10} />
                                     </button>
-                                  </div>
+                                  </Flex>
                                 </td>
                               )}
                             </tr>
@@ -939,15 +947,15 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </Box>
 
               {/* Table Pagination Controls */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '12px' }}>
-                <div style={{ color: 'var(--text-secondary)' }}>
+              <Flex justify="space-between" align="center" mt="4" fontSize="12px">
+                <Box color="text.secondary">
                   Showing <strong>{Math.min(filteredPackages.length, (currentPage - 1) * pageSize + 1)}</strong> to <strong>{Math.min(filteredPackages.length, currentPage * pageSize)}</strong> of <strong>{filteredPackages.length}</strong> packages
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                </Box>
+                <Flex align="center" gap="3">
+                  <Flex align="center" gap="1.5">
                     <span>Page Size:</span>
                     <select className="cyber-input" value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value)); setCurrentPage(1); }} style={{ padding: '4px 8px', fontSize: '11px' }}>
                       <option value={5}>5</option>
@@ -955,433 +963,455 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                       <option value={25}>25</option>
                       <option value={50}>50</option>
                     </select>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button 
-                      className="cyber-btn" 
+                  </Flex>
+                  <Flex gap="1.5">
+                    <Button 
+                      variant="outline"
+                      size="sm"
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} 
                       disabled={currentPage === 1}
-                      style={{ padding: '4px 10px', fontSize: '11px' }}
+                      h="32px"
                     >
                       Previous
-                    </button>
-                    <button 
-                      className="cyber-btn" 
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      size="sm"
                       onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredPackages.length / pageSize), prev + 1))} 
                       disabled={currentPage >= Math.ceil(filteredPackages.length / pageSize)}
-                      style={{ padding: '4px 10px', fontSize: '11px' }}
+                      h="32px"
                     >
                       Next
-                    </button>
-                  </div>
-                </div>
-              </div>
+                    </Button>
+                  </Flex>
+                </Flex>
+              </Flex>
             </>
           )}
-        </div>
+        </Box>
 
         {/* Right side Detail inspector Drawer */}
-        <div className="glass-panel" style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column' }}>
+        <Box className="glass-panel" gridColumn={{ lg: 'span 4' }} display="flex" flexDirection="column">
           
           {selectedPackage ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
+            <Flex direction="column" gap="4" h="100%">
               
               {/* Drawer header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)' }}>{selectedPackage.Name}</h3>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Vendor: {selectedPackage.Vendor}</span>
-                </div>
-                <button className="cyber-btn" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => setSelectedPackage(null)}>Close</button>
-              </div>
+              <Flex justify="space-between" align="flex-start" borderBottom="1px solid rgba(255,255,255,0.05)" pb="3">
+                <Box>
+                  <Heading as="h3" fontSize="16px" fontWeight="bold" color="text.primary">{selectedPackage.Name}</Heading>
+                  <Text fontSize="10px" color="text.muted" textTransform="uppercase">Vendor: {selectedPackage.Vendor}</Text>
+                </Box>
+                <Button size="xs" variant="outline" onClick={() => setSelectedPackage(null)}>Close</Button>
+              </Flex>
 
               {/* Tabs */}
-              <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '2px', gap: '4px', overflowX: 'auto' }}>
+              <Flex borderBottom="1px solid rgba(255,255,255,0.03)" pb="1" gap="1" overflowX="auto">
                 {['overview', 'versions', 'dependencies', 'security', 'history', 'actions'].map(t => (
-                  <button 
+                  <Button 
                     key={t}
-                    onClick={() => setDetailTab(t as typeof detailTab)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      padding: '6px 10px',
-                      fontSize: '11px',
-                      color: detailTab === t ? 'var(--color-cyan)' : 'var(--text-secondary)',
-                      borderBottom: detailTab === t ? '2px solid var(--color-cyan)' : '2px solid transparent',
-                      cursor: 'pointer',
-                      textTransform: 'uppercase',
-                      fontWeight: detailTab === t ? 'bold' : 'normal'
-                    }}
+                    onClick={() => setDetailTab(t as any)}
+                    variant="ghost"
+                    size="xs"
+                    colorPalette={detailTab === t ? 'cyan' : 'gray'}
+                    fontSize="11px"
+                    textTransform="uppercase"
+                    fontWeight={detailTab === t ? 'bold' : 'normal'}
+                    borderBottom={detailTab === t ? '2px solid #06B6D4' : '2px solid transparent'}
+                    borderRadius="none"
+                    h="32px"
+                    px="2"
                   >
                     {t}
-                  </button>
+                  </Button>
                 ))}
-              </div>
+              </Flex>
 
               {/* Tab Content Box */}
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '12px' }}>
+              <Box flex="1" overflowY="auto" display="flex" flexDirection="column" gap="4" fontSize="12px">
                 
                 {/* 1. OVERVIEW */}
                 {detailTab === 'overview' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <p style={{ color: 'var(--text-secondary)', lineHeight: '1.5' }}>{selectedPackage.Description}</p>
+                  <Flex direction="column" gap="3">
+                    <Text color="text.secondary" lineHeight="1.5">{selectedPackage.Description}</Text>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.02)', paddingTop: '10px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>Publisher:</span>
-                        <span style={{ fontWeight: 'bold' }}>{selectedPackage.Publisher}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>Category:</span>
-                        <span>{selectedPackage.Category}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>Architecture:</span>
-                        <span>{selectedPackage.Instances[0]?.Architecture || 'n/a'}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>Primary Scope:</span>
-                        <span>{selectedPackage.Scope}</span>
-                      </div>
-                    </div>
+                    <Flex direction="column" gap="2" borderTop="1px solid rgba(255,255,255,0.05)" pt="3">
+                      <Flex justify="space-between">
+                        <Text color="text.secondary">Publisher:</Text>
+                        <Text as="strong">{selectedPackage.Publisher}</Text>
+                      </Flex>
+                      <Flex justify="space-between">
+                        <Text color="text.secondary">Category:</Text>
+                        <Text>{selectedPackage.Category}</Text>
+                      </Flex>
+                      <Flex justify="space-between">
+                        <Text color="text.secondary">Architecture:</Text>
+                        <Text>{selectedPackage.Instances[0]?.Architecture || 'n/a'}</Text>
+                      </Flex>
+                      <Flex justify="space-between">
+                        <Text color="text.secondary">Primary Scope:</Text>
+                        <Text>{selectedPackage.Scope}</Text>
+                      </Flex>
+                    </Flex>
 
-                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.02)', paddingTop: '10px' }}>
-                      <div style={{ fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>Installation Instances ({selectedPackage.Instances.length})</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <Box borderTop="1px solid rgba(255,255,255,0.05)" pt="3">
+                      <Text fontWeight="bold" color="text.secondary" mb="2">Installation Instances ({selectedPackage.Instances.length})</Text>
+                      <Flex direction="column" gap="2">
                         {selectedPackage.Instances.map((inst, idx) => (
-                          <div key={idx} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '4px', padding: '8px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-cyan)', marginBottom: '4px' }}>
-                              <span>Agent: {inst.Source}</span>
-                              <span style={{ fontFamily: 'var(--font-mono)' }}>v{inst.InstalledVersion}</span>
-                            </div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-secondary)', overflowWrap: 'anywhere' }}>Path: {inst.InstallPath}</div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                              <span>Size: {inst.Size}</span>
-                              <span>Date: {inst.InstallDate}</span>
-                            </div>
-                          </div>
+                          <Box key={idx} bg="rgba(255,255,255,0.01)" border="1px solid rgba(255,255,255,0.03)" borderRadius="4px" p="2">
+                            <Flex justify="space-between" fontSize="11px" color="#06B6D4" mb="1">
+                              <Text>Agent: {inst.Source}</Text>
+                              <Text fontFamily="mono">v{inst.InstalledVersion}</Text>
+                            </Flex>
+                            <Text fontSize="10px" color="text.secondary" style={{ overflowWrap: 'anywhere' }}>Path: {inst.InstallPath}</Text>
+                            <Flex justify="space-between" fontSize="9px" color="text.muted" mt="1">
+                              <Text>Size: {inst.Size}</Text>
+                              <Text>Date: {inst.InstallDate}</Text>
+                            </Flex>
+                          </Box>
                         ))}
-                      </div>
-                    </div>
-                  </div>
+                      </Flex>
+                    </Box>
+                  </Flex>
                 )}
 
                 {/* 2. VERSIONS */}
                 {detailTab === 'versions' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ background: 'rgba(0,0,0,0.15)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.02)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span>Installed Version:</span>
-                        <strong style={{ fontFamily: 'var(--font-mono)' }}>{selectedPackage.Instances[0]?.InstalledVersion}</strong>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span>Latest Release:</span>
-                        <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-cyan)' }}>{selectedPackage.LatestVersion}</strong>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Release Date:</span>
-                        <span>{selectedPackage.ReleaseDate}</span>
-                      </div>
-                    </div>
+                  <Flex direction="column" gap="3">
+                    <Box bg="rgba(0,0,0,0.15)" p="3" borderRadius="6px" border="1px solid rgba(255,255,255,0.02)">
+                      <Flex justify="space-between" mb="2">
+                        <Text>Installed Version:</Text>
+                        <Text as="strong" fontFamily="mono">{selectedPackage.Instances[0]?.InstalledVersion}</Text>
+                      </Flex>
+                      <Flex justify="space-between" mb="2">
+                        <Text>Latest Release:</Text>
+                        <Text as="strong" fontFamily="mono" color="#06B6D4">{selectedPackage.LatestVersion}</Text>
+                      </Flex>
+                      <Flex justify="space-between">
+                        <Text>Release Date:</Text>
+                        <Text>{selectedPackage.ReleaseDate}</Text>
+                      </Flex>
+                    </Box>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.02)', paddingTop: '10px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Support Status:</span>
+                    <Flex direction="column" gap="2" borderTop="1px solid rgba(255,255,255,0.05)" pt="3">
+                      <Flex justify="space-between" align="center">
+                        <Text>Support Status:</Text>
                         <span className={`cyber-badge ${selectedPackage.SupportStatus.includes('Active') ? 'badge-green' : 'badge-pink'}`}>
                           {selectedPackage.SupportStatus}
                         </span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>EOL Date:</span>
-                        <span style={{ fontFamily: 'var(--font-mono)' }}>{selectedPackage.EOLDate}</span>
-                      </div>
-                    </div>
+                      </Flex>
+                      <Flex justify="space-between">
+                        <Text>EOL Date:</Text>
+                        <Text fontFamily="mono">{selectedPackage.EOLDate}</Text>
+                      </Flex>
+                    </Flex>
 
                     {selectedPackage.UpdateState === 'Update Available' && (
-                      <div style={{ marginTop: '8px', padding: '12px', background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: '6px' }}>
-                        <div style={{ fontWeight: 'bold', color: 'var(--color-orange)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <Box mt="2" p="3" bg="rgba(245,158,11,0.05)" border="1px solid rgba(245,158,11,0.15)" borderRadius="6px">
+                        <Flex align="center" gap="1.5" fontWeight="bold" color="warning" mb="1">
                           <AlertTriangle size={12} />
-                          <span>Version Drift Detected</span>
-                        </div>
-                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          <Text>Version Drift Detected</Text>
+                        </Flex>
+                        <Text fontSize="11px" color="text.secondary">
                           This machine is running an older build. Click actions tab to run an automated upgrade.
-                        </p>
-                      </div>
+                        </Text>
+                      </Box>
                     )}
-                  </div>
+                  </Flex>
                 )}
 
                 {/* 3. DEPENDENCIES */}
                 {detailTab === 'dependencies' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ fontWeight: 'bold', color: 'var(--text-secondary)' }}>Software Dependency Graph</div>
+                  <Flex direction="column" gap="3">
+                    <Text fontWeight="bold" color="text.secondary">Software Dependency Graph</Text>
                     
                     {selectedPackage.Dependencies.length === 0 ? (
-                      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '6px' }}>
+                      <Box p="6" textAlign="center" color="text.muted" border="1px dashed" borderColor="rgba(255,255,255,0.1)" borderRadius="6px">
                         No package manager dependency linkages defined.
-                      </div>
+                      </Box>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <Flex direction="column" gap="2">
                         {selectedPackage.Dependencies.map((dep, idx) => (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+                          <Flex key={idx} align="center" gap="2" p="2" bg="rgba(255,255,255,0.01)" border="1px solid rgba(255,255,255,0.03)" borderRadius="6px">
                             <span className={`cyber-badge ${dep.Relation.includes('Depends') ? 'badge-blue' : 'badge-pink'}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
                               {dep.Relation.toUpperCase()}
                             </span>
-                            <span style={{ fontWeight: 'bold' }}>{dep.PackageName}</span>
-                          </div>
+                            <Text fontWeight="bold">{dep.PackageName}</Text>
+                          </Flex>
                         ))}
-                      </div>
+                      </Flex>
                     )}
 
                     {selectedPackage.Name === 'Python' && (
-                      <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(236,72,153,0.04)', border: '1px solid rgba(236,72,153,0.1)', borderRadius: '6px', fontSize: '11px' }}>
-                        <div style={{ fontWeight: 'bold', color: 'var(--color-pink)', marginBottom: '4px' }}>Graph Topography Node Linkage:</div>
-                        <span>Removing this package breaks local environments. Gated warnings will trigger before uninstallation.</span>
-                      </div>
+                      <Box mt="3" p="3" bg="rgba(236,72,153,0.04)" border="1px solid rgba(236,72,153,0.1)" borderRadius="6px" fontSize="11px">
+                        <Text fontWeight="bold" color="danger" mb="1">Graph Topography Node Linkage:</Text>
+                        <Text>Removing this package breaks local environments. Gated warnings will trigger before uninstallation.</Text>
+                      </Box>
                     )}
-                  </div>
+                  </Flex>
                 )}
 
                 {/* 4. SECURITY */}
                 {detailTab === 'security' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    
+                  <Flex direction="column" gap="3">
                     {selectedPackage.Vulnerabilities.length === 0 ? (
-                      <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-green)', border: '1px dashed var(--color-green)', borderRadius: '6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                        <Check size={24} color="var(--color-green)" />
-                        <div style={{ fontWeight: 'bold' }}>No Known Vulnerabilities</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>0 CVE CVE-details matched during baseline sweep.</div>
-                      </div>
+                      <Flex p="8" textAlign="center" color="#16C784" border="1px dashed" borderColor="#16C784" borderRadius="6px" direction="column" align="center" gap="2">
+                        <Check size={24} color="#16C784" />
+                        <Text fontWeight="bold">No Known Vulnerabilities</Text>
+                        <Text fontSize="11px" color="text.muted">0 CVE CVE-details matched during baseline sweep.</Text>
+                      </Flex>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <Flex direction="column" gap="3">
                         {selectedPackage.Vulnerabilities.map((vuln, idx) => (
-                          <div key={idx} style={{ border: '1px solid rgba(236,72,153,0.2)', borderRadius: '6px', overflow: 'hidden' }}>
-                            <div style={{ background: 'rgba(236,72,153,0.05)', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <strong style={{ color: 'var(--color-pink)' }}>{vuln.CveId}</strong>
+                          <Box key={idx} border="1px solid rgba(236,72,153,0.2)" borderRadius="6px" overflow="hidden">
+                            <Flex bg="rgba(236,72,153,0.05)" p="2" px="3" justify="space-between" align="center">
+                              <Text as="strong" color="danger">{vuln.CveId}</Text>
                               <span className="cyber-badge badge-pink" style={{ fontSize: '9px' }}>CVSS {vuln.Cvss}</span>
-                            </div>
-                            <div style={{ padding: '10px 12px', color: 'var(--text-secondary)', lineHeight: '1.4', fontSize: '11px' }}>
+                            </Flex>
+                            <Box p="3" color="text.secondary" lineHeight="1.4" fontSize="11px">
                               {vuln.Description}
-                              <div style={{ marginTop: '8px' }}>
-                                <a href={vuln.AdvisoryUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--color-cyan)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Box mt="2">
+                                <a href={vuln.AdvisoryUrl} target="_blank" rel="noreferrer" style={{ color: '#06B6D4', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                   <span>Open Security Advisory</span>
                                   <ExternalLink size={10} />
                                 </a>
-                              </div>
-                            </div>
-                          </div>
+                              </Box>
+                            </Box>
+                          </Box>
                         ))}
-                      </div>
+                      </Flex>
                     )}
-                  </div>
+                  </Flex>
                 )}
 
                 {/* 5. HISTORY */}
                 {detailTab === 'history' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ fontWeight: 'bold', color: 'var(--text-secondary)' }}>Audit & Assessment Log</div>
+                  <Flex direction="column" gap="3">
+                    <Text fontWeight="bold" color="text.secondary">Audit & Assessment Log</Text>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderLeft: '1px solid rgba(255,255,255,0.05)', paddingLeft: '14px', marginLeft: '6px' }}>
-                      <div style={{ position: 'relative' }}>
-                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-green)', position: 'absolute', left: '-18px', top: '4px' }}></span>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>2026-06-05 15:00</div>
-                        <div style={{ fontWeight: 'bold' }}>Re-scanned & Validated</div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>Baseline verified by Get-InstalledSoftwareEvidence.</div>
-                      </div>
+                    <Flex direction="column" gap="4" borderLeft="1px solid rgba(255,255,255,0.05)" pl="4" ml="1.5">
+                      <Box position="relative">
+                        <Box w="2" h="2" borderRadius="full" bg="#16C784" position="absolute" left="-21px" top="4px" />
+                        <Text fontSize="11px" color="text.muted">2026-06-05 15:00</Text>
+                        <Text fontWeight="bold">Re-scanned & Validated</Text>
+                        <Text color="text.secondary" fontSize="11px">Baseline verified by Get-InstalledSoftwareEvidence.</Text>
+                      </Box>
 
-                      <div style={{ position: 'relative' }}>
-                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-cyan)', position: 'absolute', left: '-18px', top: '4px' }}></span>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>2025-05-10 10:15</div>
-                        <div style={{ fontWeight: 'bold' }}>Initial Package Installation</div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>First registered via package manager.</div>
-                      </div>
-                    </div>
-                  </div>
+                      <Box position="relative">
+                        <Box w="2" h="2" borderRadius="full" bg="#3B82F6" position="absolute" left="-21px" top="4px" />
+                        <Text fontSize="11px" color="text.muted">2025-05-10 10:15</Text>
+                        <Text fontWeight="bold">Initial Package Installation</Text>
+                        <Text color="text.secondary" fontSize="11px">First registered via package manager.</Text>
+                      </Box>
+                    </Flex>
+                  </Flex>
                 )}
 
                 {/* 6. ACTIONS */}
                 {detailTab === 'actions' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ fontWeight: 'bold', color: 'var(--text-secondary)' }}>Available Operations</div>
+                  <Flex direction="column" gap="4">
+                    <Text fontWeight="bold" color="text.secondary">Available Operations</Text>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <Flex direction="column" gap="2.5">
                       {selectedPackage.UpdateState === 'Update Available' && (
-                        <button className="cyber-btn cyber-btn-primary" style={{ width: '100%', padding: '12px' }} onClick={() => startSingleUpgrade(selectedPackage)}>
+                        <Button colorPalette="cyber" size="sm" py="5" onClick={() => startSingleUpgrade(selectedPackage)}>
                           <Wrench size={14} />
-                          <span>Upgrade to v{selectedPackage.LatestVersion}</span>
-                        </button>
+                          <Text as="span">Upgrade to v{selectedPackage.LatestVersion}</Text>
+                        </Button>
                       )}
 
-                      <button className="cyber-btn" style={{ width: '100%' }} onClick={() => {
+                      <Button variant="outline" size="sm" onClick={() => {
                         showToast(`Re-scan and validation command spawned for ${selectedPackage.Name}. Properties verified.`, 'info');
                       }}>
                         <Check size={14} />
-                        <span>Run Postcheck Verification</span>
-                      </button>
+                        <Text as="span">Run Postcheck Verification</Text>
+                      </Button>
 
-                      <button className="cyber-btn" style={{ width: '100%' }} onClick={() => {
+                      <Button variant="outline" size="sm" onClick={() => {
                         showToast(`Repair utility invoked for ${selectedPackage.Name}. Reinstalling config hashes.`, 'info');
                       }}>
                         <Settings size={14} />
-                        <span>Repair Configuration</span>
-                      </button>
+                        <Text as="span">Repair Configuration</Text>
+                      </Button>
 
-                      <button className="cyber-btn cyber-btn-danger" style={{ width: '100%', marginTop: '8px' }} onClick={() => startUninstall(selectedPackage)}>
+                      <Button colorPalette="red" size="sm" mt="2" onClick={() => startUninstall(selectedPackage)}>
                         <Trash2 size={14} />
-                        <span>Uninstall Software</span>
-                      </button>
-                    </div>
-                  </div>
+                        <Text as="span">Uninstall Software</Text>
+                      </Button>
+                    </Flex>
+                  </Flex>
                 )}
 
-              </div>
+              </Box>
 
-            </div>
+            </Flex>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px', color: 'var(--text-muted)', padding: '24px', textAlign: 'center' }}>
+            <Flex direction="column" align="center" justify="center" h="100%" gap="3" color="text.muted" p="6" textAlign="center">
               <Package size={36} color="rgba(255,255,255,0.05)" />
-              <div style={{ fontSize: '13px' }}>Select any software row to inspect package definitions, dependencies, CVE listings, and operations.</div>
-            </div>
+              <Text fontSize="13px">Select any software row to inspect package definitions, dependencies, CVE listings, and operations.</Text>
+            </Flex>
           )}
 
-        </div>
+        </Box>
 
-      </div>
+      </SimpleGrid>
 
       {/* 4. Wizard Overlay Dialog Modal for Upgrades & Uninstalls */}
       {activePlanType !== 'none' && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '24px' }}>
-          
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '650px', background: 'rgba(11,17,32,0.95)', border: '1px solid var(--border-color)', boxShadow: '0 0 30px rgba(6,182,212,0.2)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <Box
+          position="fixed"
+          top="0"
+          left="0"
+          width="100vw"
+          height="100vh"
+          zIndex="1400"
+          bg="rgba(0, 0, 0, 0.75)"
+          backdropFilter="blur(4px)"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Box
+            className="glass-panel"
+            bg="rgba(11,17,32,0.95)"
+            border="1px solid rgba(255,255,255,0.1)"
+            boxShadow="0 0 30px rgba(6,182,212,0.2)"
+            p="6"
+            display="flex"
+            flexDirection="column"
+            gap="5"
+            width="90%"
+            maxWidth="600px"
+            borderRadius="8px"
+          >
             
             {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-              <h2 className="panel-title" style={{ fontSize: '18px', color: 'var(--color-cyan)' }}>
+            <Flex justify="space-between" align="center" borderBottom="1px solid rgba(255,255,255,0.05)" pb="3">
+              <Heading className="panel-title" fontSize="18px" color="#06B6D4">
                 {activePlanType === 'upgrade' && `Upgrade Plan: ${selectedPackage?.Name}`}
                 {activePlanType === 'bulk-upgrade' && `Bulk Upgrade Planner`}
                 {activePlanType === 'uninstall' && `Uninstall Plan: ${selectedPackage?.Name}`}
-              </h2>
-              <button className="cyber-btn" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => { setActivePlanType('none'); setIsSimulating(false); }} disabled={isSimulating}>Close</button>
-            </div>
+              </Heading>
+              <Button size="xs" variant="outline" onClick={() => { setActivePlanType('none'); setIsSimulating(false); }} disabled={isSimulating}>Close</Button>
+            </Flex>
 
             {/* Dependency Warning dialog */}
             {activePlanType === 'uninstall' && conflictWarning && (
-              <div style={{ padding: '12px 16px', background: 'rgba(236,72,153,0.06)', border: '1px solid rgba(236,72,153,0.3)', borderRadius: '6px', fontSize: '12px' }}>
-                <div style={{ color: 'var(--color-pink)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <Box p="3" px="4" bg="rgba(236,72,153,0.06)" border="1px solid rgba(236,72,153,0.3)" borderRadius="6px" fontSize="12px">
+                <Flex color="danger" fontWeight="bold" align="center" gap="2" mb="1.5">
                   <AlertTriangle size={14} />
-                  <span>DEPENDENCY CONFLICT DETECTED</span>
-                </div>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  <Text>DEPENDENCY CONFLICT DETECTED</Text>
+                </Flex>
+                <Text color="text.secondary" mb="2">
                   Uninstalling <strong>{selectedPackage?.Name}</strong> will disrupt operation of dependent systems:
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-primary)' }}>
+                </Text>
+                <Flex direction="column" gap="1" fontFamily="mono" fontSize="11px" color="text.primary">
                   {conflictWarning.map((c, idx) => <div key={idx}>- {c}</div>)}
-                </div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '10px', marginTop: '8px' }}>
+                </Flex>
+                <Text color="text.muted" fontSize="10px" mt="2">
                   Proceeding will force-remove all dependents to maintain repository consistency.
-                </p>
-              </div>
+                </Text>
+              </Box>
             )}
 
             {/* Plan Specifications */}
             {!isSimulating && simulationStep === 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '12px', maxHeight: '280px', overflowY: 'auto' }}>
+              <Flex direction="column" gap="4" fontSize="12px" maxH="280px" overflowY="auto">
                 
                 {/* Proposed commands list */}
-                <div>
-                  <div style={{ fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>Proposed Actions Plan:</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                    {activePlanType === 'upgrade' && selectedPackage?.UpgradePlan.Plan.map((p, i) => <div key={i} style={{ color: 'var(--color-cyan)' }}>&gt; {p}</div>)}
+                <Box>
+                  <Text fontWeight="bold" color="text.secondary" mb="1.5">Proposed Actions Plan:</Text>
+                  <Box fontFamily="mono" bg="rgba(0,0,0,0.2)" p="3" borderRadius="4px" border="1px solid rgba(255,255,255,0.03)">
+                    {activePlanType === 'upgrade' && selectedPackage?.UpgradePlan.Plan.map((p, i) => <div key={i} style={{ color: '#06B6D4' }}>&gt; {p}</div>)}
                     {activePlanType === 'bulk-upgrade' && packages.filter(p => selectedNames.has(p.Name) && p.UpdateState === 'Update Available').map((p, idx) => (
-                      <div key={idx} style={{ color: 'var(--color-cyan)' }}>&gt; upgrade {p.Name} from {p.Instances[0]?.InstalledVersion} to {p.LatestVersion} via Winget</div>
+                      <div key={idx} style={{ color: '#06B6D4' }}>&gt; upgrade {p.Name} from {p.Instances[0]?.InstalledVersion} to {p.LatestVersion} via Winget</div>
                     ))}
-                    {activePlanType === 'uninstall' && selectedPackage?.UninstallPlan.Plan.map((p, i) => <div key={i} style={{ color: 'var(--color-pink)' }}>&gt; {p}</div>)}
-                  </div>
-                </div>
+                    {activePlanType === 'uninstall' && selectedPackage?.UninstallPlan.Plan.map((p, i) => <div key={i} style={{ color: '#EF4444' }}>&gt; {p}</div>)}
+                  </Box>
+                </Box>
 
                 {/* Risks list */}
-                <div>
-                  <div style={{ fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>Identified System Risks:</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', color: 'var(--text-secondary)' }}>
+                <Box>
+                  <Text fontWeight="bold" color="text.secondary" mb="1.5">Identified System Risks:</Text>
+                  <Flex direction="column" gap="1" color="text.secondary">
                     {activePlanType === 'upgrade' && selectedPackage?.UpgradePlan.Risks.map((p, i) => <div key={i}>• {p}</div>)}
                     {activePlanType === 'bulk-upgrade' && <div>• Concurrently restarting multiple application frameworks will affect temporary system ports availability.</div>}
                     {activePlanType === 'uninstall' && selectedPackage?.UninstallPlan.Risks.map((p, i) => <div key={i}>• {p}</div>)}
-                  </div>
-                </div>
+                  </Flex>
+                </Box>
 
                 {/* Rollback plans */}
-                <div>
-                  <div style={{ fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px' }}>Rollback Contingencies:</div>
-                  <div style={{ color: 'var(--text-muted)' }}>
+                <Box>
+                  <Text fontWeight="bold" color="text.secondary" mb="1.5">Rollback Contingencies:</Text>
+                  <Box color="text.muted">
                     {activePlanType === 'upgrade' && selectedPackage?.UpgradePlan.Rollback.map((p, i) => <div key={i}>• {p}</div>)}
                     {activePlanType === 'bulk-upgrade' && <div>• Standard backups of registry folders will be deployed if post-check validation tests report failures.</div>}
                     {activePlanType === 'uninstall' && selectedPackage?.UninstallPlan.Rollback.map((p, i) => <div key={i}>• {p}</div>)}
-                  </div>
-                </div>
+                  </Box>
+                </Box>
 
-              </div>
+              </Flex>
             )}
 
             {/* Console Log simulator pane */}
             {(isSimulating || simulationStep > 0 || activePlanType) && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Execution Terminal Output Log:</div>
-                <div style={{ 
-                  fontFamily: 'var(--font-mono)', 
-                  fontSize: '11px', 
-                  backgroundColor: '#02040a', 
-                  padding: '16px', 
-                  borderRadius: '6px', 
-                  height: '180px', 
-                  overflowY: 'auto',
-                  border: '1px solid var(--border-color)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px'
-                }}>
+              <Flex direction="column" gap="2">
+                <Text fontSize="11px" fontWeight="bold" color="text.secondary">Execution Terminal Output Log:</Text>
+                <Box 
+                  fontFamily="mono" 
+                  fontSize="11px" 
+                  bg="#02040a" 
+                  p="4" 
+                  borderRadius="6px" 
+                  h="180px" 
+                  overflowY="auto"
+                  border="1px solid rgba(255,255,255,0.1)"
+                  display="flex"
+                  flexDirection="column"
+                  gap="1"
+                >
                   {consoleLogs.map((log, idx) => {
                     const isErr = log.includes('[Error]') || log.includes('[Warning]');
                     const isSucc = log.includes('SUCCESS') || log.includes('stable') || log.includes('completed');
                     return (
-                      <div key={idx} style={{ color: isErr ? 'var(--color-pink)' : isSucc ? 'var(--color-green)' : 'var(--text-secondary)' }}>
+                      <div key={idx} style={{ color: isErr ? '#EF4444' : isSucc ? '#16C784' : 'rgba(255,255,255,0.7)' }}>
                         {log}
                       </div>
                     );
                   })}
                   {isSimulating && (
-                    <div style={{ color: 'var(--color-cyan)' }} className="pulse">
+                    <div style={{ color: '#06B6D4' }} className="pulse">
                       &gt; Executing task...
                     </div>
                   )}
-                </div>
-              </div>
+                </Box>
+              </Flex>
             )}
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
-              <button className="cyber-btn" onClick={() => { setActivePlanType('none'); setIsSimulating(false); }} disabled={isSimulating}>
+            <Flex gap="3" justify="flex-end" borderTop="1px solid rgba(255,255,255,0.05)" pt="4">
+              <Button variant="outline" onClick={() => { setActivePlanType('none'); setIsSimulating(false); }} disabled={isSimulating}>
                 Cancel
-              </button>
+              </Button>
               
               {!isSimulating && simulationStep === 0 && (
-                <button 
-                  className={`cyber-btn ${activePlanType === 'uninstall' ? 'cyber-btn-danger' : 'cyber-btn-primary'}`} 
+                <Button 
+                  colorPalette={activePlanType === 'uninstall' ? 'red' : 'cyber'}
                   onClick={() => {
                     setIsSimulating(true);
                     setSimulationStep(0);
                   }}
                 >
                   <Play size={12} />
-                  <span>Execute Approved Operations</span>
-                </button>
+                  <Text as="span">Execute Approved Operations</Text>
+                </Button>
               )}
-            </div>
+            </Flex>
 
-          </div>
-
-        </div>
+          </Box>
+        </Box>
       )}
 
-    </div>
+    </Flex>
   );
 };

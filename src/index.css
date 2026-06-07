@@ -808,79 +808,7 @@ html, body {
   box-shadow: 0 0 8px var(--primary-400);
 }
 
-/* Toast Notification Styles */
-.toast-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  z-index: 9999;
-  max-width: 400px;
-  width: 100%;
-}
 
-.toast-message {
-  padding: 16px;
-  border-radius: var(--radius-md);
-  box-shadow: var(--elevation-3);
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  animation: slideIn var(--motion-normal) var(--motion-easing);
-  border-left: 4px solid transparent;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(100px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.toast-success {
-  background-color: var(--neutral-900);
-  border-left-color: var(--success-500);
-  color: var(--neutral-50);
-}
-
-.toast-info {
-  background-color: var(--neutral-900);
-  border-left-color: var(--info-500);
-  color: var(--neutral-50);
-}
-
-.toast-warning {
-  background-color: var(--neutral-900);
-  border-left-color: var(--warning-500);
-  color: var(--neutral-50);
-}
-
-.toast-error {
-  background-color: var(--neutral-900);
-  border-left-color: var(--error-500);
-  color: var(--neutral-50);
-}
-
-.toast-close-btn {
-  background: transparent;
-  border: none;
-  color: var(--neutral-400);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 2px;
-  line-height: 1;
-}
-
-.toast-close-btn:hover {
-  color: var(--neutral-100);
-}
 
 /* Animations */
 @keyframes scan {
@@ -1015,52 +943,6 @@ html, body {
   box-shadow: 0 0 25px rgba(6, 182, 212, 0.1);
 }
 
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(2, 4, 10, 0.85);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-content {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  max-width: 650px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(6, 182, 212, 0.15);
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.modal-body {
-  padding: 24px;
-  flex: 1;
-  overflow-y: auto;
-}
-
-.modal-footer {
-  padding: 20px 24px;
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
 
 .wizard-steps {
   display: flex;

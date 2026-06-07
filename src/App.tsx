@@ -60,6 +60,18 @@ import {
   FileIcon
 } from './components/DesignSystemComponents';
 
+import {
+  Box,
+  Flex,
+  Heading,
+  Text,
+  Button,
+  Input,
+  Spinner,
+  VStack
+} from '@chakra-ui/react';
+import { DialogRoot, DialogContent, DialogHeader, DialogBody, DialogTitle } from './components/ui/dialog';
+import { Toaster, toaster } from './components/ui/toaster';
 
 // Graph Node Interface
 interface GraphNode {
@@ -81,6 +93,8 @@ interface RefreshAssessmentModalProps {
   daemonError: string;
   runDaemonScan: () => Promise<void>;
   checkDaemonStatus: () => Promise<void>;
+  isTauri?: boolean;
+  runTauriScan?: () => Promise<any>;
 }
 
 const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({ 
@@ -91,7 +105,9 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
   daemonPlatform,
   daemonError,
   runDaemonScan,
-  checkDaemonStatus
+  checkDaemonStatus,
+  isTauri = false,
+  runTauriScan
 }) => {
   // 0 = Live Mode Check, 1 = Legacy Download, 2 = Legacy Run, 3 = Legacy Import, 4 = Finish
   const [step, setStep] = useState<number>(0);
@@ -99,51 +115,12 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const modalRef = useRef<HTMLDivElement>(null);
-
   // Automatically sync scanning state to step
   useEffect(() => {
     if (daemonState === 'scanning' && step !== 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep(0);
     }
   }, [daemonState, step]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-      if (e.key === 'Tab' && modalRef.current) {
-        const focusables = modalRef.current.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex="0"]'
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0] as HTMLElement;
-        const last = focusables[focusables.length - 1] as HTMLElement;
-        
-        if (e.shiftKey) {
-          if (document.activeElement === first) {
-            last.focus();
-            e.preventDefault();
-          }
-        } else {
-          if (document.activeElement === last) {
-            first.focus();
-            e.preventDefault();
-          }
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    
-    setTimeout(() => {
-      const firstBtn = modalRef.current?.querySelector('button');
-      firstBtn?.focus();
-    }, 50);
-
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -195,7 +172,6 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
 
   const triggerScanAndTransit = () => {
     runDaemonScan().then(() => {
-      // onSuccess is handled by the parent App callback upon successful scan completion
       setStep(4);
     }).catch(() => {
       // error state set by parent
@@ -203,17 +179,19 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="refresh-modal-title">
-      <div className="modal-content" ref={modalRef} style={{ maxWidth: '640px' }}>
-        <div className="modal-header">
-          <h3 id="refresh-modal-title" style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
+    <DialogRoot open={true} onOpenChange={onClose} size="lg">
+      <DialogContent bg="bg.secondary" border="1px solid rgba(255,255,255,0.1)">
+        <DialogHeader display="flex" alignContent="center" justifyContent="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" py="4" px="6">
+          <DialogTitle id="refresh-modal-title" style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
             <RefreshCw size={16} className={(step === 3 && loading) || daemonState === 'scanning' ? "spin" : ""} />
             <span>Refresh System Assessment</span>
-          </h3>
-          <button className="cyber-btn" style={{ padding: '4px 8px', fontSize: '10px' }} onClick={onClose}>Close</button>
-        </div>
+          </DialogTitle>
+          <Button variant="outline" size="xs" onClick={onClose} border="1px solid rgba(255,255,255,0.2)">
+            Close
+          </Button>
+        </DialogHeader>
 
-        <div className="modal-body">
+        <DialogBody p="6">
           {/* Progress Bar */}
           <div className="wizard-steps">
             <div className={`wizard-step ${step === 0 ? 'active' : 'completed'}`}>
@@ -240,234 +218,276 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
 
           {/* Step Contents */}
           {step === 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {daemonState === 'connected' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '6px' }}>
-                    <span className="status-indicator pulse" style={{ width: '10px', height: '10px', backgroundColor: 'var(--color-green)' }}></span>
-                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-green)' }}>
-                      Local Daemon Connected (v{daemonVersion}) | OS: {daemonPlatform}
-                    </span>
-                  </div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
-                    Sentinel is connected to the endpoint background service. You can trigger a live, zero-friction system diagnostic scan without executing scripts or uploading files.
-                  </p>
-                  <button 
-                    className="cyber-btn cyber-btn-primary" 
-                    style={{ textDecoration: 'none', color: '#060913', fontWeight: 'bold', padding: '12px', marginTop: '8px', textAlign: 'center', justifyContent: 'center' }}
-                    onClick={triggerScanAndTransit}
+            <Flex direction="column" gap="4">
+              {isTauri ? (
+                <Flex direction="column" gap="3">
+                  <Flex align="center" gap="2" p="3" bg="rgba(6,182,212,0.05)" border="1px solid rgba(6,182,212,0.2)" borderRadius="6px">
+                    <span className="status-indicator pulse" style={{ width: '10px', height: '10px', backgroundColor: 'var(--color-cyan)' }}></span>
+                    <Text fontSize="13px" fontWeight="bold" color="cyan">
+                      Tauri Native Workstation Agent Active
+                    </Text>
+                  </Flex>
+                  <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
+                    Sentinel is running as a native desktop application. You can trigger an instant, direct scan of this machine without any scripts, daemons, or uploads.
+                  </Text>
+                  <Button 
+                    colorPalette="cyber"
+                    onClick={() => {
+                      if (runTauriScan) {
+                        runTauriScan().then((data) => {
+                          if (data) {
+                            onSuccess(data);
+                            setStep(4);
+                          }
+                        });
+                      }
+                    }}
+                    fontWeight="bold"
+                    py="6"
+                    mt="2"
                   >
-                    <span>Run Telemetry Scan</span>
-                  </button>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-                    <button className="cyber-btn" onClick={() => setStep(3)}>Manual Legacy Upload</button>
-                  </div>
-                </div>
-              )}
-
-              {daemonState === 'scanning' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center', padding: '20px 0' }}>
-                  <RefreshCw size={40} className="spin" color="var(--color-cyan)" />
-                  <h4 style={{ fontWeight: 'bold', fontSize: '16px', color: 'var(--color-cyan)' }}>Harvesting Live Telemetry</h4>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6', maxWidth: '400px' }}>
-                    Querying local system instrumentation metrics, CPU loads, storage limits, and active software registries. Please stand by...
-                  </p>
-                </div>
-              )}
-
-              {daemonState === 'upgrade-required' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '6px' }}>
-                    <span className="status-indicator pulse" style={{ width: '10px', height: '10px', backgroundColor: 'var(--color-orange)' }}></span>
-                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-orange)' }}>
-                      Daemon Upgrade Required (v{daemonVersion})
-                    </span>
-                  </div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
-                    The daemon running on your host is outdated. Version v1.0.0 or higher is required to support the V1 live scanning framework.
-                  </p>
-                  <a 
-                    href="/Invoke-EIIPAssessment.ps1" 
-                    download="Invoke-EIIPAssessment.ps1"
-                    className="cyber-btn cyber-btn-primary"
-                    style={{ textDecoration: 'none', color: '#060913', fontWeight: 'bold', padding: '12px', marginTop: '8px', textAlign: 'center' }}
-                    onClick={() => setStep(1)}
-                  >
-                    <span>Download Latest Daemon Pack</span>
-                  </a>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
-                    <button className="cyber-btn" onClick={checkDaemonStatus}>Retry Connection</button>
-                    <button className="cyber-btn" onClick={() => setStep(3)}>Manual Legacy Upload</button>
-                  </div>
-                </div>
-              )}
-
-              {daemonState === 'error' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px' }}>
-                    <span className="status-indicator" style={{ width: '10px', height: '10px', backgroundColor: 'var(--color-pink)' }}></span>
-                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-pink)' }}>
-                      Daemon Error: {daemonError || 'Permission Denied'}
-                    </span>
-                  </div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
-                    The background daemon reported an issue or lacked administrator permissions to query system hardware components.
-                  </p>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                    <button 
-                      className="cyber-btn cyber-btn-primary" 
-                      style={{ flex: 1, color: '#060913', fontWeight: 'bold', padding: '12px' }}
-                      onClick={triggerScanAndTransit}
-                    >
-                      Retry Live Scan
-                    </button>
-                    <button 
-                      className="cyber-btn" 
-                      style={{ flex: 1, padding: '12px' }}
-                      onClick={checkDaemonStatus}
-                    >
-                      Reconnect Daemon
-                    </button>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-                    <button className="cyber-btn" onClick={() => setStep(3)}>Manual Legacy Upload</button>
-                  </div>
-                </div>
-              )}
-
-              {daemonState === 'disconnected' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
-                    <span className="status-indicator" style={{ width: '10px', height: '10px', backgroundColor: 'var(--text-muted)' }}></span>
-                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-                      Sentinel Local Collector Offline
-                    </span>
-                  </div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
-                    To unlock live assessments and bypass script execution & upload procedures, install the **Sentinel background daemon service** on your local endpoint.
-                  </p>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
-                    <button 
-                      className="cyber-btn cyber-btn-primary" 
-                      style={{ color: '#060913', fontWeight: 'bold', padding: '12px', justifyContent: 'center' }} 
-                      onClick={() => setStep(1)}
-                    >
-                      Download Daemon Installation Pack
-                    </button>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button 
-                        className="cyber-btn" 
-                        style={{ flex: 1, padding: '10px' }}
-                        onClick={checkDaemonStatus}
+                    Run Native Workstation Scan
+                  </Button>
+                </Flex>
+              ) : (
+                <Flex direction="column" gap="4">
+                  {daemonState === 'connected' && (
+                    <Flex direction="column" gap="3">
+                      <Flex align="center" gap="2" p="3" bg="rgba(16,185,129,0.05)" border="1px solid rgba(16,185,129,0.2)" borderRadius="6px">
+                        <span className="status-indicator pulse" style={{ width: '10px', height: '10px', backgroundColor: 'var(--color-green)' }}></span>
+                        <Text fontSize="13px" fontWeight="bold" color="success">
+                          Local Daemon Connected (v{daemonVersion}) | OS: {daemonPlatform}
+                        </Text>
+                      </Flex>
+                      <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
+                        Sentinel is connected to the endpoint background service. You can trigger a live, zero-friction system diagnostic scan without executing scripts or uploading files.
+                      </Text>
+                      <Button 
+                        colorPalette="cyber"
+                        onClick={triggerScanAndTransit}
+                        fontWeight="bold"
+                        py="6"
+                        mt="2"
                       >
-                        Retry Connection
-                      </button>
-                      <button 
-                        className="cyber-btn" 
-                        style={{ flex: 1, padding: '10px' }}
-                        onClick={() => setStep(3)}
+                        Run Telemetry Scan
+                      </Button>
+                      <Flex justify="flex-end" mt="3">
+                        <Button variant="outline" size="sm" onClick={() => setStep(3)}>Manual Legacy Upload</Button>
+                      </Flex>
+                    </Flex>
+                  )}
+
+                  {daemonState === 'scanning' && (
+                    <Flex direction="column" gap="4" align="center" textAlign="center" py="5">
+                      <Spinner size="xl" color="cyan" />
+                      <Heading as="h4" fontWeight="bold" fontSize="16px" color="cyan">Harvesting Live Telemetry</Heading>
+                      <Text color="text.secondary" fontSize="13px" lineHeight="1.6" maxW="400px">
+                        Querying local system instrumentation metrics, CPU loads, storage limits, and active software registries. Please stand by...
+                      </Text>
+                    </Flex>
+                  )}
+
+                  {daemonState === 'upgrade-required' && (
+                    <Flex direction="column" gap="3">
+                      <Flex align="center" gap="2" p="3" bg="rgba(245,158,11,0.05)" border="1px solid rgba(245,158,11,0.2)" borderRadius="6px">
+                        <span className="status-indicator pulse" style={{ width: '10px', height: '10px', backgroundColor: 'var(--color-orange)' }}></span>
+                        <Text fontSize="13px" fontWeight="bold" color="orange">
+                          Daemon Upgrade Required (v{daemonVersion})
+                        </Text>
+                      </Flex>
+                      <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
+                        The daemon running on your host is outdated. Version v1.0.0 or higher is required to support the V1 live scanning framework.
+                      </Text>
+                      <Button
+                        colorPalette="cyber"
+                        fontWeight="bold"
+                        py="6"
+                        mt="2"
+                        asChild
                       >
-                        Manual Legacy Upload
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                        <a href="/Invoke-EIIPAssessment.ps1" download="Invoke-EIIPAssessment.ps1" onClick={() => setStep(1)} style={{ textDecoration: 'none', color: '#060913', display: 'flex', width: '100%', justifyContent: 'center' }}>
+                          Download Latest Daemon Pack
+                        </a>
+                      </Button>
+                      <Flex justify="space-between" mt="3">
+                        <Button variant="outline" size="sm" onClick={checkDaemonStatus}>Retry Connection</Button>
+                        <Button variant="outline" size="sm" onClick={() => setStep(3)}>Manual Legacy Upload</Button>
+                      </Flex>
+                    </Flex>
+                  )}
+
+                  {daemonState === 'error' && (
+                    <Flex direction="column" gap="3">
+                      <Flex align="center" gap="2" p="3" bg="rgba(239,68,68,0.05)" border="1px solid rgba(239,68,68,0.2)" borderRadius="6px">
+                        <span className="status-indicator" style={{ width: '10px', height: '10px', backgroundColor: 'var(--color-pink)' }}></span>
+                        <Text fontSize="13px" fontWeight="bold" color="danger">
+                          Daemon Error: {daemonError || 'Permission Denied'}
+                        </Text>
+                      </Flex>
+                      <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
+                        The background daemon reported an issue or lacked administrator permissions to query system hardware components.
+                      </Text>
+                      <Flex gap="3" mt="2">
+                        <Button 
+                          colorPalette="cyber" 
+                          flex="1"
+                          fontWeight="bold"
+                          py="6"
+                          onClick={triggerScanAndTransit}
+                        >
+                          Retry Live Scan
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          flex="1"
+                          py="6"
+                          onClick={checkDaemonStatus}
+                        >
+                          Reconnect Daemon
+                        </Button>
+                      </Flex>
+                      <Flex justify="flex-end" mt="3">
+                        <Button variant="outline" size="sm" onClick={() => setStep(3)}>Manual Legacy Upload</Button>
+                      </Flex>
+                    </Flex>
+                  )}
+
+                  {daemonState === 'disconnected' && (
+                    <Flex direction="column" gap="3">
+                      <Flex align="center" gap="2" p="3" bg="rgba(255,255,255,0.05)" border="1px solid rgba(255,255,255,0.1)" borderRadius="6px">
+                        <span className="status-indicator" style={{ width: '10px', height: '10px', backgroundColor: 'var(--text-muted)' }}></span>
+                        <Text fontSize="13px" fontWeight="bold" color="text.secondary">
+                          Sentinel Local Collector Offline
+                        </Text>
+                      </Flex>
+                      <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
+                        To unlock live assessments and bypass script execution & upload procedures, install the **Sentinel background daemon service** on your local endpoint.
+                      </Text>
+                      
+                      <Flex direction="column" gap="3" mt="2">
+                        <Button 
+                          colorPalette="cyber"
+                          fontWeight="bold" 
+                          py="6"
+                          onClick={() => setStep(1)}
+                        >
+                          Download Daemon Installation Pack
+                        </Button>
+                        <Flex gap="3">
+                          <Button 
+                            variant="outline" 
+                            flex="1" 
+                            onClick={checkDaemonStatus}
+                          >
+                            Retry Connection
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            flex="1" 
+                            onClick={() => setStep(3)}
+                          >
+                            Manual Legacy Upload
+                          </Button>
+                        </Flex>
+                      </Flex>
+                    </Flex>
+                  )}
+                </Flex>
               )}
-            </div>
+            </Flex>
           )}
 
           {step === 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h4 style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: 'var(--color-cyan)' }}>Step 1: Download the Assessment Collector</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
+            <Flex direction="column" gap="4">
+              <Heading as="h4" fontWeight="bold" fontSize="14px" textTransform="uppercase" color="cyan">Step 1: Download the Assessment Collector</Heading>
+              <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
                 To gather the latest evidence from your local system, download the PowerShell collector script or daemon source.
-              </p>
-              <div style={{ background: 'rgba(0,0,0,0.15)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '12px' }}>
-                <strong style={{ color: 'var(--text-primary)' }}>Bundle Contents:</strong>
-                <ul style={{ listStyleType: 'disc', paddingLeft: '20px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px', color: 'var(--text-secondary)' }}>
-                  <li>CIM evidence gathering methods (Disks, Memory, CPU, Security)</li>
-                  <li>Automatic deduplication & risk rating algorithms</li>
-                  <li>Local execution reporting output (Assessment.json)</li>
-                </ul>
-              </div>
-              <a 
-                href="/Invoke-EIIPAssessment.ps1" 
-                download="Invoke-EIIPAssessment.ps1"
-                className="cyber-btn cyber-btn-primary"
-                style={{ textDecoration: 'none', color: '#060913', fontWeight: 'bold', padding: '12px', marginTop: '8px', textAlign: 'center' }}
-                onClick={() => setStep(2)}
+              </Text>
+              <Box bg="rgba(0,0,0,0.15)" p="4" borderRadius="8px" border="1px solid rgba(255,255,255,0.1)" fontSize="12px">
+                <Text as="strong" color="text.primary">Bundle Contents:</Text>
+                <VStack align="stretch" gap="1" mt="2" pl="4" as="ul" style={{ listStyleType: 'disc' }} color="text.secondary">
+                  <Text as="li">CIM evidence gathering methods (Disks, Memory, CPU, Security)</Text>
+                  <Text as="li">Automatic deduplication & risk rating algorithms</Text>
+                  <Text as="li">Local execution reporting output (Assessment.json)</Text>
+                </VStack>
+              </Box>
+              <Button 
+                colorPalette="cyber"
+                fontWeight="bold"
+                py="6"
+                mt="2"
+                asChild
               >
-                <span>Download Collector Script</span>
-              </a>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
-                <button className="cyber-btn" onClick={() => setStep(0)}>Back to Live Mode</button>
-              </div>
-            </div>
+                <a href="/Invoke-EIIPAssessment.ps1" download="Invoke-EIIPAssessment.ps1" onClick={() => setStep(2)} style={{ textDecoration: 'none', color: '#060913', display: 'flex', width: '100%', justifyContent: 'center' }}>
+                  Download Collector Script
+                </a>
+              </Button>
+              <Flex justify="space-between" mt="3">
+                <Button variant="outline" size="sm" onClick={() => setStep(0)}>Back to Live Mode</Button>
+              </Flex>
+            </Flex>
           )}
 
           {step === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h4 style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: 'var(--color-cyan)' }}>Step 2: Run the Collector on your Host</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
+            <Flex direction="column" gap="4">
+              <Heading as="h4" fontWeight="bold" fontSize="14px" textTransform="uppercase" color="cyan">Step 2: Run the Collector on your Host</Heading>
+              <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
                 Open an elevated PowerShell session (Run as Administrator) and execute the downloaded script:
-              </p>
-              <div style={{
-                background: 'rgba(2, 4, 10, 0.95)',
-                padding: '12px 16px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '11px',
-                color: 'var(--color-cyan)',
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px'
-              }}>
-                <span style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>powershell -ExecutionPolicy Bypass -File .\Invoke-EIIPAssessment.ps1</span>
-                <button 
-                  className="cyber-btn" 
-                  style={{ padding: '4px 8px', fontSize: '10px', flexShrink: 0 }}
+              </Text>
+              <Flex
+                bg="rgba(2, 4, 10, 0.95)"
+                p="3"
+                borderRadius="6px"
+                border="1px solid rgba(255,255,255,0.1)"
+                fontFamily="mono"
+                fontSize="11px"
+                color="cyan"
+                align="center"
+                justify="space-between"
+                gap="3"
+              >
+                <Box overflowX="auto" whiteSpace="nowrap">powershell -ExecutionPolicy Bypass -File .\Invoke-EIIPAssessment.ps1</Box>
+                <Button 
+                  variant="outline" 
+                  size="xs" 
+                  flexShrink="0"
                   onClick={() => {
                     navigator.clipboard.writeText("powershell -ExecutionPolicy Bypass -File .\\Invoke-EIIPAssessment.ps1");
                   }}
                 >
                   Copy
-                </button>
-              </div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                </Button>
+              </Flex>
+              <Text color="text.muted" fontSize="11px">
                 This script will run read-only CIM diagnostics. It will generate a file named <code>Assessment.json</code> in the execution folder.
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
-                <button className="cyber-btn" onClick={() => setStep(1)}>Back</button>
-                <button className="cyber-btn cyber-btn-primary" style={{ color: '#060913', fontWeight: 'bold' }} onClick={() => setStep(3)}>Next: Import File</button>
-              </div>
-            </div>
+              </Text>
+              <Flex justify="space-between" mt="3">
+                <Button variant="outline" size="sm" onClick={() => setStep(1)}>Back</Button>
+                <Button colorPalette="cyber" size="sm" fontWeight="bold" onClick={() => setStep(3)}>Next: Import File</Button>
+              </Flex>
+            </Flex>
           )}
 
           {step === 3 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h4 style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', color: 'var(--color-cyan)' }}>Step 3: Import the Generated Assessment.json</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6' }}>
+            <Flex direction="column" gap="4">
+              <Heading as="h4" fontWeight="bold" fontSize="14px" textTransform="uppercase" color="cyan">Step 3: Import the Generated Assessment.json</Heading>
+              <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
                 Select or drag-and-drop the generated <code>Assessment.json</code> file below to replace the system assessment state.
-              </p>
+              </Text>
 
-              <div 
+              <Box 
                 onDragEnter={handleDrag}
                 onDragOver={handleDrag}
                 onDragLeave={handleDrag}
                 onDrop={handleDrop}
-                style={{
-                  border: dragActive ? '2px dashed var(--color-cyan)' : '2px dashed var(--border-color)',
-                  borderRadius: '8px',
-                  padding: '40px 20px',
-                  textAlign: 'center',
-                  background: dragActive ? 'rgba(6,182,212,0.03)' : 'rgba(255,255,255,0.01)',
-                  cursor: 'pointer',
-                  position: 'relative'
-                }}
+                border={dragActive ? '2px dashed #06B6D4' : '2px dashed rgba(255,255,255,0.15)'}
+                borderRadius="8px"
+                py="10"
+                px="5"
+                textAlign="center"
+                bg={dragActive ? 'rgba(6,182,212,0.03)' : 'rgba(255,255,255,0.01)'}
+                cursor="pointer"
+                position="relative"
               >
                 <input 
                   type="file"
@@ -480,55 +500,55 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
                   }}
                 />
                 <Globe size={32} color={dragActive ? "var(--color-cyan)" : "var(--text-muted)"} style={{ marginBottom: '12px', display: 'inline-block' }} />
-                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                <Text fontSize="14px" fontWeight="bold">
                   {loading ? "Parsing assessment..." : "Drag & Drop Assessment.json here"}
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                </Text>
+                <Text fontSize="11px" color="text.muted" mt="1">
                   or click to select file from disk
-                </div>
-              </div>
+                </Text>
+              </Box>
 
               {uploadError && (
-                <div style={{ color: 'var(--color-pink)', fontSize: '12px', background: 'rgba(236,72,153,0.05)', border: '1px solid rgba(236,72,153,0.15)', padding: '10px 14px', borderRadius: '6px' }}>
+                <Box color="danger" fontSize="12px" bg="rgba(239,68,68,0.05)" border="1px solid rgba(239,68,68,0.15)" p="3" borderRadius="6px">
                   {uploadError}
-                </div>
+                </Box>
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
-                <button className="cyber-btn" onClick={() => setStep(0)}>Back to Live Mode</button>
-              </div>
-            </div>
+              <Flex justify="space-between" mt="3">
+                <Button variant="outline" size="sm" onClick={() => setStep(0)}>Back to Live Mode</Button>
+              </Flex>
+            </Flex>
           )}
 
           {step === 4 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center', padding: '20px 0' }}>
-              <div style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '50%',
-                background: 'rgba(16,185,129,0.1)',
-                border: '2px solid var(--color-green)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--color-green)',
-                fontSize: '28px',
-                marginBottom: '12px'
-              }}>
+            <Flex direction="column" gap="4" align="center" textAlign="center" py="5">
+              <Box
+                w="60px"
+                h="60px"
+                borderRadius="50%"
+                bg="rgba(16,185,129,0.1)"
+                border="2px solid #16C784"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                color="#16C784"
+                fontSize="28px"
+                mb="3"
+              >
                 ✓
-              </div>
-              <h4 style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-green)' }}>Assessment Refreshed Successfully</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6', maxWidth: '400px' }}>
+              </Box>
+              <Heading as="h4" fontWeight="bold" fontSize="18px" color="success">Assessment Refreshed Successfully</Heading>
+              <Text color="text.secondary" fontSize="13px" lineHeight="1.6" maxW="400px">
                 All views, dependency graphs, findings tables, and status meters have been refreshed with the latest telemetry.
-              </p>
-              <button className="cyber-btn cyber-btn-primary" style={{ color: '#060913', fontWeight: 'bold', marginTop: '12px', padding: '10px 24px' }} onClick={onClose}>
+              </Text>
+              <Button colorPalette="cyber" fontWeight="bold" mt="3" px="6" onClick={onClose}>
                 Finish & View Dashboard
-              </button>
-            </div>
+              </Button>
+            </Flex>
           )}
-        </div>
-      </div>
-    </div>
+        </DialogBody>
+      </DialogContent>
+    </DialogRoot>
   );
 };
 
@@ -551,24 +571,12 @@ function App() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // --- Toast Notification System ---
-  interface Toast {
-    id: string;
-    message: string;
-    type: 'success' | 'info' | 'warning' | 'error';
-  }
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  
   const showToast = useCallback((message: string, type: 'success' | 'info' | 'warning' | 'error') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts(prev => [...prev, { id, message, type }]);
-    const duration = type === 'success' ? 4000 : type === 'info' ? 5000 : type === 'warning' ? 6000 : 8000;
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, duration);
-  }, []);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
+    toaster.create({
+      description: message,
+      type: type,
+      duration: type === 'success' ? 4000 : type === 'info' ? 5000 : type === 'warning' ? 6000 : 8000
+    });
   }, []);
 
   // --- Keyboard Shortcuts ---
@@ -832,6 +840,64 @@ function App() {
     } catch {
       setDaemonState('disconnected');
       showToast('Local collector daemon not detected.', 'error');
+    }
+  };
+
+  const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
+
+  const runTauriScan = async () => {
+    setLogLines(prev => [...prev, '[Info] Connecting to Tauri IPC bridge...']);
+    setLogLines(prev => [...prev, '[Info] Executing native WMI, registry, and package manager scan...']);
+    try {
+      const invoke = (window as any).__TAURI__.invoke;
+      const parsedData = await invoke('run_system_scan');
+      
+      hasUploadedRef.current = true;
+      if (parsedData.Machine) setEnvData(parsedData.Machine);
+      if (parsedData.Findings) {
+        const sanitized = parsedData.Findings.map((f: any) => ({
+          FindingId: f.FindingId || '',
+          Category: f.Category || '',
+          Domain: f.Domain || '',
+          Severity: f.Severity || 'Low',
+          Confidence: f.Confidence || 'Medium',
+          Priority: typeof f.Priority === 'number' ? f.Priority : 5,
+          Title: f.Title || '',
+          Description: f.Description || '',
+          Evidence: Array.isArray(f.Evidence) ? f.Evidence : [],
+          Impact: f.Impact || '',
+          BusinessRisk: f.BusinessRisk || '',
+          RootCauseHypothesis: f.RootCauseHypothesis || '',
+          RecommendedRemediation: f.RecommendedRemediation || '',
+          EstimatedEffort: f.EstimatedEffort || 'Medium',
+          VerificationMethod: f.VerificationMethod || '',
+          CreatedOn: f.CreatedOn || new Date().toISOString(),
+        }));
+        setFindingsData(sanitized);
+      }
+      if (parsedData.HealthScore) setHealthScoreData(parsedData.HealthScore);
+      if (parsedData.RiskMatrix) setRiskMatrixData(parsedData.RiskMatrix);
+      if (parsedData.CapacityForecast) setCapacityForecastData(parsedData.CapacityForecast);
+      if (parsedData.RawEvidence) setRawEvidenceData(parsedData.RawEvidence);
+      if (parsedData.Software) setActiveAssessmentSoftware(parsedData.Software);
+      if (parsedData.completedRemediations) setCompletedRemediations(parsedData.completedRemediations);
+      else setCompletedRemediations({});
+      
+      const newId = parsedData.AssessmentId || crypto.randomUUID();
+      setActiveAssessmentId(newId);
+
+      await saveAssessment(parsedData);
+      const hist = await getHistoricalAssessments();
+      setHistoryData(hist);
+      
+      setLastRefresh(new Date());
+      setLogLines(prev => [...prev, `[Info] Successfully harvested native workstation state via Tauri.`]);
+      showToast('Workstation scan completed successfully!', 'success');
+      return parsedData;
+    } catch (err: any) {
+      setLogLines(prev => [...prev, `[Error] Tauri native scan failed: ${err.message || String(err)}`]);
+      showToast('Tauri native scan failed', 'error');
+      throw err;
     }
   };
 
@@ -1940,7 +2006,7 @@ ${capacityInfo}
         <div style={{ padding: '12px 16px 4px 16px' }}>
           <div style={{ position: 'relative' }}>
             <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
-            <input 
+            <Input 
               type="text" 
               className="cyber-input" 
               placeholder="Search navigation..." 
@@ -2138,7 +2204,7 @@ ${capacityInfo}
           {/* Global Search Bar */}
           <div style={{ position: 'relative', width: '280px' }}>
             <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
-            <input 
+            <Input 
               type="text" 
               className="cyber-input" 
               placeholder="Search findings globally..." 
@@ -3787,7 +3853,7 @@ ${capacityInfo}
                       setChatInput('');
                     }} style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span className="terminal-prompt" style={{ color: 'var(--color-cyan)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>sentinel@copilot:~#</span>
-                      <input
+                      <Input
                         type="text"
                         className="terminal-input"
                         placeholder="Type a query or /help..."
@@ -3960,6 +4026,8 @@ ${capacityInfo}
         daemonError={daemonError}
         runDaemonScan={runDaemonScan}
         checkDaemonStatus={checkDaemonStatusManual}
+        isTauri={isTauri}
+        runTauriScan={runTauriScan}
         onSuccess={(parsedData) => {
           hasUploadedRef.current = true;
           if (parsedData.Machine) setEnvData(parsedData.Machine);
@@ -4022,89 +4090,65 @@ ${capacityInfo}
     )}
 
     {isExportWarningOpen && (
-      <div className="modal-overlay" onClick={() => setIsExportWarningOpen(false)}>
-        <div 
-          className="glass-panel" 
-          style={{ 
-            width: '100%', 
-            maxWidth: '520px', 
-            padding: '28px', 
-            border: '1px solid var(--error-500)', 
-            boxShadow: '0 0 25px rgba(239, 68, 68, 0.15)',
-            background: 'var(--bg-secondary)',
-            margin: '20px'
-          }} 
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="panel-header" style={{ borderBottomColor: 'rgba(239, 68, 68, 0.15)', paddingBottom: '16px', marginBottom: '20px' }}>
-            <h2 className="panel-title" style={{ color: 'var(--color-pink)' }}>
-              <AlertTriangle size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+      <DialogRoot open={true} onOpenChange={() => setIsExportWarningOpen(false)} size="md">
+        <DialogContent bg="bg.secondary" border="1px solid var(--error-500)" boxShadow="0 0 25px rgba(239, 68, 68, 0.15)">
+          <DialogHeader display="flex" alignContent="center" justifyContent="space-between" borderBottom="1px solid rgba(239, 68, 68, 0.15)" py="4" px="6">
+            <DialogTitle style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: 'var(--color-pink)' }}>
+              <AlertTriangle size={18} />
               Sensitive Data & Privacy Warning
-            </h2>
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
-            <p>
-              You are about to export an <strong>AI Diagnostics Review Package</strong> (<code>MachineReviewPackage.zip</code>).
-            </p>
-            <p>
-              This archive contains comprehensive host configuration metadata, including:
-            </p>
-            <ul style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <li>• Complete environment inventory & system name details</li>
-              <li>• System health scores, priorities, and technical findings</li>
-              <li>• Host software catalog (including potential vulnerabilities)</li>
-              <li>• Topology structure graph and dependency relationships</li>
-              <li>• Local raw evidence files and custom execution logs</li>
-            </ul>
-            <p style={{ marginTop: '6px', color: 'var(--text-primary)', fontWeight: 500 }}>
-              IMPORTANT SECURITY GUIDANCE:
-            </p>
-            <div style={{ background: 'rgba(239, 68, 68, 0.03)', border: '1px solid rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: '6px', fontSize: '12px' }}>
-              If you plan to paste these contents or upload this package to third-party Large Language Models (LLMs) or AI assistants for diagnostic analysis, ensure that no sensitive company secrets, hardcoded credentials, API keys, or personally identifiable information (PII) are present.
+            </DialogTitle>
+          </DialogHeader>
+          <DialogBody p="6">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
+              <p>
+                You are about to export an <strong>AI Diagnostics Review Package</strong> (<code>MachineReviewPackage.zip</code>).
+              </p>
+              <p>
+                This archive contains comprehensive host configuration metadata, including:
+              </p>
+              <ul style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <li>• Complete environment inventory & system name details</li>
+                <li>• System health scores, priorities, and technical findings</li>
+                <li>• Host software catalog (including potential vulnerabilities)</li>
+                <li>• Topology structure graph and dependency relationships</li>
+                <li>• Local raw evidence files and custom execution logs</li>
+              </ul>
+              <p style={{ marginTop: '6px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                IMPORTANT SECURITY GUIDANCE:
+              </p>
+              <div style={{ background: 'rgba(239, 68, 68, 0.03)', border: '1px solid rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: '6px', fontSize: '12px' }}>
+                If you plan to paste these contents or upload this package to third-party Large Language Models (LLMs) or AI assistants for diagnostic analysis, ensure that no sensitive company secrets, hardcoded credentials, API keys, or personally identifiable information (PII) are present.
+              </div>
             </div>
-          </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '28px', borderTop: '1px solid var(--neutral-800)', paddingTop: '16px' }}>
-            <button 
-              className="cyber-btn" 
-              style={{ fontSize: '12px', padding: '8px 16px' }}
-              onClick={() => setIsExportWarningOpen(false)}
-            >
-              Cancel
-            </button>
-            <button 
-              className="cyber-btn cyber-btn-danger" 
-              style={{ 
-                fontSize: '12px', 
-                padding: '8px 20px', 
-                fontWeight: 'bold', 
-                backgroundColor: 'var(--error-500)', 
-                borderColor: 'var(--error-700)',
-                color: 'white'
-              }}
-              onClick={() => {
-                setIsExportWarningOpen(false);
-                handleExportPackage();
-              }}
-            >
-              <Package size={14} style={{ marginRight: '6px' }} />
-              Acknowledge & Export
-            </button>
-          </div>
-        </div>
-      </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '28px', borderTop: '1px solid var(--neutral-800)', paddingTop: '16px' }}>
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => setIsExportWarningOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                colorPalette="red"
+                size="sm"
+                fontWeight="bold" 
+                onClick={() => {
+                  setIsExportWarningOpen(false);
+                  handleExportPackage();
+                }}
+              >
+                <Package size={14} />
+                Acknowledge & Export
+              </Button>
+            </div>
+          </DialogBody>
+        </DialogContent>
+      </DialogRoot>
     )}
 
     {/* Toast Container Stack */}
-    <div className="toast-container" role="log" aria-live="polite">
-      {toasts.map(toast => (
-        <div key={toast.id} className={`toast-message toast-${toast.type}`} role="status">
-          <span>{toast.message}</span>
-          <button className="toast-close-btn" onClick={() => removeToast(toast.id)} aria-label="Close notification">×</button>
-        </div>
-      ))}
-    </div>
+    <Toaster />
   </div>
   );
 }

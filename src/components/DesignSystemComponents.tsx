@@ -4,9 +4,10 @@ import {
   AlertTriangle
 } from '../utils/icons';
 import type { HistoricalAssessment } from '../utils/mockData';
+import { Badge, Box, Flex, Text, Heading, VStack, SimpleGrid, Code, Button } from '@chakra-ui/react';
 
 // Simple Icons defined inline or imported
-export const CheckCircleIcon: React.FC<{ size?: number; color?: string }> = ({ size = 16, color = 'var(--color-success)' }) => (
+export const CheckCircleIcon: React.FC<{ size?: number; color?: string }> = ({ size = 16, color = '#16C784' }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
     <polyline points="22 4 12 14.01 9 11.01" />
@@ -33,21 +34,21 @@ export const ArrowRightIcon: React.FC<{ size?: number; color?: string }> = ({ si
 // 1. Severity Badge
 export const SeverityBadge: React.FC<{ severity: string }> = ({ severity }) => {
   const sev = severity.toLowerCase();
-  let badgeClass = 'badge-blue';
+  let colorPalette = 'blue';
   if (sev === 'critical' || sev === 'high') {
-    badgeClass = 'badge-pink';
+    colorPalette = 'red';
   } else if (sev === 'medium') {
-    badgeClass = 'badge-orange';
+    colorPalette = 'orange';
   } else if (sev === 'success' || sev === 'low') {
-    badgeClass = 'badge-green';
+    colorPalette = 'green';
   } else if (sev === 'info' || sev === 'informational') {
-    badgeClass = 'badge-cyan';
+    colorPalette = 'cyan';
   }
 
   return (
-    <span className={`cyber-badge ${badgeClass}`} style={{ fontSize: '11px', fontWeight: 'bold' }}>
+    <Badge colorPalette={colorPalette} variant="solid" size="sm" fontSize="11px" fontWeight="bold" textTransform="uppercase">
       {severity}
-    </span>
+    </Badge>
   );
 };
 
@@ -55,43 +56,36 @@ export const SeverityBadge: React.FC<{ severity: string }> = ({ severity }) => {
 export const TrendBadge: React.FC<{ trend: 'improving' | 'degrading' | 'stable'; text?: string }> = ({ trend, text }) => {
   const isUp = trend === 'improving';
   const isDown = trend === 'degrading';
-  const color = isUp ? 'var(--color-success)' : isDown ? 'var(--color-danger)' : 'var(--color-warning)';
+  const color = isUp ? '#16C784' : isDown ? '#EF4444' : '#F5A524';
   const icon = isUp ? '↑' : isDown ? '↓' : '→';
 
   return (
-    <span style={{ 
-      color, 
-      display: 'inline-flex', 
-      alignItems: 'center', 
-      gap: '4px', 
-      fontWeight: 'bold',
-      fontSize: '12px' 
-    }}>
-      <span>{icon}</span>
-      <span>{text || (trend.charAt(0).toUpperCase() + trend.slice(1))}</span>
-    </span>
+    <Flex align="center" gap="1" color={color} fontWeight="bold" fontSize="12px">
+      <Text as="span">{icon}</Text>
+      <Text as="span">{text || (trend.charAt(0).toUpperCase() + trend.slice(1))}</Text>
+    </Flex>
   );
 };
 
 // 3. Risk Indicator
 export const RiskIndicator: React.FC<{ risk: string }> = ({ risk }) => {
   const r = risk.toLowerCase();
-  let color = 'var(--color-success)';
-  let icon = <CheckCircleIcon size={14} color="var(--color-success)" />;
+  let color = '#16C784';
+  let icon = <CheckCircleIcon size={14} color="#16C784" />;
 
   if (r === 'critical' || r === 'high') {
-    color = 'var(--color-danger)';
-    icon = <AlertTriangle size={14} color="var(--color-danger)" />;
+    color = '#EF4444';
+    icon = <AlertTriangle size={14} color="#EF4444" />;
   } else if (r === 'medium' || r === 'warn') {
-    color = 'var(--color-warning)';
-    icon = <AlertTriangle size={14} color="var(--color-warning)" />;
+    color = '#F5A524';
+    icon = <AlertTriangle size={14} color="#F5A524" />;
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color, fontWeight: 'bold', fontSize: '12px' }}>
+    <Flex align="center" gap="1.5" color={color} fontWeight="bold" fontSize="12px">
       {icon}
-      <span style={{ textTransform: 'uppercase' }}>{risk}</span>
-    </div>
+      <Text as="span" textTransform="uppercase">{risk}</Text>
+    </Flex>
   );
 };
 
@@ -103,75 +97,75 @@ export interface StageState {
 
 export const LifecycleComponent: React.FC<{ stages: StageState[] }> = ({ stages }) => {
   return (
-    <div style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: '12px', 
-      background: 'rgba(0, 0, 0, 0.25)', 
-      padding: '6px 16px', 
-      borderRadius: '24px', 
-      border: '1px solid var(--border-color)',
-      overflowX: 'auto',
-      maxWidth: '100%'
-    }}>
+    <Flex
+      align="center"
+      gap="3"
+      bg="rgba(0, 0, 0, 0.25)"
+      px="4"
+      py="1.5"
+      borderRadius="full"
+      border="1px solid"
+      borderColor="rgba(255, 255, 255, 0.1)"
+      overflowX="auto"
+      maxW="100%"
+    >
       {stages.map((stage, idx) => {
         const isActive = stage.status === 'active';
         const isComplete = stage.status === 'complete';
         const isBlocked = stage.status === 'blocked';
         
-        let color = 'var(--text-muted)';
+        let color = 'rgba(255,255,255,0.4)';
         let badgeBg = 'transparent';
-        let badgeBorder = '1px solid var(--neutral-700)';
+        let badgeBorder = '1px solid rgba(255, 255, 255, 0.15)';
         
         if (isActive) {
-          color = 'var(--color-info)';
+          color = '#3B82F6';
           badgeBg = 'rgba(59, 130, 246, 0.1)';
-          badgeBorder = '1px solid var(--color-info)';
+          badgeBorder = '1px solid #3B82F6';
         } else if (isComplete) {
-          color = 'var(--color-success)';
+          color = '#16C784';
           badgeBg = 'rgba(22, 199, 132, 0.05)';
-          badgeBorder = '1px solid var(--color-success)';
+          badgeBorder = '1px solid #16C784';
         } else if (isBlocked) {
-          color = 'var(--color-danger)';
+          color = '#EF4444';
           badgeBg = 'rgba(239, 68, 68, 0.1)';
-          badgeBorder = '1px solid var(--color-danger)';
+          badgeBorder = '1px solid #EF4444';
         }
 
         return (
           <React.Fragment key={stage.name}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px',
-              fontSize: '11px',
-              fontWeight: isActive || isComplete ? 'bold' : 'normal',
-              color,
-              whiteSpace: 'nowrap'
-            }}>
-              <span style={{ 
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '18px',
-                height: '18px',
-                borderRadius: '50%',
-                fontSize: '10px',
-                backgroundColor: badgeBg,
-                border: badgeBorder,
-                fontWeight: 'bold',
-                fontFamily: 'var(--font-mono)'
-              }}>
+            <Flex
+              align="center"
+              gap="1.5"
+              fontSize="11px"
+              fontWeight={isActive || isComplete ? 'bold' : 'normal'}
+              color={color}
+              whiteSpace="nowrap"
+            >
+              <Flex
+                align="center"
+                justify="center"
+                w="18px"
+                h="18px"
+                borderRadius="full"
+                fontSize="10px"
+                bg={badgeBg}
+                border="1px solid"
+                borderColor={badgeBorder.split(' ').pop()}
+                fontWeight="bold"
+                fontFamily="mono"
+              >
                 {isComplete ? '✓' : isBlocked ? '!' : idx + 1}
-              </span>
-              <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{stage.name}</span>
-            </div>
+              </Flex>
+              <Text as="span" textTransform="uppercase" letterSpacing="0.5px">{stage.name}</Text>
+            </Flex>
             {idx < stages.length - 1 && (
-              <span style={{ color: 'var(--neutral-700)', fontSize: '10px', userSelect: 'none' }}>▶</span>
+              <Text as="span" color="rgba(255,255,255,0.15)" fontSize="10px" userSelect="none">▶</Text>
             )}
           </React.Fragment>
         );
       })}
-    </div>
+    </Flex>
   );
 };
 
@@ -199,7 +193,6 @@ export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
   findingsCount,
   completedRemediationsCount
 }) => {
-  // Compute stages for global lifecycle
   const stages: StageState[] = [
     { 
       name: 'Collect', 
@@ -232,61 +225,56 @@ export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
   ];
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px',
-      padding: '16px 24px',
-      background: 'var(--bg-secondary)',
-      borderBottom: '1px solid var(--border-color)',
-      zIndex: 5
-    }}>
-      {/* Top row: Context parameters & Lifecycle component */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
-        
-        {/* Context Items */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Host:</span>
-            <span style={{ fontSize: '13px', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{computerName || 'No host loaded'}</span>
-          </div>
+    <Flex
+      direction="column"
+      gap="3"
+      px="6"
+      py="4"
+      bg="bg.secondary"
+      borderBottom="1px solid"
+      borderColor="rgba(255,255,255,0.1)"
+      zIndex={5}
+    >
+      <Flex justify="space-between" align="center" gap="6" wrap="wrap">
+        <Flex align="center" gap="4" wrap="wrap">
+          <Flex align="center" gap="2">
+            <Text as="span" fontSize="11px" color="text.muted" textTransform="uppercase">Host:</Text>
+            <Text as="span" fontSize="13px" fontWeight="bold" fontFamily="mono" color="text.primary">{computerName || 'No host loaded'}</Text>
+          </Flex>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>OS:</span>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }} title={osName}>{osName ? (osName.length > 28 ? osName.substring(0, 25) + '...' : osName) : 'Unknown OS'}</span>
-          </div>
+          <Flex align="center" gap="2">
+            <Text as="span" fontSize="11px" color="text.muted" textTransform="uppercase">OS:</Text>
+            <Text as="span" fontSize="12px" color="text.secondary" title={osName}>{osName ? (osName.length > 28 ? osName.substring(0, 25) + '...' : osName) : 'Unknown OS'}</Text>
+          </Flex>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ID:</span>
-            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{activeAssessmentId ? activeAssessmentId.substring(0, 8) + '...' : 'None'}</span>
-          </div>
+          <Flex align="center" gap="2">
+            <Text as="span" fontSize="11px" color="text.muted" textTransform="uppercase">ID:</Text>
+            <Text as="span" fontSize="11px" fontFamily="mono" color="text.muted">{activeAssessmentId ? activeAssessmentId.substring(0, 8) + '...' : 'None'}</Text>
+          </Flex>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Collected:</span>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{timestamp ? new Date(timestamp).toLocaleString() : 'N/A'}</span>
-          </div>
+          <Flex align="center" gap="2">
+            <Text as="span" fontSize="11px" color="text.muted" textTransform="uppercase">Collected:</Text>
+            <Text as="span" fontSize="12px" color="text.secondary">{timestamp ? new Date(timestamp).toLocaleString() : 'N/A'}</Text>
+          </Flex>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Boot:</span>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{lastBootTime ? (lastBootTime.includes(' ') ? lastBootTime.split(' ')[0] : lastBootTime.substring(0, 10)) : 'N/A'}</span>
-          </div>
+          <Flex align="center" gap="2">
+            <Text as="span" fontSize="11px" color="text.muted" textTransform="uppercase">Boot:</Text>
+            <Text as="span" fontSize="12px" color="text.secondary">{lastBootTime ? (lastBootTime.includes(' ') ? lastBootTime.split(' ')[0] : lastBootTime.substring(0, 10)) : 'N/A'}</Text>
+          </Flex>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PS:</span>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>v{psVersion || 'N/A'}</span>
-          </div>
-        </div>
+          <Flex align="center" gap="2">
+            <Text as="span" fontSize="11px" color="text.muted" textTransform="uppercase">PS:</Text>
+            <Text as="span" fontSize="12px" color="text.secondary" fontFamily="mono">v{psVersion || 'N/A'}</Text>
+          </Flex>
+        </Flex>
 
-        {/* Global Lifecycle Component */}
         <LifecycleComponent stages={stages} />
+      </Flex>
 
-      </div>
-
-      {/* Hidden compatibility container for E2E locators */}
       <div className="glass-panel" style={{ display: 'none' }}>
         Environment Overview Details: {computerName}
       </div>
-    </div>
+    </Flex>
   );
 };
 
@@ -311,40 +299,49 @@ export const HealthCard: React.FC<HealthCardProps> = ({
   actionText = 'View Details'
 }) => {
   return (
-    <div className="glass-panel" style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      justifyContent: 'space-between', 
-      gap: '12px', 
-      padding: '16px',
-      borderRadius: 'var(--radius-medium)'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+    <Box
+      className="glass-panel"
+      display="flex"
+      flexDirection="column"
+      justifyContent="space-between"
+      gap="3"
+      p="4"
+      borderRadius="12px"
+      bg="bg.card"
+      border="1px solid"
+      borderColor="rgba(255,255,255,0.1)"
+    >
+      <Flex justify="space-between" align="flex-start">
+        <Text fontSize="12px" fontWeight="bold" color="text.muted" textTransform="uppercase" letterSpacing="1px">
           {label}
-        </span>
+        </Text>
         <TrendBadge trend={trend} text={trendText} />
-      </div>
+      </Flex>
 
-      <div style={{ margin: '8px 0' }}>
-        <div style={{ fontSize: '36px', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+      <Box my="2">
+        <Text fontSize="36px" fontWeight="bold" fontFamily="mono" color="text.primary">
           {value}
-        </div>
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+        </Text>
+        <Text fontSize="12px" color="text.secondary" mt="1">
           {context}
-        </div>
-      </div>
+        </Text>
+      </Box>
 
       {onActionClick && (
-        <button 
-          className="cyber-btn" 
+        <Button 
+          variant="outline"
+          size="sm"
           onClick={onActionClick} 
-          style={{ width: '100%', fontSize: '11px', padding: '6px 12px', justifyContent: 'center', border: '1px solid var(--neutral-700)' }}
+          w="full"
+          fontSize="11px"
+          h="32px"
+          borderColor="rgba(255, 255, 255, 0.15)"
+          _hover={{ bg: 'rgba(255,255,255,0.05)' }}
         >
-          <span>{actionText}</span>
-        </button>
+          {actionText}
+        </Button>
       )}
-    </div>
+    </Box>
   );
 };
 
@@ -375,70 +372,80 @@ export const ActionCard: React.FC<ActionCardProps> = ({
   onInspectClick
 }) => {
   return (
-    <div style={{ 
-      display: 'flex', 
-      alignItems: 'flex-start', 
-      gap: '16px', 
-      padding: '16px', 
-      border: '1px solid var(--border-color)', 
-      borderRadius: 'var(--radius-medium)',
-      background: isCompleted ? 'rgba(22, 199, 132, 0.02)' : 'transparent',
-      borderColor: isCompleted ? 'rgba(22, 199, 132, 0.2)' : 'var(--border-color)',
-      transition: 'all 0.2s ease'
-    }}>
-      <div style={{ paddingTop: '4px' }}>
-        <input 
-          type="checkbox" 
-          checked={isCompleted} 
-          onChange={onToggleComplete}
-          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+    <Box
+      display="flex"
+      alignItems="flex-start"
+      gap="4"
+      p="4"
+      border="1px solid"
+      borderRadius="12px"
+      bg={isCompleted ? 'rgba(22, 199, 132, 0.02)' : 'transparent'}
+      borderColor={isCompleted ? 'rgba(22, 199, 132, 0.2)' : 'rgba(255,255,255,0.1)'}
+      transition="all 0.2s ease"
+    >
+      <Box pt="1">
+        <input
+          type="checkbox"
+          checked={isCompleted}
+          onChange={() => onToggleComplete()}
           title="Mark remediation complete"
+          style={{
+            cursor: 'pointer',
+            width: '16px',
+            height: '16px',
+            accentColor: '#16C784',
+          }}
         />
-      </div>
+      </Box>
 
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-info)', fontWeight: 'bold' }}>
+      <Box flex="1">
+        <Flex justify="space-between" align="center" mb="2" wrap="wrap" gap="2">
+          <Flex align="center" gap="2">
+            <Text fontSize="11px" fontFamily="mono" color="info" fontWeight="bold">
               {findingId} (Priority {priority})
-            </span>
+            </Text>
             <SeverityBadge severity={severity} />
-          </div>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            Effort: <strong style={{ color: 'var(--text-secondary)' }}>{effort}</strong>
-          </span>
-        </div>
+          </Flex>
+          <Text fontSize="11px" color="text.muted">
+            Effort: <Text as="strong" color="text.secondary">{effort}</Text>
+          </Text>
+        </Flex>
 
-        <h3 style={{ 
-          fontSize: '15px', 
-          fontWeight: 'bold', 
-          marginBottom: '6px', 
-          textDecoration: isCompleted ? 'line-through' : 'none', 
-          color: isCompleted ? 'var(--text-muted)' : 'var(--text-primary)' 
-        }}>
+        <Heading
+          as="h3"
+          fontSize="15px"
+          fontWeight="bold"
+          mb="1.5"
+          textDecoration={isCompleted ? 'line-through' : 'none'}
+          color={isCompleted ? 'text.muted' : 'text.primary'}
+        >
           {title}
-        </h3>
+        </Heading>
 
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: '1.4' }}>
+        <Text fontSize="13px" color="text.secondary" mb="3" lineHeight="1.4">
           {actionDescription}
-        </p>
+        </Text>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            Verification: <strong style={{ color: 'var(--text-secondary)' }}>{validationText}</strong>
-          </div>
+        <Flex justify="space-between" align="center" wrap="wrap" gap="2">
+          <Text fontSize="11px" color="text.muted">
+            Verification: <Text as="strong" color="text.secondary">{validationText}</Text>
+          </Text>
           {onInspectClick && (
-            <button 
-              className="btn-tertiary" 
+            <Button 
+              variant="outline"
+              size="xs"
               onClick={onInspectClick}
-              style={{ padding: '2px 8px', fontSize: '11px', height: '24px' }}
+              h="24px"
+              fontSize="11px"
+              px="2"
+              borderColor="rgba(255, 255, 255, 0.15)"
             >
-              <span>Inspect Evidence</span>
-            </button>
+              Inspect Evidence
+            </Button>
           )}
-        </div>
-      </div>
-    </div>
+        </Flex>
+      </Box>
+    </Box>
   );
 };
 
@@ -457,62 +464,69 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   actions
 }) => {
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      padding: '48px 24px', 
-      textAlign: 'center', 
-      background: 'var(--bg-secondary)', 
-      border: '1px dashed var(--border-color)', 
-      borderRadius: 'var(--radius-medium)',
-      gap: '16px'
-    }}>
-      <AlertTriangle size={48} color="var(--color-warning)" style={{ opacity: 0.8 }} />
+    <VStack
+      align="center"
+      justify="center"
+      p="12"
+      textAlign="center"
+      bg="bg.secondary"
+      border="1px dashed"
+      borderColor="rgba(255,255,255,0.15)"
+      borderRadius="12px"
+      gap="4"
+      w="full"
+    >
+      <AlertTriangle size={48} color="#F5A524" style={{ opacity: 0.8 }} />
       
-      <div style={{ maxWidth: '480px' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px' }}>
+      <Box maxW="480px">
+        <Heading as="h3" fontSize="18px" fontWeight="bold" color="text.primary" mb="2">
           {title}
-        </h3>
-        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+        </Heading>
+        <Text fontSize="14px" color="text.secondary" lineHeight="1.5">
           {description}
-        </p>
-      </div>
+        </Text>
+      </Box>
 
       {causes && causes.length > 0 && (
-        <div style={{ 
-          textAlign: 'left', 
-          background: 'rgba(0, 0, 0, 0.15)', 
-          padding: '16px 20px', 
-          borderRadius: 'var(--radius-small)', 
-          border: '1px solid var(--border-color)', 
-          fontSize: '13px',
-          maxWidth: '400px',
-          width: '100%'
-        }}>
-          <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '8px' }}>Possible Causes:</strong>
-          <ul style={{ listStyleType: 'disc', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px', color: 'var(--text-secondary)' }}>
-            {causes.map((cause, idx) => <li key={idx}>{cause}</li>)}
-          </ul>
-        </div>
+        <Box
+          textAlign="left"
+          bg="rgba(0, 0, 0, 0.15)"
+          p="4"
+          borderRadius="8px"
+          border="1px solid"
+          borderColor="rgba(255,255,255,0.1)"
+          fontSize="13px"
+          maxW="400px"
+          w="full"
+        >
+          <Text as="strong" color="text.primary" display="block" mb="2">Possible Causes:</Text>
+          <VStack align="stretch" gap="1.5" pl="4" as="ul" style={{ listStyleType: 'disc' }}>
+            {causes.map((cause, idx) => (
+              <Text as="li" key={idx} color="text.secondary" fontSize="13px">
+                {cause}
+              </Text>
+            ))}
+          </VStack>
+        </Box>
       )}
 
       {actions && actions.length > 0 && (
-        <div style={{ display: 'flex', gap: '12px', marginTop: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <Flex gap="3" mt="2" wrap="wrap" justify="center">
           {actions.map((act, idx) => (
-            <button 
+            <Button 
               key={idx} 
-              className={act.primary ? 'cyber-btn cyber-btn-primary' : 'cyber-btn'}
+              colorPalette={act.primary ? 'cyber' : 'gray'}
+              variant={act.primary ? 'solid' : 'outline'}
               onClick={act.onClick}
-              style={{ fontWeight: act.primary ? 'bold' : 'normal' }}
+              fontWeight={act.primary ? 'bold' : 'normal'}
+              size="sm"
             >
-              <span>{act.label}</span>
-            </button>
+              {act.label}
+            </Button>
           ))}
-        </div>
+        </Flex>
       )}
-    </div>
+    </VStack>
   );
 };
 
@@ -535,43 +549,45 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({ evidence }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <VStack align="stretch" gap="2" w="full">
       {evidence.map((ev, idx) => (
-        <div key={idx} style={{ 
-          background: 'rgba(0, 0, 0, 0.2)', 
-          border: '1px solid var(--border-color)', 
-          borderRadius: 'var(--radius-small)', 
-          padding: '10px 14px' 
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-            <span>
-              Source: <strong style={{ color: 'var(--text-secondary)' }}>{ev.Source}</strong> • Name: <strong style={{ color: 'var(--text-secondary)' }}>{ev.Name}</strong>
-            </span>
-            {ev.Collector && <span>Collector: {ev.Collector}</span>}
-          </div>
-          <pre style={{ 
-            fontSize: '12px', 
-            fontFamily: 'var(--font-mono)', 
-            color: 'var(--color-info)', 
-            whiteSpace: 'pre-wrap', 
-            margin: 0,
-            overflowX: 'auto',
-            background: 'rgba(2, 4, 10, 0.4)',
-            padding: '8px',
-            borderRadius: '4px'
-          }}>
+        <Box
+          key={idx}
+          bg="rgba(0, 0, 0, 0.2)"
+          border="1px solid"
+          borderColor="rgba(255,255,255,0.1)"
+          borderRadius="8px"
+          p="3"
+        >
+          <Flex justify="space-between" fontSize="11px" color="text.muted" mb="2" wrap="wrap" gap="2">
+            <Text as="span">
+              Source: <Text as="strong" color="text.secondary">{ev.Source}</Text> • Name: <Text as="strong" color="text.secondary">{ev.Name}</Text>
+            </Text>
+            {ev.Collector && <Text as="span">Collector: {ev.Collector}</Text>}
+          </Flex>
+          <Code
+            display="block"
+            fontSize="12px"
+            fontFamily="mono"
+            color="info"
+            whiteSpace="pre-wrap"
+            p="2"
+            bg="rgba(2, 4, 10, 0.4)"
+            borderRadius="4px"
+            overflowX="auto"
+          >
             {renderValue(ev.Value)}
-          </pre>
+          </Code>
           {ev.ValidationState && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
-              <span className="cyber-badge badge-cyan" style={{ fontSize: '9px', padding: '1px 6px' }}>
+            <Flex justify="flex-end" mt="2">
+              <Badge colorPalette="cyan" variant="solid" fontSize="9px" px="1.5" py="0.5">
                 State: {ev.ValidationState}
-              </span>
-            </div>
+              </Badge>
+            </Flex>
           )}
-        </div>
+        </Box>
       ))}
-    </div>
+    </VStack>
   );
 };
 
@@ -599,22 +615,29 @@ export const TimelineComponent: React.FC<TimelineComponentProps> = ({
 }) => {
   if (!historyData || historyData.length === 0) {
     return (
-      <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-medium)' }}>
+      <Box
+        p="8"
+        textAlign="center"
+        color="text.muted"
+        border="1px dashed"
+        borderColor="rgba(255, 255, 255, 0.15)"
+        borderRadius="12px"
+      >
         No historical assessments recorded.
-      </div>
+      </Box>
     );
   }
 
   return (
-    <div style={{ position: 'relative', overflow: 'visible', margin: '20px 0' }}>
-      <svg width="100%" height="240" viewBox="0 0 600 240" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: 'var(--radius-medium)', border: '1px solid var(--border-color)', overflow: 'visible' }}>
+    <Box position="relative" overflow="visible" my="5">
+      <svg width="100%" height="240" viewBox="0 0 600 240" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'visible' }}>
         {/* Grid Lines */}
         {[20, 40, 60, 80, 100].map(val => {
           const y = 210 - (val / 100) * 180;
           return (
             <g key={val}>
               <line x1="50" y1={y} x2="560" y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-              <text x="25" y={y + 4} fill="var(--text-muted)" fontSize="9" textAnchor="middle">{val}%</text>
+              <text x="25" y={y + 4} fill="rgba(255,255,255,0.3)" fontSize="9" textAnchor="middle">{val}%</text>
             </g>
           );
         })}
@@ -631,9 +654,9 @@ export const TimelineComponent: React.FC<TimelineComponentProps> = ({
             <path
               d={dAttr}
               fill="none"
-              stroke="var(--color-info)"
+              stroke="#3B82F6"
               strokeWidth="3"
-              style={{ filter: 'drop-shadow(0px 0px 6px var(--color-info))' }}
+              style={{ filter: 'drop-shadow(0px 0px 6px #3B82F6)' }}
             />
           );
         })()}
@@ -645,21 +668,21 @@ export const TimelineComponent: React.FC<TimelineComponentProps> = ({
           const dateStr = new Date(run.Timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
           return (
             <g key={run.AssessmentId}>
-              <circle cx={x} cy={y} r="8" fill="var(--color-info)" opacity="0.1" />
+              <circle cx={x} cy={y} r="8" fill="#3B82F6" opacity="0.1" />
               <circle
                 cx={x}
                 cy={y}
                 r="5"
-                fill="var(--bg-primary)"
-                stroke="var(--color-info)"
+                fill="#0B0F14"
+                stroke="#3B82F6"
                 strokeWidth="2.5"
                 cursor="pointer"
                 onMouseEnter={() => onPointEnter({ run, x, y })}
                 onMouseLeave={onPointLeave}
                 onClick={() => onPointClick(run.AssessmentId)}
               />
-              <text x={x} y="225" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">{dateStr}</text>
-              <text x={x} y={y - 12} fill="var(--text-primary)" fontSize="10" fontWeight="bold" textAnchor="middle" style={{ fontFamily: 'var(--font-mono)' }}>
+              <text x={x} y="225" fill="rgba(255,255,255,0.4)" fontSize="9" textAnchor="middle">{dateStr}</text>
+              <text x={x} y={y - 12} fill="rgba(255,255,255,0.9)" fontSize="10" fontWeight="bold" textAnchor="middle" style={{ fontFamily: 'monospace' }}>
                 {run.OverallHealth.toFixed(1)}
               </text>
             </g>
@@ -669,37 +692,38 @@ export const TimelineComponent: React.FC<TimelineComponentProps> = ({
 
       {/* Tooltip Overlay */}
       {hoveredPoint && (
-        <div style={{
-          position: 'absolute',
-          left: `${(hoveredPoint.x / 600) * 100}%`,
-          top: `${hoveredPoint.y - 85}px`,
-          transform: 'translateX(-50%)',
-          background: 'rgba(6,9,19,0.95)',
-          border: '1px solid var(--border-color)',
-          boxShadow: '0 0 12px rgba(59,130,246,0.35)',
-          padding: '10px 14px',
-          borderRadius: 'var(--radius-small)',
-          fontSize: '11px',
-          pointerEvents: 'none',
-          whiteSpace: 'nowrap',
-          zIndex: 20,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px'
-        }}>
-          <div style={{ fontWeight: 'bold', color: 'var(--color-info)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px', marginBottom: '4px' }}>
+        <Box
+          position="absolute"
+          left={`${(hoveredPoint.x / 600) * 100}%`}
+          top={`${hoveredPoint.y - 85}px`}
+          transform="translateX(-50%)"
+          bg="rgba(6,9,19,0.95)"
+          border="1px solid"
+          borderColor="rgba(255,255,255,0.1)"
+          boxShadow="0 0 12px rgba(59,130,246,0.35)"
+          p="3"
+          borderRadius="8px"
+          fontSize="11px"
+          pointerEvents="none"
+          zIndex={20}
+          display="flex"
+          flexDirection="column"
+          gap="1"
+          whiteSpace="nowrap"
+        >
+          <Text fontWeight="bold" color="info" borderBottom="1px solid" borderColor="rgba(255,255,255,0.05)" pb="1" mb="1">
             ASSESSMENT SUMMARY
-          </div>
-          <div>Date: <strong style={{ color: 'var(--text-primary)' }}>{new Date(hoveredPoint.run.Timestamp).toLocaleString()}</strong></div>
-          <div>Overall Score: <strong style={{ color: 'var(--color-info)', fontFamily: 'var(--font-mono)' }}>{hoveredPoint.run.OverallHealth.toFixed(1)}/100</strong></div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px 12px', marginTop: '4px', fontSize: '10px', color: 'var(--text-secondary)' }}>
-            <div>Perf: {hoveredPoint.run.Performance}</div>
-            <div>Sec: {hoveredPoint.run.Security}</div>
-            <div>Rel: {hoveredPoint.run.Reliability}</div>
-          </div>
-        </div>
+          </Text>
+          <Text>Date: <Text as="strong" color="text.primary">{new Date(hoveredPoint.run.Timestamp).toLocaleString()}</Text></Text>
+          <Text>Overall Score: <Text as="strong" color="info" fontFamily="mono">{hoveredPoint.run.OverallHealth.toFixed(1)}/100</Text></Text>
+          <SimpleGrid columns={2} gap="1" mt="1" fontSize="10px" color="text.muted">
+            <Box>Perf: {hoveredPoint.run.Performance}</Box>
+            <Box>Sec: {hoveredPoint.run.Security}</Box>
+            <Box>Rel: {hoveredPoint.run.Reliability}</Box>
+          </SimpleGrid>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 };
 
@@ -719,57 +743,58 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
   details,
   alertText
 }) => {
-  const statusColor = status === 'error' ? 'var(--color-danger)' : status === 'warn' ? 'var(--color-warning)' : 'var(--color-success)';
+  const statusColor = status === 'error' ? '#EF4444' : status === 'warn' ? '#F5A524' : '#16C784';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <span style={{ 
-          width: '12px', 
-          height: '12px', 
-          borderRadius: '50%', 
-          backgroundColor: statusColor,
-          boxShadow: `0 0 8px ${statusColor}`
-        }}></span>
-        <div>
-          <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--text-primary)' }}>{label}</h3>
-          <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Class: {type}</span>
-        </div>
-      </div>
+    <VStack align="stretch" gap="4">
+      <Flex gap="3" align="center" pb="3" borderBottom="1px solid" borderColor="rgba(255,255,255,0.05)">
+        <Box
+          w="3"
+          h="3"
+          borderRadius="full"
+          bg={statusColor}
+          boxShadow={`0 0 8px ${statusColor}`}
+        />
+        <Box>
+          <Heading as="h3" fontSize="15px" fontWeight="bold" color="text.primary">{label}</Heading>
+          <Text fontSize="10px" textTransform="uppercase" color="text.muted">Class: {type}</Text>
+        </Box>
+      </Flex>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.01)', paddingBottom: '6px' }}>
-          <span style={{ color: 'var(--text-secondary)' }}>Risk State:</span>
-          <strong style={{ color: status === 'error' ? 'var(--color-danger)' : status === 'warn' ? 'var(--color-warning)' : 'var(--color-success)' }}>
+      <VStack align="stretch" gap="2.5" fontSize="12px">
+        <Flex justify="space-between" borderBottom="1px solid" borderColor="rgba(255,255,255,0.02)" pb="1.5">
+          <Text color="text.secondary">Risk State:</Text>
+          <Text as="strong" color={status === 'error' ? 'danger' : status === 'warn' ? 'warning' : 'success'}>
             {status === 'error' ? 'Exposed' : status === 'warn' ? 'Weakened' : 'Secured'}
-          </strong>
-        </div>
+          </Text>
+        </Flex>
         
         {Object.entries(details).map(([key, val]) => (
-          <div key={key} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.01)', paddingBottom: '6px' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>{key}:</span>
-            <span style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{String(val)}</span>
-          </div>
+          <Flex key={key} justify="space-between" borderBottom="1px solid" borderColor="rgba(255,255,255,0.02)" pb="1.5">
+            <Text color="text.secondary">{key}:</Text>
+            <Text as="span" fontWeight="bold" fontFamily="mono" color="text.primary">{String(val)}</Text>
+          </Flex>
         ))}
-      </div>
+      </VStack>
 
       {alertText && (
-        <div style={{ 
-          marginTop: '12px', 
-          padding: '12px', 
-          background: 'rgba(239, 68, 68, 0.05)', 
-          border: '1px solid rgba(239, 68, 68, 0.15)', 
-          borderRadius: 'var(--radius-small)', 
-          fontSize: '12px' 
-        }}>
-          <div style={{ fontWeight: 'bold', color: 'var(--color-danger)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Box
+          mt="3"
+          p="3"
+          bg="rgba(239, 68, 68, 0.05)"
+          border="1px solid"
+          borderColor="rgba(239, 68, 68, 0.15)"
+          borderRadius="8px"
+          fontSize="12px"
+        >
+          <Flex align="center" gap="1.5" fontWeight="bold" color="danger" mb="1">
             <AlertTriangle size={12} />
-            <span>Active Finding Alert:</span>
-          </div>
-          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.4' }}>{alertText}</p>
-        </div>
+            <Text>Active Finding Alert:</Text>
+          </Flex>
+          <Text color="text.secondary" lineHeight="1.4">{alertText}</Text>
+        </Box>
       )}
-    </div>
+    </VStack>
   );
 };
 
@@ -791,49 +816,47 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
   });
 
   return (
-    <div className="terminal-container" style={{ height: '360px', display: 'flex', flexDirection: 'column' }}>
-      <div className="terminal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="terminal-dots">
-          <span className="terminal-dot" style={{ backgroundColor: 'var(--color-danger)' }}></span>
-          <span className="terminal-dot" style={{ backgroundColor: 'var(--color-warning)' }}></span>
-          <span className="terminal-dot" style={{ backgroundColor: 'var(--color-info)' }}></span>
-        </div>
-        <div style={{ display: 'flex', gap: '6px' }}>
+    <Box className="terminal-container" height="360px" display="flex" flexDirection="column">
+      <Flex className="terminal-header" justify="space-between" align="center" px="4" py="3">
+        <Flex gap="1.5">
+          <Box w="2" h="2" borderRadius="full" bg="#EF4444" />
+          <Box w="2" h="2" borderRadius="full" bg="#F5A524" />
+          <Box w="2" h="2" borderRadius="full" bg="#3B82F6" />
+        </Flex>
+        
+        <Flex gap="1.5">
           {(['ALL', 'INFO', 'WARN', 'ERROR'] as const).map(f => (
-            <button 
+            <Button 
               key={f} 
               onClick={() => onFilterChange(f)}
-              style={{
-                background: filter === f ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
-                border: filter === f ? '1px solid var(--color-info)' : '1px solid transparent',
-                color: filter === f ? 'var(--color-info)' : 'var(--text-muted)',
-                fontSize: '9px',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-mono)'
-              }}
+              size="xs"
+              variant={filter === f ? 'solid' : 'ghost'}
+              colorPalette={filter === f ? 'info' : 'gray'}
+              fontSize="9px"
+              h="20px"
+              px="2"
+              fontFamily="mono"
             >
               {f}
-            </button>
+            </Button>
           ))}
-        </div>
-      </div>
-      <div className="terminal-body" style={{ flex: 1, overflowY: 'auto', fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '16px' }}>
+        </Flex>
+      </Flex>
+      <Box className="terminal-body" flex="1" overflowY="auto" fontFamily="mono" fontSize="12px" p="4">
         {filtered.map((line, idx) => {
-          let color = 'var(--text-secondary)';
-          if (line.includes('[Error]') || line.toUpperCase().includes('[ERROR]')) color = 'var(--color-danger)';
-          else if (line.includes('[Warn]') || line.toUpperCase().includes('[WARN]')) color = 'var(--color-warning)';
-          else if (line.includes('[Info]') || line.toUpperCase().includes('[INFO]')) color = 'var(--color-info)';
+          let color = 'rgba(255,255,255,0.7)';
+          if (line.includes('[Error]') || line.toUpperCase().includes('[ERROR]')) color = '#EF4444';
+          else if (line.includes('[Warn]') || line.toUpperCase().includes('[WARN]')) color = '#F5A524';
+          else if (line.includes('[Info]') || line.toUpperCase().includes('[INFO]')) color = '#3B82F6';
 
           return (
-            <div key={idx} style={{ color, marginBottom: '4px', whiteSpace: 'pre-wrap' }}>
+            <Box key={idx} color={color} mb="1" whiteSpace="pre-wrap">
               {line}
-            </div>
+            </Box>
           );
         })}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 
@@ -852,34 +875,38 @@ export const AIRecommendationCard: React.FC<AIRecommendationCardProps> = ({
   buttonText = 'Implement Mitigation'
 }) => {
   return (
-    <div style={{
-      background: 'rgba(59, 130, 246, 0.05)',
-      border: '1px solid rgba(59, 130, 246, 0.2)',
-      borderRadius: 'var(--radius-medium)',
-      padding: '16px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px'
-    }}>
-      <div>
-        <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--color-info)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+    <Box
+      bg="rgba(59, 130, 246, 0.05)"
+      border="1px solid"
+      borderColor="rgba(59, 130, 246, 0.2)"
+      borderRadius="12px"
+      p="4"
+      display="flex"
+      flexDirection="column"
+      gap="3"
+    >
+      <Box>
+        <Heading as="h4" fontSize="14px" fontWeight="bold" color="info" display="flex" alignItems="center" gap="2">
           <Terminal size={14} />
-          <span>{title}</span>
-        </h4>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px', lineHeight: '1.4' }}>
+          <Text as="span">{title}</Text>
+        </Heading>
+        <Text fontSize="12px" color="text.secondary" mt="1.5" lineHeight="1.4">
           {description}
-        </p>
-      </div>
+        </Text>
+      </Box>
 
       {onApplyClick && (
-        <button 
-          className="cyber-btn cyber-btn-primary" 
+        <Button 
+          colorPalette="cyber"
           onClick={onApplyClick}
-          style={{ width: '100%', padding: '6px 12px', fontSize: '11px', justifyContent: 'center' }}
+          w="full"
+          size="sm"
+          fontSize="11px"
+          h="32px"
         >
-          <span>{buttonText}</span>
-        </button>
+          {buttonText}
+        </Button>
       )}
-    </div>
+    </Box>
   );
 };

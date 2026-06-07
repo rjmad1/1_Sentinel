@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../utils/db';
 import { Database, Shield, HardDrive, RefreshCw, Trash2, Settings } from '../utils/icons';
+import { Box, Flex, Heading, Text, SimpleGrid, Button } from '@chakra-ui/react';
 
 interface SystemStatusProps {
   activeAssessmentId: string | null;
@@ -131,104 +132,111 @@ export const SystemStatusPage: React.FC<SystemStatusProps> = ({
   }, [fetchStats]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-6)' }}>
+    <Flex direction="column" gap="6">
       
       {/* 5-Section Layout grid */}
-      <div className="dashboard-grid">
+      <SimpleGrid columns={{ base: 1, lg: 12 }} gap="6">
         
         {/* 1. Platform Health */}
-        <div className="glass-panel" style={{ gridColumn: 'span 4' }}>
-          <div className="panel-header">
-            <h2 className="panel-title">
-              <Database size={16} color="var(--color-cyan)" /> 
-              <span>Platform Health</span>
-            </h2>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>IndexedDB Connection:</span>
-              <strong style={{ color: dbOpen ? 'var(--color-green)' : 'var(--color-pink)' }}>
+        <Box className="glass-panel" gridColumn={{ lg: 'span 4' }}>
+          <Box className="panel-header" mb="5">
+            <Heading as="h2" className="panel-title">
+              <Database size={16} color="#06B6D4" /> 
+              <Text as="span">Platform Health</Text>
+            </Heading>
+          </Box>
+          <Flex direction="column" gap="3" fontSize="13px">
+            <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+              <Text color="text.secondary">IndexedDB Connection:</Text>
+              <Text as="strong" color={dbOpen ? '#16C784' : '#EF4444'}>
                 {dbOpen ? 'CONNECTED' : 'DISCONNECTED'}
-              </strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>DB Store Name:</span>
-              <strong style={{ fontFamily: 'var(--font-mono)' }}>{db.name} (v{db.verno})</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Application Version:</span>
-              <strong style={{ color: 'var(--color-cyan)', fontFamily: 'var(--font-mono)' }}>v1.0.0</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Build Timestamp:</span>
-              <strong style={{ fontFamily: 'var(--font-mono)' }}>2026-06-05.1</strong>
-            </div>
-          </div>
-        </div>
+              </Text>
+            </Flex>
+            <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+              <Text color="text.secondary">DB Store Name:</Text>
+              <Text as="strong" fontFamily="mono">{db.name} (v{db.verno})</Text>
+            </Flex>
+            <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+              <Text color="text.secondary">Application Version:</Text>
+              <Text as="strong" color="#06B6D4" fontFamily="mono">v1.0.0</Text>
+            </Flex>
+            <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+              <Text color="text.secondary">Build Timestamp:</Text>
+              <Text as="strong" fontFamily="mono">2026-06-05.1</Text>
+            </Flex>
+          </Flex>
+        </Box>
 
         {/* 2. Assessment Health */}
-        <div className="glass-panel" style={{ gridColumn: 'span 4' }}>
-          <div className="panel-header">
-            <h2 className="panel-title">
-              <Shield size={16} color="var(--color-blue)" /> 
-              <span>Assessment Health</span>
-            </h2>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Active Host:</span>
-              <strong style={{ fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>{activeAssessmentId ? activeMachineName : 'NONE'}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Assessment ID:</span>
-              <strong style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{activeAssessmentId ? activeAssessmentId : 'No file loaded'}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Total Historical Imports:</span>
-              <strong style={{ fontFamily: 'var(--font-mono)' }}>{counts.assessments}</strong>
-            </div>
-          </div>
-        </div>
+        <Box className="glass-panel" gridColumn={{ lg: 'span 4' }}>
+          <Box className="panel-header" mb="5">
+            <Heading as="h2" className="panel-title">
+              <Shield size={16} color="#3B82F6" /> 
+              <Text as="span">Assessment Health</Text>
+            </Heading>
+          </Box>
+          <Flex direction="column" gap="3" fontSize="13px">
+            <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+              <Text color="text.secondary">Active Host:</Text>
+              <Text as="strong" fontFamily="mono" wordBreak="break-all">{activeAssessmentId ? activeMachineName : 'NONE'}</Text>
+            </Flex>
+            <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+              <Text color="text.secondary">Assessment ID:</Text>
+              <Text as="strong" fontFamily="mono" fontSize="11px">{activeAssessmentId ? activeAssessmentId : 'No file loaded'}</Text>
+            </Flex>
+            <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+              <Text color="text.secondary">Total Historical Imports:</Text>
+              <Text as="strong" fontFamily="mono">{counts.assessments}</Text>
+            </Flex>
+          </Flex>
+        </Box>
 
         {/* 3. Storage Health */}
-        <div className="glass-panel" style={{ gridColumn: 'span 4' }}>
-          <div className="panel-header">
-            <h2 className="panel-title">
-              <HardDrive size={16} color="var(--color-pink)" /> 
-              <span>Storage Health</span>
-            </h2>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>IndexedDB Storage Used:</span>
-              <strong style={{ fontFamily: 'var(--font-mono)' }}>{storage.used}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Browser Allocation Quota:</span>
-              <strong style={{ fontFamily: 'var(--font-mono)' }}>{storage.quota}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>LocalStorage Usage:</span>
-              <strong style={{ fontFamily: 'var(--font-mono)' }}>{localStorageUsage}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Storage Quota Used %:</span>
-              <strong style={{ fontFamily: 'var(--font-mono)' }}>{storage.percentage}%</strong>
-            </div>
-          </div>
-        </div>
+        <Box className="glass-panel" gridColumn={{ lg: 'span 4' }}>
+          <Box className="panel-header" mb="5">
+            <Heading as="h2" className="panel-title">
+              <HardDrive size={16} color="#EF4444" /> 
+              <Text as="span">Storage Health</Text>
+            </Heading>
+          </Box>
+          <Flex direction="column" gap="3" fontSize="13px">
+            <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+              <Text color="text.secondary">IndexedDB Storage Used:</Text>
+              <Text as="strong" fontFamily="mono">{storage.used}</Text>
+            </Flex>
+            <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+              <Text color="text.secondary">Browser Allocation Quota:</Text>
+              <Text as="strong" fontFamily="mono">{storage.quota}</Text>
+            </Flex>
+            <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+              <Text color="text.secondary">LocalStorage Usage:</Text>
+              <Text as="strong" fontFamily="mono">{localStorageUsage}</Text>
+            </Flex>
+            <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+              <Text color="text.secondary">Storage Quota Used %:</Text>
+              <Text as="strong" fontFamily="mono">{storage.percentage}%</Text>
+            </Flex>
+          </Flex>
+        </Box>
 
         {/* 4. Data Health */}
-        <div className="glass-panel" style={{ gridColumn: 'span 7' }}>
-          <div className="panel-header">
-            <h2 className="panel-title"><Database size={16} /> Data Health & Table Statistics</h2>
-            <button className="cyber-btn" style={{ padding: 'var(--spacing-2) var(--spacing-3)', fontSize: 'var(--font-size-caption)' }} onClick={fetchStats} disabled={loading}>
+        <Box className="glass-panel" gridColumn={{ lg: 'span 7' }}>
+          <Box className="panel-header" mb="5" display="flex" justifyContent="space-between" alignItems="center">
+            <Heading as="h2" className="panel-title"><Database size={16} /> Data Health & Table Statistics</Heading>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={fetchStats}
+              disabled={loading}
+              borderColor="rgba(255,255,255,0.15)"
+              _hover={{ bg: 'rgba(255,255,255,0.05)' }}
+            >
               <RefreshCw size={12} className={loading ? 'spin' : ''} />
-              <span>Refresh Stats</span>
-            </button>
-          </div>
+              <Text as="span">Refresh Stats</Text>
+            </Button>
+          </Box>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <Flex direction="column" gap="3">
             {[
               { name: 'assessments', label: 'Assessments Master', count: counts.assessments, desc: 'Stores core host metrics & config blocks.' },
               { name: 'findings', label: 'Findings Registry', count: counts.findings, desc: 'Aggregated list of security & performance alerts.' },
@@ -237,59 +245,61 @@ export const SystemStatusPage: React.FC<SystemStatusProps> = ({
               { name: 'risks', label: 'Risk Indices', count: counts.risks, desc: 'Historical severity counters and drift levels.' },
               { name: 'exports', label: 'Export Packages', count: counts.exports, desc: 'Stored diagnostic snapshots.' }
             ].map(table => (
-              <div key={table.name} style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                <div>
-                  <div style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-primary)' }}>{table.label}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>table: {table.name} • {table.desc}</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-3)' }}>
-                  <span className="cyber-badge badge-cyan" style={{ fontSize: '11px', minWidth: '48px', justifyContent: 'center' }}>
+              <Flex key={table.name} align="center" justify="space-between" borderBottom="1px solid rgba(255,255,255,0.07)" pb="2">
+                <Box>
+                  <Text fontWeight="bold" fontSize="13px" color="text.primary">{table.label}</Text>
+                  <Text fontSize="11px" color="text.muted" fontFamily="mono">table: {table.name} • {table.desc}</Text>
+                </Box>
+                <Flex align="center" gap="3">
+                  <Box className="cyber-badge badge-cyan" fontSize="11px" minW="12">
                     {table.count}
-                  </span>
-                </div>
-              </div>
+                  </Box>
+                </Flex>
+              </Flex>
             ))}
-          </div>
-        </div>
+          </Flex>
+        </Box>
 
         {/* 5. System Diagnostics */}
-        <div className="glass-panel" style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <div>
-            <div className="panel-header">
-              <h2 className="panel-title"><Settings size={16} /> System Diagnostics</h2>
-            </div>
+        <Box className="glass-panel" gridColumn={{ lg: 'span 5' }} display="flex" flexDirection="column" justifyContent="space-between">
+          <Box>
+            <Box className="panel-header" mb="5">
+              <Heading as="h2" className="panel-title"><Settings size={16} /> System Diagnostics</Heading>
+            </Box>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Graph Nodes Loaded:</span>
-                <strong style={{ fontFamily: 'var(--font-mono)' }}>{nodesCount} Nodes</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Graph Links Rendered:</span>
-                <strong style={{ fontFamily: 'var(--font-mono)' }}>{linksCount} Links</strong>
-              </div>
-            </div>
-          </div>
+            <Flex direction="column" gap="3" fontSize="13px">
+              <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+                <Text color="text.secondary">Graph Nodes Loaded:</Text>
+                <Text as="strong" fontFamily="mono">{nodesCount} Nodes</Text>
+              </Flex>
+              <Flex justify="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" pb="1.5">
+                <Text color="text.secondary">Graph Links Rendered:</Text>
+                <Text as="strong" fontFamily="mono">{linksCount} Links</Text>
+              </Flex>
+            </Flex>
+          </Box>
 
-          <div style={{ marginTop: '24px' }}>
-            <button 
-              className="cyber-btn cyber-btn-danger" 
-              style={{ width: '100%', gap: '8px', padding: '12px' }}
+          <Box mt="6">
+            <Button 
+              colorPalette="red"
+              variant="solid"
+              w="full"
+              py="5"
               onClick={handleClearDatabase}
               disabled={isPurging}
             >
               <Trash2 size={14} />
-              <span>{isPurging ? 'Purging Tables...' : 'Purge Assessment Database'}</span>
-            </button>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center', lineHeight: '1.4' }}>
+              <Text as="span">{isPurging ? 'Purging Tables...' : 'Purge Assessment Database'}</Text>
+            </Button>
+            <Text fontSize="11px" color="text.muted" mt="2" textAlign="center" lineHeight="1.4">
               Purging deletes all raw metrics, tables, and history in IndexedDB. Use with caution.
-            </p>
-          </div>
+            </Text>
+          </Box>
 
-        </div>
+        </Box>
 
-      </div>
+      </SimpleGrid>
 
-    </div>
+    </Flex>
   );
 };

@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import JSZip from 'jszip';
 import { AlertTriangle } from '../utils/icons';
+import { Box, Flex, Heading, Text, Input, Textarea, SimpleGrid, Button } from '@chakra-ui/react';
+import { DialogRoot, DialogContent, DialogHeader, DialogBody, DialogTitle, DialogCloseTrigger } from './ui/dialog';
+import { Field } from './ui/field';
 
 interface ReportIssueModalProps {
   onClose: () => void;
@@ -37,45 +40,6 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
 
   const [step, setStep] = useState(1); // 1: form, 2: success
   const [loading, setLoading] = useState(false);
-
-  const modalRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-      if (e.key === 'Tab' && modalRef.current) {
-        const focusables = modalRef.current.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex="0"]'
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0] as HTMLElement;
-        const last = focusables[focusables.length - 1] as HTMLElement;
-        
-        if (e.shiftKey) {
-          if (document.activeElement === first) {
-            last.focus();
-            e.preventDefault();
-          }
-        } else {
-          if (document.activeElement === last) {
-            first.focus();
-            e.preventDefault();
-          }
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    
-    // Focus first input
-    setTimeout(() => {
-      const firstInput = modalRef.current?.querySelector('input');
-      firstInput?.focus();
-    }, 50);
-
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -189,145 +153,148 @@ ${notes || 'None'}
   };
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
-      <div className="modal-content" ref={modalRef} style={{ maxWidth: '640px' }}>
-        <div className="modal-header">
-          <h3 id="report-modal-title" style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
-            <AlertTriangle size={16} color="var(--color-pink)" />
+    <DialogRoot open={true} onOpenChange={onClose} size="lg">
+      <DialogContent bg="bg.secondary" border="1px solid rgba(255,255,255,0.1)">
+        <DialogHeader display="flex" alignContent="center" justifyContent="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" py="4" px="6">
+          <DialogTitle id="report-modal-title" style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
+            <AlertTriangle size={16} color="#EF4444" />
             <span>Report System Issue</span>
-          </h3>
-          <button className="cyber-btn" style={{ padding: '4px 8px', fontSize: '10px' }} onClick={onClose}>Close</button>
-        </div>
+          </DialogTitle>
+          <DialogCloseTrigger />
+        </DialogHeader>
 
-        <div className="modal-body">
+        <DialogBody p="6">
           {step === 1 ? (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: '1.5' }}>
-                Fill in the details below to report a bug. A sanitized diagnostic package (app state, catalog counts, and console errors) will be generated for download, and a Markdown summary copied to your clipboard.
-              </p>
+            <form onSubmit={handleSubmit}>
+              <Flex direction="column" gap="4">
+                <Text color="text.secondary" fontSize="12px" lineHeight="1.5">
+                  Fill in the details below to report a bug. A sanitized diagnostic package (app state, catalog counts, and console errors) will be generated for download, and a Markdown summary copied to your clipboard.
+                </Text>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Issue Title *</label>
-                <input 
-                  type="text" 
-                  className="cyber-input" 
-                  placeholder="e.g. Software search regex fails on special characters"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  onBlur={() => setTitleTouched(true)}
-                  style={{ borderColor: titleTouched && !title ? 'var(--error-500)' : undefined }}
-                />
-                {titleTouched && !title && (
-                  <span style={{ color: 'var(--error-500)', fontSize: '11px', marginTop: '2px' }}>
-                    Title is required. Please provide a brief title describing the issue.
-                  </span>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Description *</label>
-                <textarea 
-                  className="cyber-input" 
-                  placeholder="Describe the issue in detail..."
-                  required
-                  style={{ height: '80px', resize: 'none', borderColor: descriptionTouched && !description ? 'var(--error-500)' : undefined }}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  onBlur={() => setDescriptionTouched(true)}
-                />
-                {descriptionTouched && !description && (
-                  <span style={{ color: 'var(--error-500)', fontSize: '11px', marginTop: '2px' }}>
-                    Description is required. Please explain what happened.
-                  </span>
-                )}
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Expected Behavior</label>
-                  <textarea 
-                    className="cyber-input" 
-                    placeholder="What should have happened..."
-                    style={{ height: '60px', resize: 'none' }}
-                    value={expected}
-                    onChange={(e) => setExpected(e.target.value)}
+                <Field 
+                  label="Issue Title *" 
+                  invalid={titleTouched && !title} 
+                  errorText="Title is required. Please provide a brief title describing the issue."
+                >
+                  <Input 
+                    type="text" 
+                    placeholder="e.g. Software search regex fails on special characters"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onBlur={() => setTitleTouched(true)}
+                    bg="bg.primary"
+                    borderColor="rgba(255,255,255,0.15)"
+                    _focus={{ borderColor: 'info' }}
                   />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Actual Behavior</label>
-                  <textarea 
-                    className="cyber-input" 
-                    placeholder="What actually happened..."
-                    style={{ height: '60px', resize: 'none' }}
-                    value={actual}
-                    onChange={(e) => setActual(e.target.value)}
+                </Field>
+
+                <Field 
+                  label="Description *" 
+                  invalid={descriptionTouched && !description} 
+                  errorText="Description is required. Please explain what happened."
+                >
+                  <Textarea 
+                    placeholder="Describe the issue in detail..."
+                    style={{ height: '80px', resize: 'none' }}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    onBlur={() => setDescriptionTouched(true)}
+                    bg="bg.primary"
+                    borderColor="rgba(255,255,255,0.15)"
+                    _focus={{ borderColor: 'info' }}
                   />
-                </div>
-              </div>
+                </Field>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Screenshot / File Attachment</label>
-                <input 
-                  type="file" 
-                  className="cyber-input" 
-                  accept="image/*,.txt,.json,.log"
-                  style={{ fontSize: '11px', padding: '6px' }}
-                  onChange={handleFileChange}
-                />
-              </div>
+                <SimpleGrid columns={{ base: 1, md: 2 }} gap="4">
+                  <Field label="Expected Behavior">
+                    <Textarea 
+                      placeholder="What should have happened..."
+                      style={{ height: '60px', resize: 'none' }}
+                      value={expected}
+                      onChange={(e) => setExpected(e.target.value)}
+                      bg="bg.primary"
+                      borderColor="rgba(255,255,255,0.15)"
+                      _focus={{ borderColor: 'info' }}
+                    />
+                  </Field>
+                  <Field label="Actual Behavior">
+                    <Textarea 
+                      placeholder="What actually happened..."
+                      style={{ height: '60px', resize: 'none' }}
+                      value={actual}
+                      onChange={(e) => setActual(e.target.value)}
+                      bg="bg.primary"
+                      borderColor="rgba(255,255,255,0.15)"
+                      _focus={{ borderColor: 'info' }}
+                    />
+                  </Field>
+                </SimpleGrid>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Additional Notes</label>
-                <textarea 
-                  className="cyber-input" 
-                  placeholder="Any extra context or system details..."
-                  style={{ height: '50px', resize: 'none' }}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
+                <Field label="Screenshot / File Attachment">
+                  <Input 
+                    type="file" 
+                    accept="image/*,.txt,.json,.log"
+                    style={{ fontSize: '11px', padding: '6px' }}
+                    onChange={handleFileChange}
+                    bg="bg.primary"
+                    borderColor="rgba(255,255,255,0.15)"
+                    _focus={{ borderColor: 'info' }}
+                  />
+                </Field>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
-                <button type="button" className="cyber-btn" onClick={onClose}>Cancel</button>
-                <button type="submit" className="cyber-btn cyber-btn-primary" style={{ color: '#FAFAFA', fontWeight: 'bold' }} disabled={loading}>
-                  {loading ? 'Generating Package...' : 'Download Diagnostics & Open GitHub'}
-                </button>
-              </div>
+                <Field label="Additional Notes">
+                  <Textarea 
+                    placeholder="Any extra context or system details..."
+                    style={{ height: '50px', resize: 'none' }}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    bg="bg.primary"
+                    borderColor="rgba(255,255,255,0.15)"
+                    _focus={{ borderColor: 'info' }}
+                  />
+                </Field>
+
+                <Flex justify="flex-end" gap="3" mt="2">
+                  <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+                  <Button type="submit" colorPalette="cyber" size="sm" fontWeight="bold" disabled={loading}>
+                    {loading ? 'Generating Package...' : 'Download Diagnostics & Open GitHub'}
+                  </Button>
+                </Flex>
+              </Flex>
             </form>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center', padding: '20px 0' }}>
-              <div style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '50%',
-                background: 'rgba(16,185,129,0.1)',
-                border: '2px solid var(--color-green)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--color-green)',
-                fontSize: '28px',
-                marginBottom: '12px'
-              }}>
+            <Flex direction="column" gap="4" align="center" textAlign="center" py="5">
+              <Box
+                w="60px"
+                h="60px"
+                borderRadius="50%"
+                bg="rgba(16,185,129,0.1)"
+                border="2px solid #16C784"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                color="#16C784"
+                fontSize="28px"
+                mb="3"
+              >
                 ✓
-              </div>
-              <h4 style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--color-green)' }}>Diagnostic Package Ready</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6', maxWidth: '400px' }}>
+              </Box>
+              <Heading as="h4" fontWeight="bold" fontSize="18px" color="#16C784">Diagnostic Package Ready</Heading>
+              <Text color="text.secondary" fontSize="13px" lineHeight="1.6" maxW="400px">
                 1. <strong>EIIP-Diagnostic-Package.zip</strong> has been downloaded.<br />
                 2. Markdown issue template has been copied to your clipboard.<br />
                 3. Redirecting you to the GitHub Issues page now...
-              </p>
-              <p style={{ color: 'var(--text-muted)', fontSize: '11px', fontStyle: 'italic' }}>
+              </Text>
+              <Text color="text.muted" fontSize="11px" style={{ fontStyle: 'italic' }}>
                 Please paste (Ctrl+V) the Markdown report into the description field on GitHub and upload the downloaded ZIP.
-              </p>
-              <button className="cyber-btn cyber-btn-primary" style={{ color: '#FAFAFA', fontWeight: 'bold', marginTop: '12px', padding: '10px 24px' }} onClick={onClose}>
+              </Text>
+              <Button colorPalette="cyber" fontWeight="bold" mt="3" px="6" onClick={onClose}>
                 Dismiss Window
-              </button>
-            </div>
+              </Button>
+            </Flex>
           )}
-        </div>
-      </div>
-    </div>
+        </DialogBody>
+      </DialogContent>
+    </DialogRoot>
   );
 };

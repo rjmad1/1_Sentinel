@@ -1,0 +1,23 @@
+[package]
+name = "sentinel-desktop"
+version = "1.0.0"
+description = "Sentinel Enterprise Infrastructure Intelligence Platform desktop application wrapper."
+authors = ["Sentinel Corp"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.5.0" }
+
+[dependencies]
+tauri = { version = "1.5.0", features = ["api-all"] }
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
+sysinfo = "0.30.7"
+chrono = { version = "0.4.35", features = ["serde"] }
+winreg = "0.51.0"
+wmi = "0.13.0"
+
+[features]
+# by default tauri runs with all APIs enabled in development mode
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]

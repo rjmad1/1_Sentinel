@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Shield, Activity, Terminal, Globe, Package } from '../utils/icons';
+import { Box, Flex, Heading, Text, Badge, SimpleGrid, Button } from '@chakra-ui/react';
 
 interface FeatureDetail {
   name: string;
@@ -108,10 +109,10 @@ export const ComingSoonPage: React.FC<ComingSoonPageProps> = ({ featureKey }) =>
 
   if (!data) {
     return (
-      <div className="coming-soon-panel" style={{ textAlign: 'center' }}>
-        <h2 style={{ color: 'var(--color-pink)' }}>Feature Configuration Not Found</h2>
-        <p style={{ color: 'var(--text-secondary)', marginTop: 'var(--spacing-3)' }}>The selected feature key could not be mapped to metadata.</p>
-      </div>
+      <Box className="coming-soon-panel" textAlign="center" p="8">
+        <Heading color="red" size="lg" mb="4">Feature Configuration Not Found</Heading>
+        <Text color="text.secondary">The selected feature key could not be mapped to metadata.</Text>
+      </Box>
     );
   }
 
@@ -129,135 +130,174 @@ export const ComingSoonPage: React.FC<ComingSoonPageProps> = ({ featureKey }) =>
 
   const getFeatureIcon = () => {
     switch (featureKey) {
-      case 'coming-soon-fleet': return <Globe size={32} color="var(--color-cyan)" />;
-      case 'coming-soon-correlation': return <Activity size={32} color="var(--color-cyan)" />;
-      case 'coming-soon-healing': return <Shield size={32} color="var(--color-cyan)" />;
-      case 'coming-soon-ai-eng': return <Terminal size={32} color="var(--color-cyan)" />;
-      case 'coming-soon-vuln': return <Package size={32} color="var(--color-cyan)" />;
-      case 'coming-soon-execution': return <Check size={32} color="var(--color-green)" />;
-      default: return <Shield size={32} color="var(--color-cyan)" />;
+      case 'coming-soon-fleet': return <Globe size={32} color="#06B6D4" />;
+      case 'coming-soon-correlation': return <Activity size={32} color="#06B6D4" />;
+      case 'coming-soon-healing': return <Shield size={32} color="#06B6D4" />;
+      case 'coming-soon-ai-eng': return <Terminal size={32} color="#06B6D4" />;
+      case 'coming-soon-vuln': return <Package size={32} color="#06B6D4" />;
+      case 'coming-soon-execution': return <Check size={32} color="#16C784" />;
+      default: return <Shield size={32} color="#06B6D4" />;
     }
   };
 
   return (
-    <div className="coming-soon-panel">
+    <Box className="coming-soon-panel">
       {/* Visual Header */}
-      <div style={{ display: 'flex', gap: 'var(--spacing-5)', alignItems: 'center', marginBottom: 'var(--spacing-6)', borderBottom: '1px solid var(--border-color)', paddingBottom: 'var(--spacing-5)' }}>
-        <div style={{
-          width: 'var(--spacing-16)',
-          height: 'var(--spacing-16)',
-          borderRadius: 'var(--radius-lg)',
-          background: 'rgba(59, 130, 246, 0.05)',
-          border: '1px solid var(--border-color)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: 'var(--elevation-1)',
-          flexShrink: 0
-        }}>
+      <Flex gap="5" align="center" mb="6" pb="5" borderBottom="1px solid" borderColor="rgba(255,255,255,0.1)">
+        <Flex
+          w="16"
+          h="16"
+          borderRadius="12px"
+          bg="rgba(59, 130, 246, 0.05)"
+          border="1px solid"
+          borderColor="rgba(255,255,255,0.1)"
+          align="center"
+          justify="center"
+          boxShadow="0 2px 8px rgba(0, 0, 0, 0.15)"
+          flexShrink={0}
+        >
           {getFeatureIcon()}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--spacing-2)' }}>
-            <div>
-              <h2 style={{ fontSize: 'var(--font-size-h5)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{data.name}</h2>
-              <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-cyan)', fontFamily: 'var(--font-mono)' }}>{data.subtitle}</span>
-            </div>
-            <span className="cyber-badge badge-orange" style={{ padding: 'var(--spacing-1) var(--spacing-3)', fontSize: 'var(--font-size-caption)' }}>
+        </Flex>
+        
+        <Box flex="1">
+          <Flex justify="space-between" align="flex-start" wrap="wrap" gap="2">
+            <Box>
+              <Heading as="h2" fontSize="20px" fontWeight="bold" textTransform="uppercase" letterSpacing="0.5px" mb="1">
+                {data.name}
+              </Heading>
+              <Text fontSize="12px" color="cyan" fontFamily="mono">
+                {data.subtitle}
+              </Text>
+            </Box>
+            <Badge colorPalette="orange" variant="solid" size="md" px="3" py="1">
               ✦ {data.status}
-            </span>
-          </div>
-        </div>
-      </div>
+            </Badge>
+          </Flex>
+        </Box>
+      </Flex>
 
       {/* Main Details grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 'var(--spacing-6)' }}>
+      <SimpleGrid columns={{ base: 1, md: 12 }} gap="6">
         {/* Left column: Purpose & Benefits */}
-        <div style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-5)' }}>
-          <div>
-            <h3 style={{ fontSize: 'var(--font-size-caption)', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-2)' }}>Scope & Core Purpose</h3>
-            <p style={{ color: 'var(--text-primary)', fontSize: 'var(--font-size-body-sm)', lineHeight: 'var(--line-height-body)', background: 'var(--bg-secondary)', padding: 'var(--spacing-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+        <Flex gridColumn={{ md: 'span 7' }} direction="column" gap="5">
+          <Box>
+            <Heading as="h3" fontSize="11px" textTransform="uppercase" letterSpacing="1px" color="text.secondary" mb="2">
+              Scope & Core Purpose
+            </Heading>
+            <Text
+              color="text.primary"
+              fontSize="14px"
+              lineHeight="1.5"
+              bg="bg.secondary"
+              p="4"
+              borderRadius="12px"
+              border="1px solid"
+              borderColor="rgba(255,255,255,0.1)"
+            >
               {data.purpose}
-            </p>
-          </div>
+            </Text>
+          </Box>
 
-          <div>
-            <h3 style={{ fontSize: 'var(--font-size-caption)', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-2)' }}>Key Planned Capabilities</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
+          <Box>
+            <Heading as="h3" fontSize="11px" textTransform="uppercase" letterSpacing="1px" color="text.secondary" mb="2">
+              Key Planned Capabilities
+            </Heading>
+            <Flex direction="column" gap="3">
               {data.expectedBenefits.map((benefit, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: 'var(--spacing-3)', alignItems: 'flex-start' }}>
-                  <div style={{
-                    width: 'var(--spacing-5)',
-                    height: 'var(--spacing-5)',
-                    borderRadius: 'var(--radius-pill)',
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--color-green)',
-                    fontSize: 'var(--font-size-caption)',
-                    flexShrink: 0,
-                    marginTop: 'var(--spacing-1)'
-                  }}>
+                <Flex key={idx} gap="3" align="stretch">
+                  <Flex
+                    w="5"
+                    h="5"
+                    borderRadius="full"
+                    bg="rgba(16, 185, 129, 0.1)"
+                    border="1px solid rgba(16, 185, 129, 0.2)"
+                    align="center"
+                    justify="center"
+                    color="#16C784"
+                    fontSize="11px"
+                    flexShrink={0}
+                    mt="0.5"
+                  >
                     ✓
-                  </div>
-                  <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--text-secondary)', lineHeight: 'var(--line-height-body)' }}>
+                  </Flex>
+                  <Text fontSize="12px" color="text.secondary" lineHeight="1.5">
                     {benefit}
-                  </p>
-                </div>
+                  </Text>
+                </Flex>
               ))}
-            </div>
-          </div>
-        </div>
+            </Flex>
+          </Box>
+        </Flex>
 
         {/* Right column: Target Phase & Interactive */}
-        <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-5)', borderLeft: '1px solid var(--border-color)', paddingLeft: 'var(--spacing-6)' }}>
-          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: 'var(--spacing-4)' }}>
-            <h3 style={{ fontSize: 'var(--font-size-caption)', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: 'var(--spacing-3)' }}>Deployment Target</h3>
+        <Flex
+          gridColumn={{ md: 'span 5' }}
+          direction="column"
+          gap="5"
+          borderLeft={{ md: '1px solid' }}
+          borderColor={{ md: 'rgba(255,255,255,0.1)' }}
+          pl={{ md: '6' }}
+        >
+          <Box bg="bg.secondary" border="1px solid" borderColor="rgba(255,255,255,0.1)" borderRadius="12px" p="4">
+            <Heading as="h3" fontSize="11px" textTransform="uppercase" letterSpacing="1px" color="text.muted" mb="3">
+              Deployment Target
+            </Heading>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-2)' }}>
-              <span style={{ fontSize: 'var(--font-size-caption)', fontWeight: 'bold' }}>Release Goal:</span>
-              <span className="cyber-badge badge-cyan" style={{ fontSize: 'var(--font-size-caption)' }}>{data.plannedPhase}</span>
-            </div>
+            <Flex justify="space-between" align="center" mb="2">
+              <Text fontSize="12px" fontWeight="bold">Release Goal:</Text>
+              <Badge colorPalette="cyan" variant="solid" fontSize="11px">{data.plannedPhase}</Badge>
+            </Flex>
 
-            <div style={{ marginTop: 'var(--spacing-4)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-caption)', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-2)' }}>
-                <span>Phase Progress:</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{data.phaseProgress}%</span>
-              </div>
-              <div className="progress-bar-container" style={{ margin: 0, height: 'var(--spacing-2)' }}>
-                <div 
-                  className="progress-bar-fill" 
-                  style={{ 
-                    width: `${data.phaseProgress}%`, 
-                    backgroundColor: data.phaseProgress > 50 ? 'var(--color-cyan)' : 'var(--color-orange)' 
-                  }}
-                ></div>
-              </div>
-            </div>
-          </div>
+            <Box mt="4">
+              <Flex justify="space-between" fontSize="11px" color="text.secondary" mb="2">
+                <Text>Phase Progress:</Text>
+                <Text fontFamily="mono" fontWeight="bold">{data.phaseProgress}%</Text>
+              </Flex>
+              <Box w="full" bg="rgba(255,255,255,0.05)" borderRadius="full" h="2" overflow="hidden">
+                <Box
+                  h="full"
+                  bg={data.phaseProgress > 50 ? '#06B6D4' : '#F5A524'}
+                  w={`${data.phaseProgress}%`}
+                  borderRadius="full"
+                  transition="width 0.5s ease-out"
+                />
+              </Box>
+            </Box>
+          </Box>
 
-          <div style={{ background: 'rgba(59, 130, 246, 0.02)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', padding: 'var(--spacing-5)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
-            <div style={{ fontSize: 'var(--font-size-caption)', fontWeight: 'bold', color: 'var(--text-primary)' }}>Co-Pilot Early Adopters Program</div>
-            <p style={{ fontSize: 'var(--font-size-caption)', color: 'var(--text-secondary)', lineHeight: 'var(--line-height-body)' }}>
+          <Flex
+            bg="rgba(59, 130, 246, 0.02)"
+            border="1px dashed"
+            borderColor="rgba(255,255,255,0.15)"
+            borderRadius="12px"
+            p="5"
+            textAlign="center"
+            direction="column"
+            gap="3"
+            align="center"
+          >
+            <Text fontSize="12px" fontWeight="bold" color="text.primary">Co-Pilot Early Adopters Program</Text>
+            <Text fontSize="12px" color="text.secondary" lineHeight="1.5">
               Express interest in this module to prioritize development tasks and join the private developer preview.
-            </p>
+            </Text>
             
-            <div style={{ margin: 'var(--spacing-1) 0', fontSize: 'var(--font-size-h5)', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--color-cyan)' }}>
-              {votes} <span style={{ fontSize: 'var(--font-size-caption)', color: 'var(--text-muted)', fontWeight: 'normal', letterSpacing: 'normal' }}>Commanders Interested</span>
-            </div>
+            <Box my="1" fontSize="20px" fontWeight="800" fontFamily="mono" color="#06B6D4">
+              {votes} <Text as="span" fontSize="11px" color="text.muted" fontWeight="normal" letterSpacing="normal">Commanders Interested</Text>
+            </Box>
 
-            <button 
+            <Button
               onClick={handleRequestAccess}
-              className={`cyber-btn ${requested ? 'cyber-btn-primary' : ''}`}
-              style={{ width: '100%', padding: 'var(--spacing-2) var(--spacing-4)', fontSize: 'var(--font-size-caption)', fontWeight: 'bold', border: requested ? 'none' : '1px solid var(--border-color)' }}
+              colorPalette={requested ? 'cyber' : 'gray'}
+              variant={requested ? 'solid' : 'outline'}
+              w="full"
+              size="sm"
+              fontWeight="bold"
             >
               {requested ? '✓ Early Access Requested' : 'Express Interest & Vote'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+            </Button>
+          </Flex>
+        </Flex>
+      </SimpleGrid>
+    </Box>
   );
 };

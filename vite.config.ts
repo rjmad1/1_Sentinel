@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tsconfigPaths from 'vite-tsconfig-paths'
 import { spawn } from 'child_process'
 import path from 'path'
 
@@ -28,5 +29,5 @@ function backgroundDaemon() {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), backgroundDaemon()],
+  plugins: [react(), tsconfigPaths(), backgroundDaemon()],
 })
