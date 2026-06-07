@@ -8,42 +8,28 @@ This guide will walk you through accessing the Enterprise Infrastructure Intelli
 
 ```mermaid
 graph LR
-    Step1[1. Access App URL] --> Step2[2. Copy Collector Script]
-    Step2 --> Step3[3. Run PowerShell Collector]
-    Step3 --> Step4[4. Drag-and-Drop JSON]
-    Step4 --> Step5[5. Review Dashboard]
+    Step1[1. Access App or Tauri] --> Step2[2. Trigger Live Scan]
+    Step2 --> Step3[3. Or Import Assessment.json]
+    Step3 --> Step4[4. Review Dashboard]
 ```
 
 ### 1. Accessing the Application
-Open the EIIP web application URL in your preferred modern web browser. The app runs as a single-page static application. No user registration, accounts, or database installations are needed.
+Open the EIIP web application URL in your preferred modern web browser, or launch the Tauri native desktop application. No registration, accounts, or database installations are needed.
 
-### 2. Locating the Collector Script
-Navigate to the **Assessment Importer** tab in the main navigation. Download or copy the PowerShell collector script:
-* File location in repository: [Invoke-EIIPAssessment.ps1](file:///c:/AIProjects/1_Sentinel/collector/Invoke-EIIPAssessment.ps1)
+### 2. Running a Live Scan (Zero-Friction)
+- Click the **Refresh Assessment** button in the dashboard header.
+- **Tauri Native App:** Click **Run Native Workstation Scan** to query local telemetry directly.
+- **Web App (Local Daemon):** Ensure the background daemon service is running (connected status will show in green) and click **Run Telemetry Scan**.
+- The scan runs automatically, fetches system instrumentation, evaluates findings via the JS engine, and updates the dashboard immediately.
 
-### 3. Running the Collector Script
-On the Windows machine you want to assess, run PowerShell with appropriate permissions:
+### 3. Alternative: Manual Assessment Import
+If you have an exported `Assessment.json` from another machine:
+1. Select the **Assessment Importer** tab or click **Manual Legacy Upload** in the refresh modal.
+2. Drag-and-drop the generated `Assessment.json` file into the upload panel.
+3. The interface will parse the data, evaluate findings in JavaScript, and update the dashboard view.
 
-> [!TIP]
-> While you can run the collector as a standard user, running as **Administrator** allows the script to fetch full hardware data (e.g. BitLocker status, motherboard details) and scan all user profiles.
-
-1. Open the Start menu, search for **PowerShell**, right-click it, and select **Run as Administrator**.
-2. Run the following command to temporarily bypass execution policies (only for this process shell) and execute the script:
-   ```powershell
-   Set-ExecutionPolicy Bypass -Scope Process -Force
-   & "C:\Path\To\Invoke-EIIPAssessment.ps1"
-   ```
-3. The script will perform reads of your system registry, active services, storage disks, and package managers (Winget, Chocolatey, Scoop, WSL, Docker, pip, npm).
-4. Once completed, it will save a unified report on your Desktop named:
-   `Assessment.json`
-
-### 4. Importing the Assessment
-1. In the EIIP browser window, select the **Assessment Importer** tab.
-2. Drag-and-drop the generated `Assessment.json` file from your desktop into the upload panel, or click the upload panel to browse and select the file.
-3. The interface will immediately parse the data, update the active dashboard view, and save the run to your browser's IndexedDB history log.
-
-### 5. Reviewing the Results
-Once the import is complete, check your dashboard scores and explore the findings.
+### 4. Reviewing the Results
+Once the scan or import is complete, check your dashboard scores and explore the findings.
 
 `![Assessment Importer Upload Interface](docs/images/screenshot_importer.png)`
 *Placeholder: Screenshot of the Assessment Importer tab showing drag-and-drop area and upload status logs.*

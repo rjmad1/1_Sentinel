@@ -16,10 +16,10 @@ EIIP supports all modern, standard-compliant browsers including Google Chrome, M
 Yes. Once you load the static assets in your browser, the application runs entirely offline. You can import files, view graphs, and manage history without an active internet connection.
 
 ### Q4: Can I run EIIP on a Linux or macOS machine?
-The current V1 collection script is written for Windows environments (`Invoke-EIIPAssessment.ps1`). However, you can access the web interface from any operating system and upload mock data or preview historical runs. Linux/macOS collectors are planned for V3.
+The web interface and frontend rules engine run on any operating system. The telemetry gathering collectors (Tauri and daemon) currently support Windows, with native macOS/Linux collectors planned for V3.
 
 ### Q5: Is there a command-line interface for the UI?
-No. The user interface is entirely web-based for easy accessibility, but the backend collector is a standard PowerShell command-line script.
+No. The user interface is entirely web-based or Tauri desktop-based for easy accessibility, but the background daemon operates as a local HTTP service.
 
 ---
 
@@ -38,7 +38,7 @@ Typically under 2 minutes. On systems with massive software catalogs or nested D
 The V1 UI is designed to import and display results for a single machine at a time. The ability to aggregate and toggle between multiple machine profiles is scheduled for our V3 release.
 
 ### Q10: How do I schedule assessments to run automatically?
-You can use the Windows Task Scheduler to run `Invoke-EIIPAssessment.ps1` at set times (e.g. daily/weekly), writing the JSON report to a specific directory on your desktop or file share.
+The background daemon service automatically monitors host status and updates findings. You can configure scan intervals directly in the daemon configuration file or service settings.
 
 ---
 

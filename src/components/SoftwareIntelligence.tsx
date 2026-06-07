@@ -19,7 +19,6 @@ import { Box, Flex, Heading, Text, SimpleGrid, Button, Input, VStack } from '@ch
 interface SoftwareIntelligenceProps {
   demoMode?: boolean;
   assessmentLoaded?: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   assessmentSoftware?: any[];
   showToast: (message: string, type: 'success' | 'info' | 'warning' | 'error') => void;
   onUpdateOverallHealth?: (healthDiff: number) => void;
@@ -52,7 +51,6 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
       if (demoMode || (isE2E && (!assessmentSoftware || assessmentSoftware.length === 0))) {
         setPackages(MOCK_SOFTWARE_CATALOG);
       } else if (assessmentLoaded && assessmentSoftware && assessmentSoftware.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mapped: NormalizedPackage[] = assessmentSoftware.map((item: any, idx: number) => {
           const name = item.Name || `Unknown Package ${idx}`;
           const version = item.Version || item.InstalledVersion || '1.0.0';
@@ -159,7 +157,6 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
   });
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1);
   }, [searchQuery, searchField, searchMode, updateFilter, riskFilter, scopeFilter, sourceFilter]);
 
@@ -423,7 +420,7 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
       const timer = setTimeout(() => {
         setConsoleLogs(prev => [...prev, logSet[simulationStep]]);
         setSimulationStep(prev => prev + 1);
-      }, 500);
+      }, isE2E ? 25 : 500);
       return () => clearTimeout(timer);
     } else {
       // Simulation Complete!
@@ -480,7 +477,7 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [isSimulating, simulationStep, activePlanType, selectedPackage, conflictWarning, packages, selectedNames, onUpdateOverallHealth, showToast]);
+  }, [isSimulating, simulationStep, activePlanType, selectedPackage, conflictWarning, packages, selectedNames, onUpdateOverallHealth, showToast, isE2E]);
 
   // Run validation scan simulation
   const runValidationScan = () => {

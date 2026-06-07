@@ -1,9 +1,39 @@
 const http = require('http');
 const os = require('os');
+const fs = require('fs');
+const path = require('path');
 const { execSync } = require('child_process');
 
+function loadEnv() {
+  try {
+    const filenames = ['.env', '.env.local'];
+    filenames.forEach(filename => {
+      const envPath = path.resolve(__dirname, '../../' + filename);
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, 'utf8');
+        content.split('\n').forEach(line => {
+          const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+          if (match) {
+            const key = match[1];
+            let value = match[2] || '';
+            if (value.startsWith('"') && value.endsWith('"')) {
+              value = value.substring(1, value.length - 1);
+            } else if (value.startsWith("'") && value.endsWith("'")) {
+              value = value.substring(1, value.length - 1);
+            }
+            process.env[key] = value.trim();
+          }
+        });
+      }
+    });
+  } catch (err) {
+    // Ignore error
+  }
+}
+loadEnv();
+
 const PORT = 1337;
-const AUTH_TOKEN = 'sentinel-local-daemon-auth-token-1337-secret';
+const AUTH_TOKEN = process.env.SENTINEL_DAEMON_TOKEN || 'sentinel-local-daemon-auth-token-1337-secret';
 const START_TIME = Date.now();
 
 // Helper to run a PowerShell command and return parsed JSON
@@ -380,11 +410,26 @@ function harvestTelemetry() {
 }
 
 // Create HTTP Server
+const ALLOWED_ORIGINS = [
+  'https://1-sentinel.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'tauri://localhost'
+];
+
+function isOriginAllowed(origin) {
+  if (!origin) return false;
+  const lowerOrigin = origin.toLowerCase();
+  if (ALLOWED_ORIGINS.includes(lowerOrigin)) return true;
+  if (lowerOrigin.startsWith('http://localhost:') || lowerOrigin.startsWith('http://127.0.0.1:')) return true;
+  return false;
+}
+
 const server = http.createServer((req, res) => {
   const origin = req.headers.origin;
   
   const setCorsHeaders = (statusCode = 200) => {
-    if (origin) {
+    if (origin && isOriginAllowed(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Sentinel-Token, Authorization');
@@ -393,6 +438,13 @@ const server = http.createServer((req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.statusCode = statusCode;
   };
+
+  if (origin && !isOriginAllowed(origin)) {
+    res.setHeader('Content-Type', 'application/json');
+    res.statusCode = 403;
+    res.end(JSON.stringify({ error: 'Origin not allowed' }));
+    return;
+  }
 
   if (req.method === 'OPTIONS') {
     setCorsHeaders(200);

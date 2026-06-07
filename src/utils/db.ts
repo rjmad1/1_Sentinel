@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Dexie, { type Table } from 'dexie';
 
 export interface AssessmentRecord {
@@ -114,58 +113,67 @@ export const saveAssessment = async (data: any): Promise<string> => {
       data
     });
 
-    // Insert assets
+    // Insert assets using bulkAdd
     if (data.Assets && Array.isArray(data.Assets)) {
-      for (const asset of data.Assets) {
-        await db.assets.add({
-          assessmentId,
-          deviceId: asset.DeviceID || 'Unknown',
-          size: Number(asset.Size) || 0,
-          freeSpace: Number(asset.FreeSpace) || 0,
-          driveType: Number(asset.DriveType) || 3
-        });
-      }
+      const assetsToAdd = data.Assets.map((asset: any) => ({
+        assessmentId,
+        deviceId: asset.DeviceID || 'Unknown',
+        size: Number(asset.Size) || 0,
+        freeSpace: Number(asset.FreeSpace) || 0,
+        driveType: Number(asset.DriveType) || 3
+      }));
+      await db.assets.bulkAdd(assetsToAdd);
     }
 
-    // Insert software
+    // Insert software using bulkAdd
     if (data.Software && Array.isArray(data.Software)) {
-      for (const pkg of data.Software) {
-        await db.software.add({
-          assessmentId,
-          name: pkg.Name || 'Unknown Package',
-          version: pkg.Version || '0.0.0',
-          publisher: pkg.Publisher || null,
-          source: pkg.Source || 'Registry'
-        });
-      }
+      const softwareToAdd = data.Software.map((pkg: any) => ({
+        assessmentId,
+        name: pkg.Name || 'Unknown Package',
+        version: pkg.Version || '0.0.0',
+        publisher: pkg.Publisher || null,
+        source: pkg.Source || 'Registry'
+      }));
+      await db.software.bulkAdd(softwareToAdd);
     }
 
-    // Insert findings
+    // Insert findings using bulkAdd
     if (data.Findings && Array.isArray(data.Findings)) {
-      for (const f of data.Findings) {
-        await db.findings.add({
-          assessmentId,
-          findingId: f.FindingId,
-          title: f.Title || 'Finding',
-          severity: f.Severity || 'Low',
-          domain: f.Domain || 'General',
-          description: f.Description || '',
-          recommendedRemediation: f.RecommendedRemediation || ''
-        });
-      }
+      const findingsToAdd = data.Findings.map((f: any) => ({
+        assessmentId,
+        findingId: f.FindingId,
+        title: f.Title || 'Finding',
+        severity: f.Severity || 'Low',
+        domain: f.Domain || 'General',
+        description: f.Description || '',
+        recommendedRemediation: f.RecommendedRemediation || ''
+      }));
+      await db.findings.bulkAdd(findingsToAdd);
     }
 
-    // Insert risks
+    // Insert risks using bulkAdd
     if (data.RiskMatrix && Array.isArray(data.RiskMatrix)) {
-      for (const r of data.RiskMatrix) {
-        await db.risks.add({
-          assessmentId,
-          severity: r.Severity,
-          findingCount: Number(r.FindingCount) || 0
-        });
-      }
+      const risksToAdd = data.RiskMatrix.map((r: any) => ({
+        assessmentId,
+        severity: r.Severity,
+        findingCount: Number(r.FindingCount) || 0
+      }));
+      await db.risks.bulkAdd(risksToAdd);
     }
   });
+
+  // 2. Enforce retention policy: limit to 20 assessments (keep the most recent ones)
+  try {
+    const allAssessments = await db.assessments.orderBy('timestamp').toArray();
+    if (allAssessments.length > 20) {
+      const toDelete = allAssessments.slice(0, allAssessments.length - 20);
+      for (const record of toDelete) {
+        await deleteAssessment(record.assessmentId);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to prune old assessments:", err);
+  }
 
   return assessmentId;
 };

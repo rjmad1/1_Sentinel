@@ -20,15 +20,15 @@ Sentinel solves this by running a quick, non-intrusive scan of a computer, stori
 ## 🏗️ Core Architecture & Data Flow
 
 Sentinel is split into two primary layers:
-1. **The Scanner (PowerShell Collector):** A lightweight script that runs on a computer to inspect its configurations and output a summary file (`Assessment.json`).
-2. **The Dashboard (React Web App):** A visual web interface that reads the summary file, calculates health scores, renders interactive diagrams, and helps you plan updates.
+1. **The Telemetry Collectors (Tauri Desktop App & Background Daemon Service):** Native Rust collectors that query local system instrumentation metrics, CPU loads, and firewall configurations programmatically on the host, returning a unified data structure.
+2. **The Dashboard & Rules Engine (React Web App / assessmentEngine.js):** A visual web interface and JavaScript scoring engine that calculates health scores, evaluates rule matrices, renders interactive diagrams, and helps you plan updates.
 
 Here is how data flows through the platform:
 
 ```mermaid
 graph TD
-    A["1. Run Scanner<br>(Invoke-EIIPAssessment.ps1)"] -->|Generates Assessment.json| B["2. Upload to Web App<br>(App.tsx)"]
-    B -->|Saves securely locally| C["3. Local Database<br>(db.ts)"]
+    A["1. Run Tauri Native Scan<br>or Daemon Telemetry"] -->|Generates raw telemetry JSON| B["2. Evaluate Rules Engine<br>(assessmentEngine.js)"]
+    B -->|Saves consolidated assessment| C["3. Local Database<br>(db.ts)"]
     C -->|Populates| D["4. Software Catalog<br>(SoftwareIntelligence.tsx)"]
     C -->|Populates| E["5. Topology Node Graph<br>(App.tsx SVG)"]
     D -->|Simulate upgrades & uninstalls| F["6. Planner Core"]
@@ -42,13 +42,13 @@ graph TD
 
 Here is a simple explanation of what each file in the codebase does:
 
-### 1. Data Collection & Automation
-*   **[Invoke-EIIPAssessment.ps1](file:///c:/AIProjects/1_Sentinel/collector/Invoke-EIIPAssessment.ps1):**  
-    *   *What it is:* The system scanner.
-    *   *What it does:* This is a PowerShell script that IT administrators run on a machine. It performs read-only checks on CPU cores, memory, disk sizes, BitLocker encryption, running services, and lists programs installed via 9 different installer ecosystems (Winget, Chocolatey, Scoop, WSL, Docker, Python, Node, MSI, and Windows Store). It packages all this evidence into `Assessment.json`.
-*   **[lib/](file:///c:/AIProjects/1_Sentinel/collector/lib):**  
-    *   *What it is:* Auxiliary support libraries.
-    *   *What it does:* Houses database binaries (SQLite) that enable the scanner script to interface with local system caches and registry hives if necessary.
+### 1. Data Collection & Rule Evaluation
+*   **[assessmentEngine.js](file:///c:/AIProjects/1_Sentinel/src/utils/assessmentEngine.js):**  
+    *   *What it is:* The central rules and scoring engine.
+    *   *What it does:* Analyzes raw telemetry data in JavaScript. It evaluates security controls, disk limits, and services to compute finding lists, health scores, risk matrices, and topology node graphs.
+*   **[collector/daemon/src/collector.rs](file:///c:/AIProjects/1_Sentinel/collector/daemon/src/collector.rs) & [src-tauri/src/collector.rs](file:///c:/AIProjects/1_Sentinel/src-tauri/src/collector.rs):**  
+    *   *What they are:* Rust-based native telemetry collectors.
+    *   *What they do:* Spawn silent background queries to measure system performance and security baseline properties on the host, returning structured evidence payloads to the frontend.
 
 ---
 

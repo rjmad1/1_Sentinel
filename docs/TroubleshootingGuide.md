@@ -4,26 +4,23 @@ This guide provides step-by-step troubleshooting steps for common issues encount
 
 ---
 
-## 🛠️ Collector Execution Problems
+## 🛠️ Local Daemon & Tauri Live Scan Problems
 
-### 1. Script is Blocked by Execution Policy
-* **Symptom**: When trying to run `Invoke-EIIPAssessment.ps1`, PowerShell returns:
-  `File ... cannot be loaded because running scripts is disabled on this system.`
+### 1. Connection Refused / Daemon Offline
+* **Symptom**: The UI modal shows "Sentinel Local Collector Offline" or "Daemon Connection Refused".
 * **Resolution**: 
-  Windows blocks script execution by default. Run the script with a bypass parameter scoped only to the active command line session:
-  ```powershell
-  Set-ExecutionPolicy Bypass -Scope Process -Force
-  .\Invoke-EIIPAssessment.ps1
-  ```
-  Alternatively, if you are in a highly restricted active directory environment, run the script from inside a bypass scope shell:
-  ```powershell
-  powershell.exe -ExecutionPolicy Bypass -File .\Invoke-EIIPAssessment.ps1
-  ```
+  - Verify that the background daemon service is running on your host machine:
+    ```powershell
+    # Windows Service Status
+    Get-Service -Name SentinelDaemon
+    ```
+  - If the daemon is not installed, install and register the Sentinel background service on your endpoint.
+  - Check if port `1337` is occupied by another application on your system.
 
-### 2. Administrator Elevation Errors
-* **Symptom**: The collector warns that the script is running with restricted user privileges.
-* **Resolution**: 
-  While the script runs under standard user scope, it will miss machine-wide registries, security BitLocker states, and certain services. Close your PowerShell terminal, right-click the PowerShell application icon, select **Run as Administrator**, and re-execute.
+### 2. Administrator Elevation / Permissions
+* **Symptom**: The daemon is connected but fails to query firewall profile settings or BitLocker statuses.
+* **Resolution**:
+  - The daemon runs background queries to check security posture. Ensure the background daemon process is running with Administrator / Local System privileges.
 
 ---
 
@@ -34,13 +31,12 @@ This guide provides step-by-step troubleshooting steps for common issues encount
   `Failed to parse file: Invalid format.`
 * **Resolution**:
   - Open the file in a text editor (e.g. Notepad) and verify it starts with `{` and ends with `}`.
-  - If the script was interrupted before completing, the JSON structure will be truncated. Re-run the PowerShell collector and wait for the "Scan complete" message on the CLI before transferring the file.
+  - If the export was interrupted or modified, the JSON structure will be truncated. Re-run the live scan and export again.
 
-### 2. Schema Drift / Older Collector Version
+### 2. Schema Drift
 * **Symptom**: The file uploads, but no findings appear, or gauges remain at 0.
 * **Resolution**:
-  Ensure you are using the correct collector script version matching the UI. From the **Assessment Importer** tab, download the latest version of the script:
-  `Invoke-EIIPAssessment.ps1`
+  - Ensure the imported file conforms to the unified V1 schema containing at least the `Machine` and `RawEvidence` keys.
 
 ---
 

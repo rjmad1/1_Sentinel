@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Shield,
@@ -21,6 +20,7 @@ import { SoftwareIntelligence } from './components/SoftwareIntelligence';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { SystemStatusPage } from './components/SystemStatusPage';
 import { ReportIssueModal } from './components/ReportIssueModal';
+import { runAssessment } from './utils/assessmentEngine';
 import {
   saveAssessment,
   getHistoricalAssessments,
@@ -67,8 +67,7 @@ import {
   Text,
   Button,
   Input,
-  Spinner,
-  VStack
+  Spinner
 } from '@chakra-ui/react';
 import { DialogRoot, DialogContent, DialogHeader, DialogBody, DialogTitle } from './components/ui/dialog';
 import { Toaster, toaster } from './components/ui/toaster';
@@ -109,7 +108,7 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
   isTauri = false,
   runTauriScan
 }) => {
-  // 0 = Live Mode Check, 1 = Legacy Download, 2 = Legacy Run, 3 = Legacy Import, 4 = Finish
+  // 0 = Live Scan, 1 = Manual Import, 2 = Finish
   const [step, setStep] = useState<number>(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -140,11 +139,11 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
       try {
         const content = event.target?.result as string;
         const parsed = JSON.parse(content);
-        if (parsed && parsed.Machine && parsed.HealthScore) {
+        if (parsed && parsed.Machine) {
           onSuccess(parsed);
-          setStep(4);
+          setStep(2);
         } else {
-          setUploadError("Invalid Assessment.json schema. The file must contain Machine and HealthScore keys.");
+          setUploadError("Invalid Assessment.json schema. The file must contain at least a Machine key.");
         }
       } catch {
         setUploadError("Failed to parse JSON file. Make sure it is a valid JSON document.");
@@ -172,7 +171,7 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
 
   const triggerScanAndTransit = () => {
     runDaemonScan().then(() => {
-      setStep(4);
+      setStep(2);
     }).catch(() => {
       // error state set by parent
     });
@@ -183,7 +182,7 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
       <DialogContent bg="bg.secondary" border="1px solid rgba(255,255,255,0.1)">
         <DialogHeader display="flex" alignContent="center" justifyContent="space-between" borderBottom="1px solid rgba(255,255,255,0.1)" py="4" px="6">
           <DialogTitle id="refresh-modal-title" style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
-            <RefreshCw size={16} className={(step === 3 && loading) || daemonState === 'scanning' ? "spin" : ""} />
+            <RefreshCw size={16} className={(step === 1 && loading) || daemonState === 'scanning' ? "spin" : ""} />
             <span>Refresh System Assessment</span>
           </DialogTitle>
           <Button variant="outline" size="xs" onClick={onClose} border="1px solid rgba(255,255,255,0.2)">
@@ -195,23 +194,15 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
           {/* Progress Bar */}
           <div className="wizard-steps">
             <div className={`wizard-step ${step === 0 ? 'active' : 'completed'}`}>
-              <div className="wizard-step-circle">L</div>
-              <div className="wizard-step-label">Live Mode</div>
+              <div className="wizard-step-circle">1</div>
+              <div className="wizard-step-label">Live Scan</div>
             </div>
             <div className={`wizard-step ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}`}>
-              <div className="wizard-step-circle">{step > 1 ? "✓" : "1"}</div>
-              <div className="wizard-step-label">Download</div>
+              <div className="wizard-step-circle">{step > 1 ? "✓" : "2"}</div>
+              <div className="wizard-step-label">Manual Import</div>
             </div>
-            <div className={`wizard-step ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}`}>
-              <div className="wizard-step-circle">{step > 2 ? "✓" : "2"}</div>
-              <div className="wizard-step-label">Run</div>
-            </div>
-            <div className={`wizard-step ${step === 3 ? 'active' : step > 3 ? 'completed' : ''}`}>
-              <div className="wizard-step-circle">{step > 3 ? "✓" : "3"}</div>
-              <div className="wizard-step-label">Import</div>
-            </div>
-            <div className={`wizard-step ${step === 4 ? 'active' : ''}`}>
-              <div className="wizard-step-circle">4</div>
+            <div className={`wizard-step ${step === 2 ? 'active' : ''}`}>
+              <div className="wizard-step-circle">3</div>
               <div className="wizard-step-label">Finish</div>
             </div>
           </div>
@@ -237,7 +228,7 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
                         runTauriScan().then((data) => {
                           if (data) {
                             onSuccess(data);
-                            setStep(4);
+                            setStep(2);
                           }
                         });
                       }
@@ -272,7 +263,7 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
                         Run Telemetry Scan
                       </Button>
                       <Flex justify="flex-end" mt="3">
-                        <Button variant="outline" size="sm" onClick={() => setStep(3)}>Manual Legacy Upload</Button>
+                        <Button variant="outline" size="sm" onClick={() => setStep(1)}>Manual Legacy Upload</Button>
                       </Flex>
                     </Flex>
                   )}
@@ -298,20 +289,9 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
                       <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
                         The daemon running on your host is outdated. Version v1.0.0 or higher is required to support the V1 live scanning framework.
                       </Text>
-                      <Button
-                        colorPalette="cyber"
-                        fontWeight="bold"
-                        py="6"
-                        mt="2"
-                        asChild
-                      >
-                        <a href="/Invoke-EIIPAssessment.ps1" download="Invoke-EIIPAssessment.ps1" onClick={() => setStep(1)} style={{ textDecoration: 'none', color: '#060913', display: 'flex', width: '100%', justifyContent: 'center' }}>
-                          Download Latest Daemon Pack
-                        </a>
-                      </Button>
                       <Flex justify="space-between" mt="3">
                         <Button variant="outline" size="sm" onClick={checkDaemonStatus}>Retry Connection</Button>
-                        <Button variant="outline" size="sm" onClick={() => setStep(3)}>Manual Legacy Upload</Button>
+                        <Button variant="outline" size="sm" onClick={() => setStep(1)}>Manual Legacy Upload</Button>
                       </Flex>
                     </Flex>
                   )}
@@ -339,7 +319,7 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
                         </Button>
                         <Button 
                           variant="outline" 
-                          flex="1"
+                          flex="1" 
                           py="6"
                           onClick={checkDaemonStatus}
                         >
@@ -347,7 +327,7 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
                         </Button>
                       </Flex>
                       <Flex justify="flex-end" mt="3">
-                        <Button variant="outline" size="sm" onClick={() => setStep(3)}>Manual Legacy Upload</Button>
+                        <Button variant="outline" size="sm" onClick={() => setStep(1)}>Manual Legacy Upload</Button>
                       </Flex>
                     </Flex>
                   )}
@@ -361,18 +341,10 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
                         </Text>
                       </Flex>
                       <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
-                        To unlock live assessments and bypass script execution & upload procedures, install the **Sentinel background daemon service** on your local endpoint.
+                        To unlock live assessments, please start the background daemon on your local endpoint.
                       </Text>
                       
                       <Flex direction="column" gap="3" mt="2">
-                        <Button 
-                          colorPalette="cyber"
-                          fontWeight="bold" 
-                          py="6"
-                          onClick={() => setStep(1)}
-                        >
-                          Download Daemon Installation Pack
-                        </Button>
                         <Flex gap="3">
                           <Button 
                             variant="outline" 
@@ -384,7 +356,7 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
                           <Button 
                             variant="outline" 
                             flex="1" 
-                            onClick={() => setStep(3)}
+                            onClick={() => setStep(1)}
                           >
                             Manual Legacy Upload
                           </Button>
@@ -399,80 +371,9 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
 
           {step === 1 && (
             <Flex direction="column" gap="4">
-              <Heading as="h4" fontWeight="bold" fontSize="14px" textTransform="uppercase" color="cyan">Step 1: Download the Assessment Collector</Heading>
+              <Heading as="h4" fontWeight="bold" fontSize="14px" textTransform="uppercase" color="cyan">Import Assessment.json Report</Heading>
               <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
-                To gather the latest evidence from your local system, download the PowerShell collector script or daemon source.
-              </Text>
-              <Box bg="rgba(0,0,0,0.15)" p="4" borderRadius="8px" border="1px solid rgba(255,255,255,0.1)" fontSize="12px">
-                <Text as="strong" color="text.primary">Bundle Contents:</Text>
-                <VStack align="stretch" gap="1" mt="2" pl="4" as="ul" style={{ listStyleType: 'disc' }} color="text.secondary">
-                  <Text as="li">CIM evidence gathering methods (Disks, Memory, CPU, Security)</Text>
-                  <Text as="li">Automatic deduplication & risk rating algorithms</Text>
-                  <Text as="li">Local execution reporting output (Assessment.json)</Text>
-                </VStack>
-              </Box>
-              <Button 
-                colorPalette="cyber"
-                fontWeight="bold"
-                py="6"
-                mt="2"
-                asChild
-              >
-                <a href="/Invoke-EIIPAssessment.ps1" download="Invoke-EIIPAssessment.ps1" onClick={() => setStep(2)} style={{ textDecoration: 'none', color: '#060913', display: 'flex', width: '100%', justifyContent: 'center' }}>
-                  Download Collector Script
-                </a>
-              </Button>
-              <Flex justify="space-between" mt="3">
-                <Button variant="outline" size="sm" onClick={() => setStep(0)}>Back to Live Mode</Button>
-              </Flex>
-            </Flex>
-          )}
-
-          {step === 2 && (
-            <Flex direction="column" gap="4">
-              <Heading as="h4" fontWeight="bold" fontSize="14px" textTransform="uppercase" color="cyan">Step 2: Run the Collector on your Host</Heading>
-              <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
-                Open an elevated PowerShell session (Run as Administrator) and execute the downloaded script:
-              </Text>
-              <Flex
-                bg="rgba(2, 4, 10, 0.95)"
-                p="3"
-                borderRadius="6px"
-                border="1px solid rgba(255,255,255,0.1)"
-                fontFamily="mono"
-                fontSize="11px"
-                color="cyan"
-                align="center"
-                justify="space-between"
-                gap="3"
-              >
-                <Box overflowX="auto" whiteSpace="nowrap">powershell -ExecutionPolicy Bypass -File .\Invoke-EIIPAssessment.ps1</Box>
-                <Button 
-                  variant="outline" 
-                  size="xs" 
-                  flexShrink="0"
-                  onClick={() => {
-                    navigator.clipboard.writeText("powershell -ExecutionPolicy Bypass -File .\\Invoke-EIIPAssessment.ps1");
-                  }}
-                >
-                  Copy
-                </Button>
-              </Flex>
-              <Text color="text.muted" fontSize="11px">
-                This script will run read-only CIM diagnostics. It will generate a file named <code>Assessment.json</code> in the execution folder.
-              </Text>
-              <Flex justify="space-between" mt="3">
-                <Button variant="outline" size="sm" onClick={() => setStep(1)}>Back</Button>
-                <Button colorPalette="cyber" size="sm" fontWeight="bold" onClick={() => setStep(3)}>Next: Import File</Button>
-              </Flex>
-            </Flex>
-          )}
-
-          {step === 3 && (
-            <Flex direction="column" gap="4">
-              <Heading as="h4" fontWeight="bold" fontSize="14px" textTransform="uppercase" color="cyan">Step 3: Import the Generated Assessment.json</Heading>
-              <Text color="text.secondary" fontSize="13px" lineHeight="1.6">
-                Select or drag-and-drop the generated <code>Assessment.json</code> file below to replace the system assessment state.
+                Select or drag-and-drop your system assessment report JSON file below to refresh the system dashboard state.
               </Text>
 
               <Box 
@@ -520,7 +421,7 @@ const RefreshAssessmentModal: React.FC<RefreshAssessmentModalProps> = ({
             </Flex>
           )}
 
-          {step === 4 && (
+          {step === 2 && (
             <Flex direction="column" gap="4" align="center" textAlign="center" py="5">
               <Box
                 w="60px"
@@ -707,6 +608,9 @@ function App() {
   const [daemonVersion, setDaemonVersion] = useState<string>('');
   const [daemonPlatform, setDaemonPlatform] = useState<string>('');
   const [daemonError, setDaemonError] = useState<string>('');
+  const [daemonToken, setDaemonToken] = useState<string>(() => {
+    return localStorage.getItem('sentinel_daemon_token') || 'sentinel-local-daemon-auth-token-1337-secret';
+  });
 
   // Polling to discover local daemon status
   useEffect(() => {
@@ -738,6 +642,62 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleNewAssessmentData = async (parsedData: any) => {
+    if (!parsedData || !parsedData.Machine) {
+      throw new Error("Invalid assessment data: Machine overview is missing.");
+    }
+    
+    // Run JS rules engine
+    const calculated = runAssessment(parsedData.Machine, parsedData.RawEvidence || []);
+    
+    const consolidated = {
+      AssessmentId: parsedData.AssessmentId || parsedData.assessment_id || crypto.randomUUID(),
+      Machine: parsedData.Machine,
+      RawEvidence: parsedData.RawEvidence || [],
+      Software: parsedData.Software || [],
+      Findings: calculated.Findings,
+      HealthScore: calculated.HealthScore,
+      RiskMatrix: calculated.RiskMatrix,
+      CapacityForecast: calculated.CapacityForecast,
+      completedRemediations: parsedData.completedRemediations || {},
+    };
+    
+    hasUploadedRef.current = true;
+    setEnvData(consolidated.Machine);
+    
+    const sanitized = consolidated.Findings.map((f: any) => ({
+      FindingId: f.FindingId || '',
+      Category: f.Category || '',
+      Domain: f.Domain || '',
+      Severity: f.Severity || 'Low',
+      Confidence: f.Confidence || 'Medium',
+      Priority: typeof f.Priority === 'number' ? f.Priority : 5,
+      Title: f.Title || '',
+      Description: f.Description || '',
+      Evidence: Array.isArray(f.Evidence) ? f.Evidence : [],
+      Impact: f.Impact || '',
+      BusinessRisk: f.BusinessRisk || '',
+      RootCauseHypothesis: f.RootCauseHypothesis || '',
+      RecommendedRemediation: f.RecommendedRemediation || '',
+      EstimatedEffort: f.EstimatedEffort || 'Medium',
+      VerificationMethod: f.VerificationMethod || '',
+      CreatedOn: f.CreatedOn || new Date().toISOString(),
+    }));
+    setFindingsData(sanitized);
+    setHealthScoreData(consolidated.HealthScore);
+    setRiskMatrixData(consolidated.RiskMatrix);
+    setCapacityForecastData(consolidated.CapacityForecast);
+    setRawEvidenceData(consolidated.RawEvidence);
+    setActiveAssessmentSoftware(consolidated.Software);
+    setCompletedRemediations(consolidated.completedRemediations || {});
+    setActiveAssessmentId(consolidated.AssessmentId);
+    
+    await saveAssessment(consolidated);
+    const hist = await getHistoricalAssessments();
+    setHistoryData(hist);
+    setLastRefresh(new Date());
+  };
+
   const runDaemonScan = async () => {
     setDaemonState('scanning');
     setLogLines(prev => [...prev, '[Info] Connecting to Sentinel Local Collector Daemon...']);
@@ -748,52 +708,15 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Sentinel-Token': 'sentinel-local-daemon-auth-token-1337-secret'
+          'X-Sentinel-Token': daemonToken
         }
       });
 
       if (res.ok) {
         const parsedData = await res.json();
         
-        hasUploadedRef.current = true;
-        if (parsedData.Machine) setEnvData(parsedData.Machine);
-        if (parsedData.Findings) {
-          const sanitized = parsedData.Findings.map((f: any) => ({
-            FindingId: f.FindingId || '',
-            Category: f.Category || '',
-            Domain: f.Domain || '',
-            Severity: f.Severity || 'Low',
-            Confidence: f.Confidence || 'Medium',
-            Priority: typeof f.Priority === 'number' ? f.Priority : 5,
-            Title: f.Title || '',
-            Description: f.Description || '',
-            Evidence: Array.isArray(f.Evidence) ? f.Evidence : [],
-            Impact: f.Impact || '',
-            BusinessRisk: f.BusinessRisk || '',
-            RootCauseHypothesis: f.RootCauseHypothesis || '',
-            RecommendedRemediation: f.RecommendedRemediation || '',
-            EstimatedEffort: f.EstimatedEffort || 'Medium',
-            VerificationMethod: f.VerificationMethod || '',
-            CreatedOn: f.CreatedOn || new Date().toISOString(),
-          }));
-          setFindingsData(sanitized);
-        }
-        if (parsedData.HealthScore) setHealthScoreData(parsedData.HealthScore);
-        if (parsedData.RiskMatrix) setRiskMatrixData(parsedData.RiskMatrix);
-        if (parsedData.CapacityForecast) setCapacityForecastData(parsedData.CapacityForecast);
-        if (parsedData.RawEvidence) setRawEvidenceData(parsedData.RawEvidence);
-        if (parsedData.Software) setActiveAssessmentSoftware(parsedData.Software);
-        if (parsedData.completedRemediations) setCompletedRemediations(parsedData.completedRemediations);
-        else setCompletedRemediations({});
+        await handleNewAssessmentData(parsedData);
         
-        const newId = parsedData.AssessmentId || crypto.randomUUID();
-        setActiveAssessmentId(newId);
-
-        await saveAssessment(parsedData);
-        const hist = await getHistoricalAssessments();
-        setHistoryData(hist);
-        
-        setLastRefresh(new Date());
         setLogLines(prev => [...prev, `[Info] Successfully harvested live telemetry for ${parsedData.Machine?.ComputerName || 'host'}.`]);
         setDaemonState('connected');
         showToast('Local scan completed successfully!', 'success');
@@ -852,45 +775,8 @@ function App() {
       const invoke = (window as any).__TAURI__.invoke;
       const parsedData = await invoke('run_system_scan');
       
-      hasUploadedRef.current = true;
-      if (parsedData.Machine) setEnvData(parsedData.Machine);
-      if (parsedData.Findings) {
-        const sanitized = parsedData.Findings.map((f: any) => ({
-          FindingId: f.FindingId || '',
-          Category: f.Category || '',
-          Domain: f.Domain || '',
-          Severity: f.Severity || 'Low',
-          Confidence: f.Confidence || 'Medium',
-          Priority: typeof f.Priority === 'number' ? f.Priority : 5,
-          Title: f.Title || '',
-          Description: f.Description || '',
-          Evidence: Array.isArray(f.Evidence) ? f.Evidence : [],
-          Impact: f.Impact || '',
-          BusinessRisk: f.BusinessRisk || '',
-          RootCauseHypothesis: f.RootCauseHypothesis || '',
-          RecommendedRemediation: f.RecommendedRemediation || '',
-          EstimatedEffort: f.EstimatedEffort || 'Medium',
-          VerificationMethod: f.VerificationMethod || '',
-          CreatedOn: f.CreatedOn || new Date().toISOString(),
-        }));
-        setFindingsData(sanitized);
-      }
-      if (parsedData.HealthScore) setHealthScoreData(parsedData.HealthScore);
-      if (parsedData.RiskMatrix) setRiskMatrixData(parsedData.RiskMatrix);
-      if (parsedData.CapacityForecast) setCapacityForecastData(parsedData.CapacityForecast);
-      if (parsedData.RawEvidence) setRawEvidenceData(parsedData.RawEvidence);
-      if (parsedData.Software) setActiveAssessmentSoftware(parsedData.Software);
-      if (parsedData.completedRemediations) setCompletedRemediations(parsedData.completedRemediations);
-      else setCompletedRemediations({});
+      await handleNewAssessmentData(parsedData);
       
-      const newId = parsedData.AssessmentId || crypto.randomUUID();
-      setActiveAssessmentId(newId);
-
-      await saveAssessment(parsedData);
-      const hist = await getHistoricalAssessments();
-      setHistoryData(hist);
-      
-      setLastRefresh(new Date());
       setLogLines(prev => [...prev, `[Info] Successfully harvested native workstation state via Tauri.`]);
       showToast('Workstation scan completed successfully!', 'success');
       return parsedData;
@@ -1578,46 +1464,12 @@ function App() {
           const parsed = JSON.parse(content);
           
           // Unified V1 Assessment.json check
-          if (parsed && parsed.AssessmentId) {
-            hasUploadedRef.current = true;
-            if (parsed.Machine) setEnvData(parsed.Machine);
-            if (parsed.Findings) {
-              const sanitized = parsed.Findings.map((f: any) => ({
-                FindingId: f.FindingId || '',
-                Category: f.Category || '',
-                Domain: f.Domain || '',
-                Severity: f.Severity || 'Low',
-                Confidence: f.Confidence || 'Medium',
-                Priority: typeof f.Priority === 'number' ? f.Priority : 5,
-                Title: f.Title || '',
-                Description: f.Description || '',
-                Evidence: Array.isArray(f.Evidence) ? f.Evidence : [],
-                Impact: f.Impact || '',
-                BusinessRisk: f.BusinessRisk || '',
-                RootCauseHypothesis: f.RootCauseHypothesis || '',
-                RecommendedRemediation: f.RecommendedRemediation || '',
-                EstimatedEffort: f.EstimatedEffort || 'Medium',
-                VerificationMethod: f.VerificationMethod || '',
-                CreatedOn: f.CreatedOn || new Date().toISOString(),
-              }));
-              setFindingsData(sanitized);
-            }
-            if (parsed.HealthScore) setHealthScoreData(parsed.HealthScore);
-            if (parsed.RiskMatrix) setRiskMatrixData(parsed.RiskMatrix);
-            if (parsed.CapacityForecast) setCapacityForecastData(parsed.CapacityForecast);
-            if (parsed.RawEvidence) setRawEvidenceData(parsed.RawEvidence);
-            if (parsed.Software) setActiveAssessmentSoftware(parsed.Software);
-            if (parsed.AssessmentId) setActiveAssessmentId(parsed.AssessmentId);
-            if (parsed.completedRemediations) setCompletedRemediations(parsed.completedRemediations);
-            else setCompletedRemediations({});
-
-            saveAssessment(parsed).then(() => {
-              getHistoricalAssessments().then(hist => {
-                setHistoryData(hist);
-              });
+          if (parsed && (parsed.AssessmentId || parsed.assessment_id)) {
+            handleNewAssessmentData(parsed).then(() => {
+              setLogLines(prev => [...prev, `[Info] Imported unified Assessment.json for ${parsed.Machine?.ComputerName || 'machine'} and saved to local IndexedDB.`]);
+            }).catch(err => {
+              setLogLines(prev => [...prev, `[Error] Failed to process imported Assessment.json: ${err.message || err}`]);
             });
-
-            setLogLines(prev => [...prev, `[Info] Imported unified Assessment.json for ${parsed.Machine?.ComputerName || 'machine'} and saved to local IndexedDB.`]);
             return;
           }
 
@@ -3598,17 +3450,8 @@ ${capacityInfo}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                      Download the PowerShell collector script, execute it on your target machine to generate a unified <code>Assessment.json</code> report, and upload it here.
+                      Import a previously exported unified <code>Assessment.json</code> report or legacy multi-file report components here to load its environment states and findings into the dashboard.
                     </p>
-                    <a 
-                      href="/Invoke-EIIPAssessment.ps1" 
-                      download="Invoke-EIIPAssessment.ps1"
-                      className="cyber-btn cyber-btn-primary"
-                      style={{ display: 'inline-flex', alignSelf: 'flex-start', padding: '8px 16px', textDecoration: 'none', color: '#000', gap: '8px', alignItems: 'center', fontWeight: 'bold' }}
-                    >
-                      <TerminalIcon size={14} />
-                      <span>Download Collector (PowerShell)</span>
-                    </a>
                   </div>
 
                   {/* Drag and Drop Zone */}
@@ -3991,6 +3834,8 @@ ${capacityInfo}
               nodesCount={nodes.length}
               linksCount={graphLinks.length}
               showToast={showToast}
+              daemonToken={daemonToken}
+              onChangeDaemonToken={setDaemonToken}
               onPurgeDb={() => {
                 setEnvData(null);
                 setFindingsData([]);
@@ -4029,48 +3874,11 @@ ${capacityInfo}
         isTauri={isTauri}
         runTauriScan={runTauriScan}
         onSuccess={(parsedData) => {
-          hasUploadedRef.current = true;
-          if (parsedData.Machine) setEnvData(parsedData.Machine);
-          if (parsedData.Findings) {
-            const sanitized = parsedData.Findings.map((f: any) => ({
-              FindingId: f.FindingId || '',
-              Category: f.Category || '',
-              Domain: f.Domain || '',
-              Severity: f.Severity || 'Low',
-              Confidence: f.Confidence || 'Medium',
-              Priority: typeof f.Priority === 'number' ? f.Priority : 5,
-              Title: f.Title || '',
-              Description: f.Description || '',
-              Evidence: Array.isArray(f.Evidence) ? f.Evidence : [],
-              Impact: f.Impact || '',
-              BusinessRisk: f.BusinessRisk || '',
-              RootCauseHypothesis: f.RootCauseHypothesis || '',
-              RecommendedRemediation: f.RecommendedRemediation || '',
-              EstimatedEffort: f.EstimatedEffort || 'Medium',
-              VerificationMethod: f.VerificationMethod || '',
-              CreatedOn: f.CreatedOn || new Date().toISOString(),
-            }));
-            setFindingsData(sanitized);
-          }
-          if (parsedData.HealthScore) setHealthScoreData(parsedData.HealthScore);
-          if (parsedData.RiskMatrix) setRiskMatrixData(parsedData.RiskMatrix);
-          if (parsedData.CapacityForecast) setCapacityForecastData(parsedData.CapacityForecast);
-          if (parsedData.RawEvidence) setRawEvidenceData(parsedData.RawEvidence);
-          if (parsedData.Software) setActiveAssessmentSoftware(parsedData.Software);
-          if (parsedData.completedRemediations) setCompletedRemediations(parsedData.completedRemediations);
-          else setCompletedRemediations({});
-          
-          const newId = parsedData.AssessmentId || crypto.randomUUID();
-          setActiveAssessmentId(newId);
-
-          saveAssessment(parsedData).then(() => {
-            getHistoricalAssessments().then(hist => {
-              setHistoryData(hist);
-            });
+          handleNewAssessmentData(parsedData).then(() => {
+            setLogLines(prev => [...prev, `[Info] Refreshed assessment state with live data for ${parsedData.Machine?.ComputerName || 'machine'}.`]);
+          }).catch(err => {
+            console.error("Failed to refresh assessment:", err);
           });
-          
-          setLastRefresh(new Date());
-          setLogLines(prev => [...prev, `[Info] Refreshed assessment state with live data for ${parsedData.Machine?.ComputerName || 'machine'}.`]);
         }}
       />
     )}

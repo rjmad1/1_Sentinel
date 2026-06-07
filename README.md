@@ -54,29 +54,20 @@ To help you visualize the platform interface:
 
 ## ⚡ Quick Start
 
-Follow these 5 simple steps to run an assessment on your system:
+Follow these simple steps to run an assessment on your system:
 
 ### 1. Access the Application
-Open the EIIP web application URL in your web browser.
+Open the EIIP web application URL in your web browser, or launch the Tauri native desktop app.
 
-### 2. Download the Collector
-From the **Assessment Importer** tab, download the Collector Bundle containing the collection script:
-```powershell
-# Locate the collector in this repository at:
-# collector/Invoke-EIIPAssessment.ps1
-```
+### 2. Run Telemetry Scan (Zero-Friction Live Mode)
+- Click the **Refresh Assessment** button in the dashboard header.
+- If running in Tauri, click **Run Native Workstation Scan** for direct telemetry harvesting.
+- If running in the web browser, start the local daemon background service (connected status will show in green) and click **Run Telemetry Scan**.
 
-### 3. Run the Assessment Script
-Open PowerShell as an Administrator and execute the script. It will scan your machine and generate a unified `Assessment.json` file on your desktop:
-```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force
-.\Invoke-EIIPAssessment.ps1
-```
+### 3. Alternative: Manual Import
+If you have an exported `Assessment.json` from another machine, navigate to the **Assessment Importer** tab and drag-and-drop the file to populate the dashboard.
 
-### 4. Import the Assessment File
-Go back to the EIIP web application, navigate to the **Assessment Importer** tab, and drag-and-drop the generated `Assessment.json` file.
-
-### 5. Explore Results & Export AI Packages
+### 4. Explore Results & Export AI Packages
 Review your dashboard scores, check the software intelligence table, inspect the dependency graph, and click **Export AI Review Package** to generate a ZIP package for LLM review.
 
 ---

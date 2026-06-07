@@ -10,6 +10,8 @@ interface SystemStatusProps {
   linksCount: number;
   showToast: (message: string, type: 'success' | 'info' | 'warning' | 'error') => void;
   onPurgeDb: () => void;
+  daemonToken?: string;
+  onChangeDaemonToken?: (newToken: string) => void;
 }
 
 export const SystemStatusPage: React.FC<SystemStatusProps> = ({
@@ -18,7 +20,9 @@ export const SystemStatusPage: React.FC<SystemStatusProps> = ({
   nodesCount,
   linksCount,
   showToast,
-  onPurgeDb
+  onPurgeDb,
+  daemonToken,
+  onChangeDaemonToken
 }) => {
   const [counts, setCounts] = useState({
     assessments: 0,
@@ -277,6 +281,36 @@ export const SystemStatusPage: React.FC<SystemStatusProps> = ({
                 <Text as="strong" fontFamily="mono">{linksCount} Links</Text>
               </Flex>
             </Flex>
+
+            <Box mt="4" borderTop="1px solid rgba(255,255,255,0.1)" pt="4">
+              <Text fontSize="11px" fontWeight="bold" color="text.muted" textTransform="uppercase" mb="2">Daemon Security Token</Text>
+              <Flex gap="2">
+                <input
+                  type="password"
+                  value={daemonToken || ''}
+                  onChange={(e) => onChangeDaemonToken?.(e.target.value)}
+                  className="cyber-input"
+                  style={{ flex: 1, fontSize: '12px', padding: '6px 10px', background: 'var(--bg-primary)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', color: '#fff' }}
+                  placeholder="Enter daemon auth token..."
+                />
+                <Button 
+                  size="xs" 
+                  variant="outline"
+                  onClick={() => {
+                    localStorage.setItem('sentinel_daemon_token', daemonToken || '');
+                    showToast('Daemon security token saved to local storage.', 'success');
+                  }}
+                  height="32px"
+                  borderColor="rgba(255,255,255,0.15)"
+                  _hover={{ bg: 'rgba(255,255,255,0.05)' }}
+                >
+                  Save
+                </Button>
+              </Flex>
+              <Text fontSize="10px" color="text.muted" mt="1.5">
+                Configures the <code>X-Sentinel-Token</code> header used for live telemetry scan requests.
+              </Text>
+            </Box>
           </Box>
 
           <Box mt="6">
