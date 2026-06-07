@@ -1,0 +1,44 @@
+receivers:
+  # OTLP Receiver supporting both gRPC and HTTP protocols
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Batch processor to group telemetry packets and optimize network throughput
+  batch:
+    send_batch_size: 256
+    timeout: 5s
+    send_batch_max_size: 512
+
+exporters:
+  # Export to local console for debugging
+  logging:
+    verbosity: normal
+
+  # Export metrics in Prometheus format
+  prometheus:
+    endpoint: 0.0.0.0:8889
+
+  # Forward telemetry payloads to the FastAPI backend ingestion service
+  otlp/fastapi:
+    endpoint: http://host.docker.internal:8000/api/v2/telemetry/ingress
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus, logging]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/fastapi, logging]
+  telemetry:
+    logs:
+      level: "info"

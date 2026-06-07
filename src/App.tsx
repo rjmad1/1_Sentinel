@@ -20,6 +20,7 @@ import { SoftwareIntelligence } from './components/SoftwareIntelligence';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { SystemStatusPage } from './components/SystemStatusPage';
 import { ReportIssueModal } from './components/ReportIssueModal';
+import { TopologyCanvas } from './components/TopologyCanvas';
 import { runAssessment } from './utils/assessmentEngine';
 import {
   saveAssessment,
@@ -54,7 +55,6 @@ import {
   EmptyState,
   EvidencePanel,
   TimelineComponent,
-  NodeInspector,
   AIRecommendationCard,
   CheckCircleIcon,
   FileIcon
@@ -898,9 +898,7 @@ function App() {
   }, [rawEvidenceData]);
 
   // Node Graph Custom Positions State
-  const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
-  const [activeDraggedNode, setActiveDraggedNode] = useState<string | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>('machine');
+  const [nodePositions] = useState<Record<string, { x: number; y: number }>>({});
 
   // Findings auditor filters
   const [domainFilter, setDomainFilter] = useState<string>('ALL');
@@ -932,7 +930,6 @@ function App() {
   const [chatInput, setChatInput] = useState<string>('');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
 
 
 
@@ -1353,31 +1350,7 @@ function App() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Handle Dragging in interactive SVG topology graph
-  const handleMouseDown = (nodeId: string) => {
-    setActiveDraggedNode(nodeId);
-    setSelectedNodeId(nodeId);
-  };
 
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!activeDraggedNode || !svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Keep coordinates within visual bounds
-    const boundedX = Math.max(20, Math.min(480, x));
-    const boundedY = Math.max(20, Math.min(430, y));
-
-    setNodePositions(prev => ({
-      ...prev,
-      [activeDraggedNode]: { x: boundedX, y: boundedY }
-    }));
-  };
-
-  const handleMouseUp = () => {
-    setActiveDraggedNode(null);
-  };
 
   // Node connections map
   const graphLinks = [
@@ -3192,251 +3165,21 @@ ${capacityInfo}
           )}
 
           {/* 5. INFRASTRUCTURE GRAPH */}
-          {activeTab === 'topology' && (() => {
-            const getFindingCount = (nodeId: string) => {
-              if (nodeId === 'machine') return findingsData.length;
-              if (nodeId === 'disk_c') return findingsData.filter(f => f.FindingId === 'PERF-DISKFREE-C').length;
-              if (nodeId === 'svc_spooler') return findingsData.filter(f => f.Title.includes('Spooler') || f.FindingId.includes('SPOOLER')).length;
-              if (nodeId === 'svc_wbiosrvc') return findingsData.filter(f => f.Title.includes('Biometric') || f.FindingId.includes('WBIOSRVC')).length;
-              if (nodeId === 'firewall') return findingsData.filter(f => f.FindingId === 'SEC-FW-001').length;
-              if (nodeId === 'defender') return findingsData.filter(f => f.FindingId === 'SEC-DEF-001').length;
-              if (nodeId === 'local_admins') return findingsData.filter(f => f.FindingId === 'SEC-LADM-001').length;
-              if (nodeId === 'pkg_python') return findingsData.filter(f => f.Title.includes('Python') || f.FindingId.includes('PYTHON')).length;
-              if (nodeId === 'pkg_git') return findingsData.filter(f => f.Title.includes('Git') || f.FindingId.includes('GIT')).length;
-              if (nodeId === 'pkg_nginx') return findingsData.filter(f => f.Title.includes('Nginx') || f.FindingId.includes('NGINX')).length;
-              return 0;
-            };
-
-            const selectedNode = nodes.find(n => n.id === selectedNodeId);
-            return (
-              <div className="dashboard-grid">
-                {/* Interactive Node Graph */}
-                <div className="glass-panel" style={{ gridColumn: 'span 8' }}>
-                  <div className="panel-header">
-                    <h2 className="panel-title"><Globe size={16} /> Interactive Dependency Graph</h2>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Drag nodes to rearrange. Click to audit property parameters.</span>
-                  </div>
-
-                  <div style={{ position: 'relative', width: '100%', height: '460px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
-                    <svg 
-                      ref={svgRef}
-                      width="100%" 
-                      height="100%" 
-                      onMouseMove={handleMouseMove}
-                      onMouseUp={handleMouseUp}
-                      onMouseLeave={handleMouseUp}
-                      style={{ overflow: 'visible' }}
-                    >
-                      {/* Background Grid */}
-                      <defs>
-                        <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
-                          <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.015)" strokeWidth="1"/>
-                        </pattern>
-                      </defs>
-                      <rect width="100%" height="100%" fill="url(#grid)" />
-
-                      {/* Node Link Connections */}
-                      {graphLinks.map((link, idx) => {
-                        const sourceNode = nodes.find(n => n.id === link.source);
-                        const targetNode = nodes.find(n => n.id === link.target);
-                        if (!sourceNode || !targetNode) return null;
-
-                        return (
-                          <g key={`link-${idx}`}>
-                            {/* Main link line */}
-                            <line
-                              x1={sourceNode.x}
-                              y1={sourceNode.y}
-                              x2={targetNode.x}
-                              y2={targetNode.y}
-                              stroke="rgba(38, 55, 94, 0.4)"
-                              strokeWidth="2"
-                            />
-                            {/* Animated pulsing dot representing signal path */}
-                            <circle r="3" fill="var(--color-cyan)">
-                              <animateMotion
-                                path={`M ${sourceNode.x} ${sourceNode.y} L ${targetNode.x} ${targetNode.y}`}
-                                dur="4s"
-                                repeatCount="indefinite"
-                              />
-                            </circle>
-                          </g>
-                        );
-                      })}
-
-                      {/* Nodes group */}
-                      {nodes.map(node => {
-                        const isSelected = selectedNodeId === node.id;
-                        // Color based on status
-                        const color = node.status === 'error' ? 'var(--color-pink)' : node.status === 'warn' ? 'var(--color-orange)' : 'var(--color-cyan)';
-                        const findingsCount = getFindingCount(node.id);
-                        
-                        // Centered short label for node class
-                        const shortTypeLabel = 
-                          node.type === 'machine' ? 'M' :
-                          node.type === 'os' ? 'OS' :
-                          node.type === 'hardware' ? 'HW' :
-                          node.type === 'storage' ? 'ST' :
-                          node.type === 'service' ? 'SV' :
-                          node.type === 'security' ? 'SE' :
-                          node.type === 'user' ? 'US' : 'SW';
-
-                        return (
-                          <g 
-                            key={node.id} 
-                            transform={`translate(${node.x}, ${node.y})`}
-                            onMouseDown={() => handleMouseDown(node.id)}
-                            style={{ cursor: 'grab' }}
-                          >
-                            {/* Pulse ring for error nodes */}
-                            {node.status === 'error' && (
-                              <circle r="24" fill="none" stroke="var(--color-pink)" strokeWidth="1" opacity="0.6">
-                                <animate attributeName="r" values="14;28" dur="2s" repeatCount="indefinite" />
-                                <animate attributeName="opacity" values="0.8;0" dur="2s" repeatCount="indefinite" />
-                              </circle>
-                            )}
-
-                            {/* Node shape based on status */}
-                            {node.status === 'error' ? (
-                              // Hexagon
-                              <polygon
-                                points="0,-16 14,-8 14,8 0,16 -14,8 -14,-8"
-                                fill="var(--bg-primary)"
-                                stroke={color}
-                                strokeWidth={isSelected ? 3 : 2}
-                                style={{ 
-                                  filter: isSelected ? `drop-shadow(0 0 8px ${color})` : 'none',
-                                  transition: 'stroke-width 0.1s'
-                                }}
-                              />
-                            ) : node.status === 'warn' ? (
-                              // Diamond
-                              <polygon
-                                points="0,-16 16,0 0,16 -16,0"
-                                fill="var(--bg-primary)"
-                                stroke={color}
-                                strokeWidth={isSelected ? 3 : 2}
-                                style={{ 
-                                  filter: isSelected ? `drop-shadow(0 0 8px ${color})` : 'none',
-                                  transition: 'stroke-width 0.1s'
-                                }}
-                              />
-                            ) : (
-                              // Circle
-                              <circle 
-                                r={isSelected ? 16 : 14} 
-                                fill="var(--bg-primary)" 
-                                stroke={color} 
-                                strokeWidth={isSelected ? 3 : 2}
-                                style={{ 
-                                  filter: isSelected ? `drop-shadow(0 0 8px ${color})` : 'none',
-                                  transition: 'r 0.1s, stroke-width 0.1s'
-                                }} 
-                              />
-                            )}
-
-                            {/* Centered Node Type label */}
-                            <text
-                              textAnchor="middle"
-                              y="3"
-                              fill="var(--text-secondary)"
-                              fontSize="8"
-                              fontWeight="bold"
-                              fontFamily="var(--font-mono)"
-                              style={{ pointerEvents: 'none', userSelect: 'none' }}
-                            >
-                              {shortTypeLabel}
-                            </text>
-
-                            {/* Red badge for active findings count */}
-                            {findingsCount > 0 && (
-                              <g transform="translate(12, -12)">
-                                <circle r="7" fill="var(--color-danger)" />
-                                <text
-                                  textAnchor="middle"
-                                  y="2.5"
-                                  fill="#fff"
-                                  fontSize="8"
-                                  fontWeight="bold"
-                                  fontFamily="var(--font-mono)"
-                                  style={{ pointerEvents: 'none', userSelect: 'none' }}
-                                >
-                                  {findingsCount}
-                                </text>
-                              </g>
-                            )}
-
-                            {/* Text Label */}
-                            <text 
-                              y="28" 
-                              textAnchor="middle" 
-                              fill="var(--text-primary)" 
-                              fontSize="10" 
-                              fontWeight={isSelected ? 'bold' : 'normal'}
-                              style={{ pointerEvents: 'none', userSelect: 'none', filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
-                            >
-                              {node.label}
-                            </text>
-
-                            {/* E2E Compat Center click target (rendered at bottom of group so it intercepts pointer events) */}
-                            <circle r="3" fill="transparent" stroke="none" style={{ cursor: 'pointer' }} />
-                          </g>
-                        );
-                      })}
-                    </svg>
-                  </div>
-                </div>
-
-                {/* Node parameter inspector sidebar */}
-                <div className="glass-panel" style={{ gridColumn: 'span 4' }}>
-                  <div className="panel-header" style={{ marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                    <h2 className="panel-title">Node Inspector <span style={{ display: 'none' }}>Node Parameter Audit</span></h2>
-                  </div>
-
-                  {selectedNode ? (() => {
-                    const depCount = graphLinks.filter(l => l.source === selectedNode.id || l.target === selectedNode.id).length;
-                    const fCount = getFindingCount(selectedNode.id);
-                    
-                    const details = {
-                      'Host Context': envDataState?.ComputerName || 'Local System',
-                      'Assessment Status': selectedNode.status === 'error' ? 'Compromised' : selectedNode.status === 'warn' ? 'Weakened' : 'Success',
-                      'Dependency Count': depCount,
-                      'Finding Count': fCount,
-                      ...selectedNode.details
-                    };
-
-                    const alertText = selectedNode.status !== 'normal' ? (
-                      selectedNode.id === 'disk_c' ? 'C: drive free space has degraded below 15% threshold.' :
-                      selectedNode.id === 'svc_spooler' ? 'Print Spooler is stopped but configured to start automatically.' :
-                      selectedNode.id === 'svc_wbiosrvc' ? 'Windows Biometric service is stopped but configured as automatic.' :
-                      selectedNode.id === 'firewall' ? 'Public firewall profile is disabled, compromising lateral protection.' :
-                      selectedNode.id === 'defender' ? 'Real-time antimalware protection module is offline.' :
-                      selectedNode.id === 'local_admins' ? 'Broader group membership than recommended limits.' :
-                      selectedNode.id === 'machine' ? 'Vulnerability findings require immediate administrator remediation.' :
-                      selectedNode.id === 'pkg_python' ? 'Vulnerability CVE-2023-27043 (High) requires upgrade to v3.13.' :
-                      selectedNode.id === 'pkg_git' ? 'Vulnerability CVE-2023-29007 (High) requires upgrade to v2.43.' :
-                      selectedNode.id === 'pkg_nginx' ? 'Critical vulnerability CVE-2023-44487 (HTTP/2 Rapid Reset) requires immediate upgrade to v1.25.3.' :
-                      'Active findings detected on this asset.'
-                    ) : null;
-
-                    return (
-                      <NodeInspector
-                        label={selectedNode.label}
-                        type={selectedNode.type}
-                        status={selectedNode.status}
-                        details={details}
-                        alertText={alertText}
-                      />
-                    );
-                  })() : (
-                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '32px 16px' }}>
-                      Select any graph node to inspect health metrics and dependencies.
-                    </div>
-                  )}
-                </div>
+          {activeTab === 'topology' && (
+            <div className="glass-panel" style={{ width: '100%', padding: '24px' }}>
+              <div className="panel-header" style={{ marginBottom: '16px' }}>
+                <h2 className="panel-title"><Globe size={16} /> Interactive Dependency Graph</h2>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Drag nodes to rearrange. Click to audit property parameters.</span>
               </div>
-            );
-          })()}
+              <div style={{ width: '100%', height: '520px' }}>
+                <TopologyCanvas
+                  nodesList={nodes}
+                  edgesList={graphLinks}
+                  findingsData={findingsData}
+                />
+              </div>
+            </div>
+          )}
 
           {/* 6. IMPORT & LOG STREAM */}
           {activeTab === 'importer' && (
@@ -3471,7 +3214,7 @@ ${capacityInfo}
                       onChange={handleJsonUpload}
                       style={{ 
                         position: 'absolute', 
-                        top: 0, left: 0, width: 100 + '%', height: 100 + '%', 
+                        top: 0, left: 0, width: '100%', height: '100%', 
                         opacity: 0, cursor: 'pointer' 
                       }} 
                     />
@@ -3489,6 +3232,90 @@ ${capacityInfo}
                     <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.7 }}>
                       <span>Legacy multi-file reports (EnvironmentOverview, Findings, etc.)</span>
                       <span style={{ color: 'var(--text-muted)' }}>Supported</span>
+                    </div>
+                  </div>
+
+                  <hr style={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Database size={14} />
+                      <span>V1 SQLite & IndexedDB Migration Exporter</span>
+                    </div>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4', textAlign: 'left' }}>
+                      Compile your browser-native IndexedDB historical assessment timelines and export them as a V2-compatible migration pack.
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <button 
+                        type="button" 
+                        className="cyber-btn" 
+                        onClick={() => {
+                          const exportData = {
+                            AssessmentId: activeAssessmentId,
+                            Machine: envDataState,
+                            Findings: findingsData,
+                            HealthScore: healthScoreDataState,
+                            RiskMatrix: riskMatrixData,
+                            CapacityForecast: capacityForecastDataState,
+                            RawEvidence: rawEvidenceData,
+                            Software: activeAssessmentSoftware,
+                            History: historyData,
+                            completedRemediations: completedRemediations
+                          };
+                          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+                          const downloadAnchor = document.createElement('a');
+                          downloadAnchor.setAttribute("href", dataStr);
+                          downloadAnchor.setAttribute("download", `eiip-migration-pack-${envDataState?.ComputerName || 'machine'}.json`);
+                          document.body.appendChild(downloadAnchor);
+                          downloadAnchor.click();
+                          downloadAnchor.remove();
+                          showToast("Migration JSON pack downloaded successfully.", "success");
+                        }}
+                        style={{ flex: 1, padding: '8px 12px', fontSize: '11px', fontWeight: 'bold' }}
+                      >
+                        Export V1 JSON Pack
+                      </button>
+
+                      <button 
+                        type="button" 
+                        className="cyber-btn"
+                        onClick={async () => {
+                          const exportData = {
+                            AssessmentId: activeAssessmentId,
+                            Machine: envDataState,
+                            Findings: findingsData,
+                            HealthScore: healthScoreDataState,
+                            RiskMatrix: riskMatrixData,
+                            CapacityForecast: capacityForecastDataState,
+                            RawEvidence: rawEvidenceData,
+                            Software: activeAssessmentSoftware,
+                            History: historyData,
+                            completedRemediations: completedRemediations
+                          };
+
+                          try {
+                            const response = await fetch('http://localhost:8000/api/v2/migrate/import', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify(exportData)
+                            });
+
+                            if (response.ok) {
+                              const result = await response.json();
+                              showToast(`Successfully migrated historical timeline to PostgreSQL V2. Machine UUID: ${result.machine_uuid}`, "success");
+                            } else {
+                              showToast("Migration upload failed. Ensure FastAPI V2 server is running at localhost:8000.", "error");
+                            }
+                          } catch (err) {
+                            showToast("Network error. Ensure API gateway is accessible at localhost:8000.", "error");
+                          }
+                        }}
+                        style={{ flex: 1, padding: '8px 12px', fontSize: '11px', fontWeight: 'bold', borderColor: 'var(--color-cyan)', color: 'var(--color-cyan)' }}
+                      >
+                        Push Direct to V2 API
+                      </button>
                     </div>
                   </div>
                 </div>

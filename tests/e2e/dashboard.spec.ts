@@ -125,14 +125,14 @@ test.describe('EIIP Operations Command Center E2E Tests', () => {
 
     // Scenario 10: Validate Dependency Graph
     await page.click('button.menu-item:has-text("Infrastructure Graph")');
-    // Verify canvas renders SVG and node labels
-    await expect(page.locator('.glass-panel:has-text("Interactive Dependency Graph") svg[width="100%"]')).toBeVisible();
-    await expect(page.locator('.glass-panel:has-text("Interactive Dependency Graph") svg[width="100%"]')).toContainText('Compute CPU');
+    // Verify canvas renders React Flow and node labels
+    await expect(page.locator('.react-flow')).toBeVisible();
+    await expect(page.locator('.react-flow')).toContainText('Compute CPU');
 
-    // Perform node details inspector click on the center circle (since outer circle is covered by the center circle r=3)
-    await page.locator('.glass-panel:has-text("Interactive Dependency Graph") svg[width="100%"] g').filter({ hasText: 'Compute CPU' }).locator('circle[r="3"]').click();
+    // Perform node details inspector click on the Compute CPU node
+    await page.locator('.react-flow__node:has-text("Compute CPU")').click();
     // Verify side panel updates with CIM property details
-    await expect(page.locator('.glass-panel:has-text("Node Parameter Audit")')).toContainText('Logical Processors');
+    await expect(page.locator('.glass-panel .glass-panel:has-text("Node Parameter Audit")')).toContainText('Logical Processors');
 
     // Scenario 11: Risk Checkbox Mitigation updates score
     // Switch to Dashboard Overview first to capture initial pending count

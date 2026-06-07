@@ -1,0 +1,52 @@
+{
+  "id": "sentinel-realm",
+  "realm": "sentinel",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      {
+        "id": "role-admin",
+        "name": "admin",
+        "description": "Full administrator permissions including remediation execution.",
+        "composite": false
+      },
+      {
+        "id": "role-operator",
+        "name": "operator",
+        "description": "Trigger telemetry scans and view full graphs.",
+        "composite": false
+      },
+      {
+        "id": "role-auditor",
+        "name": "auditor",
+        "description": "Read-only auditor with no write permissions.",
+        "composite": false
+      }
+    ]
+  },
+  "clients": [
+    {
+      "id": "client-frontend",
+      "clientId": "sentinel-frontend",
+      "name": "Sentinel Command Center UI",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "webOrigins": [
+        "*"
+      ],
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://localhost:8000/*"
+      ]
+    },
+    {
+      "id": "client-backend",
+      "clientId": "sentinel-backend",
+      "name": "Sentinel Ingestion Service API",
+      "enabled": true,
+      "secret": "backend_api_super_secret_token_1337",
+      "bearerOnly": true
+    }
+  ]
+}

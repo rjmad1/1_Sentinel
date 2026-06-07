@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  # 1. Relational Database & JanusGraph Storage Backend
+  postgres:
+    image: postgres:15-alpine
+    container_name: eiip-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: eiip_secure_password_2026
+      POSTGRES_DB: eiip_metadata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eiip-network
+
+  # 2. Search Indexing Backend for JanusGraph Mixed Queries
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+    container_name: eiip-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cat/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eiip-network
+
+  # 3. High-Performance Property Graph Store
+  janusgraph:
+    image: janusgraph/janusgraph:1.0.0
+    container_name: eiip-janusgraph
+    ports:
+      - "8182:8182"
+    environment:
+      - JANUSGRAPH_CONFIG_storage_backend=cql
+      - JANUSGRAPH_CONFIG_storage_hostname=postgres
+      # Configured to run on top of TinkerPop Gremlin server
+    volumes:
+      - janusgraph_data:/var/lib/janusgraph
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - eiip-network
+
+  # 4. High-Speed Event Messaging Backplane
+  nats:
+    image: nats:2.9.19-alpine
+    container_name: eiip-nats
+    ports:
+      - "4222:4222"  # Client connection port
+      - "8222:8222"  # Management monitoring port
+    command: ["-js", "-sd", "/data", "-m", "8222"] # Enable JetStream and monitoring
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "4222"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - eiip-network
+
+  # 5. OIDC Single Sign-On Identity Provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1.2
+    container_name: eiip-keycloak
+    command: start-dev --import-realm
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=keycloak_secure_admin_1337
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres:5432/eiip_metadata
+      - KC_DB_USERNAME=postgres
+      - KC_DB_PASSWORD=eiip_secure_password_2026
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak-realm-import:/opt/keycloak/data/import
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - eiip-network
+
+  # 6. Telemetry Data Aggregation Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.80.0
+    container_name: eiip-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"  # OTLP gRPC receiver
+      - "4318:4318"  # OTLP HTTP receiver
+      - "8889:8889"  # Prometheus metrics exporter
+    depends_on:
+      - nats
+    networks:
+      - eiip-network
+
+volumes:
+  postgres_data:
+  elasticsearch_data:
+  janusgraph_data:
+  nats_data:
+
+networks:
+  eiip-network:
+    driver: bridge
