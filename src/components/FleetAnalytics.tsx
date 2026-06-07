@@ -98,7 +98,7 @@ export const FleetAnalytics: React.FC<FleetAnalyticsProps> = ({ showToast }) => 
   if (loading || !data) {
     return (
       <Flex direction="column" justify="center" align="center" minH="400px" gap="4">
-        <Spinner size="xl" color="#06B6D4" thickness="4px" />
+        <Spinner size="xl" color="#06B6D4" />
         <Text color="text.secondary" fontSize="14px">Aggregating global fleet capacity metrics...</Text>
       </Flex>
     );

@@ -735,7 +735,7 @@ function DashboardCommandCenter() {
     setBulkExecuting(true);
     
     // Filter execution plan steps based on type
-    const planSteps = dashboardData.execution_plan.filter(step => {
+    const planSteps = dashboardData.execution_plan.filter((step: any) => {
       const finding = findingsData.find(f => f.FindingId === step.finding_id);
       if (!finding) return false;
       if (type === 'critical') return finding.Severity === 'Critical' || finding.Severity === 'High';
@@ -1310,7 +1310,7 @@ Certified by Sentinel Autonomous Health & Remediation Engine
   // Fetch real capacity forecast whenever active machine/assessment changes
   useEffect(() => {
     const fetchForecast = async () => {
-      const machineId = envDataState?.MachineId || envDataState?.ComputerName;
+      const machineId = (envDataState as any)?.MachineId || envDataState?.ComputerName;
       if (!machineId) return;
       try {
         const forecast = await getCapacityForecast(machineId);
@@ -3652,7 +3652,7 @@ ${capacityInfo}
                   </div>
 
                   {/* Categories Accordion/List */}
-                  {dashboardData.categories.map((cat, idx) => (
+                  {dashboardData.categories.map((cat: any, idx: number) => (
                     <div className="glass-panel" key={idx} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px' }}>
                         <h3 style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
@@ -3667,7 +3667,7 @@ ${capacityInfo}
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {cat.issues.map((issue) => (
+                        {cat.issues.map((issue: any) => (
                           <div 
                             key={issue.finding_id}
                             onClick={() => setRemediationTargetId(issue.finding_id)}
@@ -3742,7 +3742,7 @@ ${capacityInfo}
                     <div className="glass-panel" style={{ padding: '16px' }}>
                       <div className="panel-title" style={{ fontSize: '11px', textTransform: 'uppercase', marginBottom: '12px' }}> Remediator Sequence Graph</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {dashboardData.execution_plan.map(step => (
+                        {dashboardData.execution_plan.map((step: any) => (
                           <div 
                             key={step.sequence}
                             style={{ 
@@ -3928,7 +3928,7 @@ ${capacityInfo}
                     <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div className="panel-title" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Generated Script Manifest</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {dashboardData.generated_scripts.map((script, idx) => (
+                        {dashboardData.generated_scripts.map((script: any, idx: number) => (
                           <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.04)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <FileIcon size={12} color="var(--color-cyan)" />

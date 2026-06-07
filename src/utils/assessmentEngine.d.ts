@@ -38,3 +38,5 @@ export function calculateHealthScore(findings: any[], environment: any): any;
 export function calculateRiskMatrix(findings: any[]): any[];
 export function calculateCapacityForecast(rawEvidence: any[], executionMode: string): any;
 export function generateGraphNodes(findings: any[], rawEvidence: any[]): any[];
+export function buildRemediationDashboard(findings: any[], completedRemediations?: any, environment?: any): any;
+
