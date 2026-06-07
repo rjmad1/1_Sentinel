@@ -53,27 +53,30 @@ Here is a simple explanation of what each file in the codebase does:
 ---
 
 ### 2. User Interface & Dashboards (React Components)
-*   **[App.tsx](file:///c:/AIProjects/1_Sentinel/src/App.tsx) & [App.css](file:///c:/AIProjects/1_Sentinel/src/App.css):**  
-    *   *What they are:* The heart of the web application.
-    *   *What they do:* This is the main controller file. It builds the sidebar layout, handles keyboard navigation shortcuts, logs system errors, and renders the central dashboards. It also draws the **Interactive SVG Topology Node Graph** which lets users drag and drop system components (disks, services, hardware) to visualize dependency relationships and highlights.
+*   **[App.tsx](file:///c:/AIProjects/1_Sentinel/src/App.tsx):**  
+    *   *What it is:* The heart of the web application.
+    *   *What it does:* This is the main controller file. It builds the sidebar layout, handles keyboard navigation shortcuts, logs system errors, and renders the central dashboards using Chakra UI v3 layout primitives. It also draws the **Interactive SVG Topology Node Graph** which lets users drag and drop system components (disks, services, hardware) to visualize dependency relationships and highlights.
 *   **[index.css](file:///c:/AIProjects/1_Sentinel/src/index.css):**  
     *   *What it is:* The design system stylesheet.
-    *   *What it does:* Defines the modern visual aesthetics of Sentinel (Harmonious HSL colors, sleek dark modes, glassmorphism, responsive margins, customized scrollbars, and toast notifications) to ensure a high-end, premium user experience.
+    *   *What it does:* Defines the global visual theme tokens, custom cyberpunk scrollbars, scanline background filter grids, and green/pink pulse animations. Redundant vanilla CSS modal and toast classes are cleaned up in favor of Chakra UI v3 layout tokens.
 *   **[main.tsx](file:///c:/AIProjects/1_Sentinel/src/main.tsx):**  
     *   *What it is:* The application entry point.
-    *   *What it does:* Standard bootstrap file that mounts the main React application into the browser page.
+    *   *What it does:* Boots up the React application and wraps the component tree in the custom Chakra UI `Provider` to inherit our cyber-neon styles.
 *   **[components/SoftwareIntelligence.tsx](file:///c:/AIProjects/1_Sentinel/src/components/SoftwareIntelligence.tsx):**  
     *   *What it is:* The Software Catalog.
-    *   *What it does:* Renders the unified table of all installed software packages. It displays support lifecycle details (such as whether software is EOL - End-of-Life, or Deprecated), lists version mismatches, and features the **Uninstall/Upgrade Planner** where administrators can run simulations to detect conflicts before making changes in the real world.
+    *   *What it does:* Renders the unified table of all installed software packages utilizing Chakra UI's table and input structures. It displays support lifecycle details (EOL, Deprecated), lists version mismatches, and features a simulation console drawer rendered inline to allow administrators to plan package upgrades or uninstalls.
 *   **[components/SystemStatusPage.tsx](file:///c:/AIProjects/1_Sentinel/src/components/SystemStatusPage.tsx):**  
     *   *What it is:* The Sentinel self-health checker.
-    *   *What it does:* Monitors Sentinel's internal state. It displays information about the browser's storage capacity, shows how many records are stored, displays current IndexedDB tables, and tracks console warning/error history.
+    *   *What it does:* Monitors Sentinel's internal state. It utilizes Chakra `<SimpleGrid>` and `<Progress>` meters to display information about the browser's storage capacity, show how many records are stored, display current IndexedDB tables, and track console warning/error history.
 *   **[components/ReportIssueModal.tsx](file:///c:/AIProjects/1_Sentinel/src/components/ReportIssueModal.tsx):**  
     *   *What it is:* The support package generator.
-    *   *What it does:* If a user encounters an error, this component lets them submit an issue. It automatically captures browser console logs, the active database schema, and environment profiles, bundling them into a ZIP archive for developers to debug.
+    *   *What it does:* If a user encounters an error, this component lets them submit an issue. It utilizes Chakra dialog components, validation field wrappers, and automatically captures browser console logs, the active database schema, and environment profiles, bundling them into a ZIP archive for developers to debug.
 *   **[components/ComingSoonPage.tsx](file:///c:/AIProjects/1_Sentinel/src/components/ComingSoonPage.tsx):**  
     *   *What it is:* Future roadmap previews.
-    *   *What it does:* Displays clean placeholders and mock details for upcoming features such as multi-machine fleet management, security event correlation, and auto-healing rules.
+    *   *What it does:* Displays clean placeholders, voter grids, and mock progress bars using Chakra card primitives for upcoming features.
+*   **[components/ui/](file:///c:/AIProjects/1_Sentinel/src/components/ui):**
+    *   *What it is:* Chakra UI v3 component composition directory.
+    *   *What it does:* Houses snippets for core UI elements (e.g. `button.tsx`, `checkbox.tsx`, `dialog.tsx`, `field.tsx`, `provider.tsx`, `toaster.tsx`) generated by the Chakra CLI to serve as locally customizable design primitives.
 
 ---
 
