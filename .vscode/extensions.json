@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "usernamehw.errorlens",
+    "eamodio.gitlens",
+    "rust-lang.rust-analyzer",
+    "ms-vscode.powershell",
+    "ms-playwright.playwright",
+    "christian-kohler.path-intellisense",
+    "gruntfuggly.todo-tree",
+    "yzhang.markdown-all-in-one",
+    "continue.continue",
+    "saoudrizwan.claude-dev"
+  ]
+}

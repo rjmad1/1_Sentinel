@@ -1,12 +1,12 @@
 # Dependency Graph Guide
 
-The **Topology View** in EIIP renders an interactive, draggable SVG node graph. This graph maps out your entire environment to show how your host machine, operating system configuration, services, security profiles, and software packages are interconnected.
+The **Topology View** in Sentinel renders an interactive, draggable network topology canvas powered by **React Flow (@xyflow/react)** and **Graphology**. This graph models service-to-host, database-to-host, and service-to-service relationships across your enterprise endpoints to visualize vulnerability blast radiuses and resource dependencies.
 
 ---
 
 ## 🕸️ Topology Architecture
 
-Instead of presenting isolated inventories, EIIP builds relationships. Below is a structural map of the node connections rendered in the topology graph:
+Instead of presenting isolated inventories, Sentinel constructs relational property graphs. Below is a structural map of the node connections rendered in the topology graph:
 
 ```mermaid
 graph TD
@@ -54,32 +54,33 @@ graph TD
 
 ---
 
-## 🎨 Visual Indicator System
+## 🎨 Visual Indicator & Glow System
 
-Nodes are color-coded to immediately highlight areas of vulnerability:
+Nodes in the React Flow canvas are customized to display real-time health and vulnerability status indicators. They feature neon glowing borders dynamically resolved from active findings:
 
-* **🟢 Green Outline (Normal)**: The component is healthy and running within accepted baselines (e.g. Defender AV is active, disk free space is > 15%).
-* **🟡 Orange Outline (Warn)**: The component has non-critical issues (e.g. Local Administrator privileges sprawl, a medium severity CVE exists, or minor version upgrades are available).
-* **🔴 Red Outline (Error)**: The component requires immediate attention (e.g. Disk space is critically low, a critical CVE is active on an exposed service, or a required automatic service is stopped).
-
----
-
-## 🖱️ Drag-and-Drop Interactive Controls
-
-* **Selecting Nodes**: Clicking any node in the SVG window highlights the node and opens a **Detailed Inspector Card** in the right drawer, showing hardware specs, paths, versions, and security states.
-* **Moving Nodes**: Click and hold any node, then drag it to clean up the visual layout. The nodes will automatically snap and stick to their new coordinates, respecting the graph borders.
-* **Link Direction Indicators**: Arrowheads indicate the dependency direction, allowing you to trace the impact of a planned component removal.
+* **🟢 Neon Green Glow (Normal)**: The component is healthy and running within accepted baselines (e.g. BitLocker encryption is fully enabled, Defender AV is active, disk free space is > 15%).
+* **🟡 Neon Orange Glow (Warning)**: The component has non-critical issues (e.g. Local Administrator privileges sprawl, a medium-severity CVE exists, or minor version upgrades are available).
+* **🔴 Neon Red Glow (Error/Critical)**: The component requires immediate attention (e.g. Disk C: storage is critically low, a critical CVE is active on an exposed service, or a required automatic service is stopped).
 
 ---
 
-## ❓ Why Dependency Analysis Matters
+## 🖱️ Canvas Controls & Inspector
 
-Understanding dependencies prevents catastrophic downtime.
+* **Pan & Zoom**: Scroll or pinch to zoom, click and drag the canvas background to pan across large topology maps.
+* **Draggable Layout**: Click and hold any node to reposition it dynamically. The canvas automatically updates edge paths.
+* **Link Direction Indicators**: Flowing animated dashed lines show connection routes, making it easy to identify dependent chains (e.g., packages referencing runtime packages).
+* **Node Selection & Side Inspector**: Clicking a node selects it and opens the **Side Inspector Panel**. The panel queries details from the JanusGraph property nodes, rendering system information, CIM specifications, active open ports, or software version metadata.
 
-### Example: Upgrading Nginx
-Suppose the dashboard highlights **Nginx** in 🔴 **Red** due to a critical security vulnerability (`CVE-2023-44487`). Before upgrading or removing it, looking at the graph shows that Nginx is managed by the OS. Removing it carelessly could drop hosting listeners.
+---
 
-### Example: Removing Python
-Suppose a user wants to free up space and uninstalls Python. The graph shows that `Poetry` and `JupyterLab` point to Python with `DEPENDS_ON` links. Removing Python breaks both toolchains. 
+## ❓ Operational Impact Analysis
 
-By visualizing these relationships, EIIP ensures engineers have **operational impact awareness** before executing changes on the terminal.
+Visualizing relationships helps administrators assess the blast radius of changes:
+
+### Example: Upgrading Web Servers
+If the topology maps a critical database node connected to a web server service, taking the web server offline for maintenance will block database traffic. The graph renders these dependencies so operators can schedule safe maintenance windows.
+
+### Example: Package Deprecation
+If a developer proposes uninstalling Python to save disk space, a glance at the catalog node graph displays that Poetry and JupyterLab are connected via `DEPENDS_ON` relationships. Uninstalling Python will break both dev tools.
+
+By modeling these relationships, Sentinel provides complete **operational impact awareness** before any shell script or upgrade commands are executed.

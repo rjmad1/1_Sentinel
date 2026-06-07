@@ -44,3 +44,8 @@ lint_output.txt
 .roo
 .trae
 .windsurf
+
+# Python pycache
+__pycache__/
+*.pyc
+

@@ -127,7 +127,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               {token.content}
             </Code>
           );
-        case 'link':
+        case 'link': {
           const url = token.url || '';
           const isDocLink = url.endsWith('.md');
           const isTabLink = url.startsWith('tab:');
@@ -189,6 +189,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               </a>
             );
           }
+        }
         default:
           return <span key={idx}>{token.content}</span>;
       }

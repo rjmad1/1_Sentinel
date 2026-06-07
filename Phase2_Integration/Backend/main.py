@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .endpoints import router
 from .nats_manager import NatsManager
+from .db import db as postgres_db
 
 logger = logging.getLogger("eiip-main")
 
@@ -14,6 +15,11 @@ NATS_SERVERS = os.getenv("NATS_SERVERS", "nats://localhost:4222")
 async def lifespan(app: FastAPI):
     # Startup actions
     logger.info("Initializing Enterprise Backend Server Lifespan...")
+    
+    # Connect to PostgreSQL
+    await postgres_db.connect()
+    app.state.db = postgres_db
+    
     nats_manager = NatsManager(servers=NATS_SERVERS)
     await nats_manager.connect()
     
@@ -25,6 +31,7 @@ async def lifespan(app: FastAPI):
     # Shutdown actions
     logger.info("Terminating Enterprise Backend Server Lifespan...")
     await nats_manager.close()
+    await postgres_db.close()
 
 # Initialize FastAPI App instance
 app = FastAPI(
@@ -53,3 +60,4 @@ def read_root():
         "version": "2.0.0",
         "docs_url": "/docs"
     }
+

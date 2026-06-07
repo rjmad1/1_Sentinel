@@ -799,3 +799,165 @@ export function runAssessment(environment, rawEvidence) {
     Recommendations: recommendations
   };
 }
+
+/**
+ * Builds the remediation dashboard data structure matching the architect's output contract schema.
+ */
+export function buildRemediationDashboard(findings, completedRemediations = {}, environment = {}) {
+  const activeFindings = findings.filter(f => !completedRemediations[f.FindingId]);
+  const completedFindings = findings.filter(f => completedRemediations[f.FindingId]);
+  
+  const totalIssues = findings.length;
+  const criticalIssues = findings.filter(f => f.Severity === 'Critical' || f.Severity === 'High').length;
+  const actionableIssues = activeFindings.filter(f => {
+    return ['SEC-FW-001', 'SEC-DEF-001', 'PERF-DISKFREE-C', 'REL-SVC-001'].includes(f.FindingId);
+  }).length;
+  
+  const healthScore = calculateHealthScore(findings, environment);
+  
+  // Calculate remaining findings to compute simulated post-remediation score
+  const remainingFindings = activeFindings.filter(f => !['SEC-FW-001', 'SEC-DEF-001', 'PERF-DISKFREE-C', 'REL-SVC-001'].includes(f.FindingId));
+  const postRemediationHealth = calculateHealthScore(remainingFindings, environment);
+  
+  const highRiskCount = activeFindings.filter(f => f.Severity === 'High').length;
+  const criticalRiskCount = activeFindings.filter(f => f.Severity === 'Critical').length;
+  const riskScore = Math.min(100, (criticalRiskCount * 40) + (highRiskCount * 25) + (activeFindings.filter(f => f.Severity === 'Medium').length * 10));
+  
+  const categoryMap = {
+    'Security': 'Security Risks',
+    'Performance': 'Performance Issues',
+    'Reliability': 'Reliability Concerns',
+    'Scalability': 'Resource Constraints',
+    'Usability': 'Developer Productivity Issues',
+    'Correlation': 'Critical Failures'
+  };
+  
+  const categoriesObj = {};
+  findings.forEach(f => {
+    const catName = categoryMap[f.Domain] || 'Configuration Drift';
+    if (!categoriesObj[catName]) {
+      categoriesObj[catName] = {
+        category: catName,
+        issue_count: 0,
+        severity: 'Low',
+        issues: []
+      };
+    }
+    
+    const priorityRank = {
+      'Critical': 1,
+      'High': 2,
+      'Medium': 3,
+      'Low': 4,
+      'Informational': 5
+    }[f.Severity] || 6;
+    
+    const isActionable = ['SEC-FW-001', 'SEC-DEF-001', 'PERF-DISKFREE-C', 'REL-SVC-001'].includes(f.FindingId);
+    
+    categoriesObj[catName].issues.push({
+      finding_id: f.FindingId,
+      title: f.Title,
+      root_cause: f.RootCauseHypothesis || 'Unknown baseline drift',
+      impact: f.Impact || 'No major impact noted',
+      priority_rank: priorityRank,
+      recommended_action: f.RecommendedRemediation || 'Manual review required',
+      automation_supported: isActionable,
+      estimated_fix_time: isActionable ? (f.FindingId === 'PERF-DISKFREE-C' ? '10m' : '2m') : 'N/A',
+      rollback_available: ['SEC-FW-001', 'SEC-DEF-001'].includes(f.FindingId),
+      is_resolved: !!completedRemediations[f.FindingId]
+    });
+    
+    categoriesObj[catName].issue_count++;
+    
+    const sevWeights = { 'Critical': 5, 'High': 4, 'Medium': 3, 'Low': 2, 'Informational': 1 };
+    if (sevWeights[f.Severity] > (sevWeights[categoriesObj[catName].severity] || 0)) {
+      categoriesObj[catName].severity = f.Severity;
+    }
+  });
+  
+  const categoriesList = Object.values(categoriesObj).sort((a, b) => b.issue_count - a.issue_count);
+  
+  const executionPlan = [];
+  const generatedScripts = [];
+  let sequence = 1;
+  
+  const commandDetails = {
+    'SEC-FW-001': {
+      action: 'Set-NetFirewallProfile -Profile Public -Enabled True',
+      dependency: 'None',
+      expected_outcome: 'Firewall profile reports active filtering state',
+      script_name: 'enable-firewall.ps1',
+      purpose: 'Enforce profile compliance and baseline standards'
+    },
+    'SEC-DEF-001': {
+      action: 'Set-MpPreference -DisableRealtimeMonitoring $false',
+      dependency: 'None',
+      expected_outcome: 'Defender real-time monitoring enabled successfully',
+      script_name: 'enable-defender.ps1',
+      purpose: 'Enable Windows Defender real-time protection'
+    },
+    'PERF-DISKFREE-C': {
+      action: 'Remove-Item -Path "$env:TEMP\\*" -Recurse -Force',
+      dependency: 'None',
+      expected_outcome: 'Reclaims temporary storage space',
+      script_name: 'prune-caches.ps1',
+      purpose: 'Prune temporary file caches'
+    },
+    'REL-SVC-001': {
+      action: 'Start-Service -Name Spooler',
+      dependency: 'None',
+      expected_outcome: 'Restores automatic background services to running status',
+      script_name: 'restart-services.ps1',
+      purpose: 'Restore local developer service availability'
+    }
+  };
+  
+  activeFindings.forEach(f => {
+    const details = commandDetails[f.FindingId];
+    if (details) {
+      executionPlan.push({
+        finding_id: f.FindingId,
+        sequence: sequence++,
+        action: details.action,
+        dependency: details.dependency,
+        expected_outcome: details.expected_outcome
+      });
+      generatedScripts.push({
+        script_name: details.script_name,
+        purpose: details.purpose
+      });
+    }
+  });
+  
+  const fixMinutes = activeFindings.reduce((sum, f) => {
+    if (f.FindingId === 'PERF-DISKFREE-C') return sum + 10;
+    if (['SEC-FW-001', 'SEC-DEF-001', 'REL-SVC-001'].includes(f.FindingId)) return sum + 2;
+    return sum;
+  }, 0);
+  const estimatedFullRemediationTime = fixMinutes > 0 ? `${fixMinutes}m` : '0m';
+  
+  return {
+    overall_health_score: healthScore.OverallHealthScore,
+    risk_score: riskScore,
+    total_issues: totalIssues,
+    critical_issues: criticalIssues,
+    actionable_issues: actionableIssues,
+    estimated_full_remediation_time: estimatedFullRemediationTime,
+    categories: categoriesList,
+    bulk_actions: [
+      "fix_all",
+      "fix_critical",
+      "fix_security",
+      "fix_performance",
+      "custom_plan"
+    ],
+    execution_plan: executionPlan,
+    generated_scripts: generatedScripts,
+    post_remediation_validation: {
+      health_score: postRemediationHealth.OverallHealthScore,
+      resolved_issues: totalIssues - activeFindings.length,
+      remaining_issues: activeFindings.length
+    }
+  };
+}
+

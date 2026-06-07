@@ -23,6 +23,7 @@ interface SoftwareIntelligenceProps {
   showToast: (message: string, type: 'success' | 'info' | 'warning' | 'error') => void;
   onUpdateOverallHealth?: (healthDiff: number) => void;
   onNavigateToTab?: (tab: string) => void;
+  canExecuteRemediation?: boolean;
 }
 
 export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({ 
@@ -31,7 +32,8 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
   assessmentSoftware = [],
   showToast,
   onUpdateOverallHealth,
-  onNavigateToTab
+  onNavigateToTab,
+  canExecuteRemediation = true
 }) => {
   const isE2E = typeof window !== 'undefined' && (
     !!window.navigator.webdriver || 
@@ -329,6 +331,10 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
 
   // Execute single upgrade simulation
   const startSingleUpgrade = (pkg: NormalizedPackage) => {
+    if (!canExecuteRemediation) {
+      showToast("Permission Denied: Only Administrators can execute package upgrades.", "error");
+      return;
+    }
     setSelectedPackage(pkg);
     setActivePlanType('upgrade');
     setConsoleLogs([
@@ -342,6 +348,10 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
 
   // Execute bulk upgrade simulation
   const startBulkUpgrade = () => {
+    if (!canExecuteRemediation) {
+      showToast("Permission Denied: Only Administrators can execute package upgrades.", "error");
+      return;
+    }
     setActivePlanType('bulk-upgrade');
     const selectedPkgs = packages.filter(p => selectedNames.has(p.Name) && p.UpdateState === 'Update Available');
     setConsoleLogs([
@@ -355,6 +365,10 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
 
   // Execute uninstall simulation with conflict checks
   const startUninstall = (pkg: NormalizedPackage) => {
+    if (!canExecuteRemediation) {
+      showToast("Permission Denied: Only Administrators can execute uninstalls.", "error");
+      return;
+    }
     setSelectedPackage(pkg);
     // Dependency Check
     const dependents = packages.filter(p => 
@@ -750,14 +764,26 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
               <Flex align="center" justify="space-between" p="3" px="4" bg="rgba(6,182,212,0.06)" border="1px solid rgba(6,182,212,0.25)" borderRadius="6px">
                 <Text fontSize="12px" fontWeight="bold">{selectedNames.size} packages selected for operations</Text>
                 <Flex gap="2">
-                  <Button colorPalette="cyber" size="sm" onClick={startBulkUpgrade}>
+                  <Button 
+                    colorPalette="cyber" 
+                    size="sm" 
+                    onClick={startBulkUpgrade}
+                    disabled={!canExecuteRemediation}
+                    style={{ opacity: canExecuteRemediation ? 1 : 0.5, cursor: canExecuteRemediation ? 'pointer' : 'not-allowed' }}
+                  >
                     <Wrench size={12} />
                     <Text as="span">Upgrade Selected</Text>
                   </Button>
-                  <Button colorPalette="red" size="sm" onClick={() => {
-                    const toDelete = packages.find(p => selectedNames.has(p.Name));
-                    if (toDelete) startUninstall(toDelete);
-                  }}>
+                  <Button 
+                    colorPalette="red" 
+                    size="sm" 
+                    onClick={() => {
+                      const toDelete = packages.find(p => selectedNames.has(p.Name));
+                      if (toDelete) startUninstall(toDelete);
+                    }}
+                    disabled={!canExecuteRemediation}
+                    style={{ opacity: canExecuteRemediation ? 1 : 0.5, cursor: canExecuteRemediation ? 'pointer' : 'not-allowed' }}
+                  >
                     <Trash2 size={12} />
                     <Text as="span">Uninstall Selected</Text>
                   </Button>
@@ -927,11 +953,23 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                                 <td style={{ padding: rowPadding, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                                   <Flex gap="1.5" justify="center">
                                     {pkg.UpdateState === 'Update Available' && (
-                                      <button className="cyber-btn" style={{ padding: '4px 8px', fontSize: '10px' }} title="Automated Upgrade" onClick={() => startSingleUpgrade(pkg)}>
+                                      <button 
+                                        className="cyber-btn" 
+                                        style={{ padding: '4px 8px', fontSize: '10px', opacity: canExecuteRemediation ? 1 : 0.5, cursor: canExecuteRemediation ? 'pointer' : 'not-allowed' }} 
+                                        disabled={!canExecuteRemediation}
+                                        title="Automated Upgrade" 
+                                        onClick={() => startSingleUpgrade(pkg)}
+                                      >
                                         <Wrench size={10} color="#F5A524" />
                                       </button>
                                     )}
-                                    <button className="cyber-btn cyber-btn-danger" style={{ padding: '4px 8px', fontSize: '10px' }} title="Clean Uninstall" onClick={() => startUninstall(pkg)}>
+                                    <button 
+                                      className="cyber-btn cyber-btn-danger" 
+                                      style={{ padding: '4px 8px', fontSize: '10px', opacity: canExecuteRemediation ? 1 : 0.5, cursor: canExecuteRemediation ? 'pointer' : 'not-allowed' }} 
+                                      disabled={!canExecuteRemediation}
+                                      title="Clean Uninstall" 
+                                      onClick={() => startUninstall(pkg)}
+                                    >
                                       <Trash2 size={10} />
                                     </button>
                                   </Flex>
@@ -1211,7 +1249,14 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                     
                     <Flex direction="column" gap="2.5">
                       {selectedPackage.UpdateState === 'Update Available' && (
-                        <Button colorPalette="cyber" size="sm" py="5" onClick={() => startSingleUpgrade(selectedPackage)}>
+                        <Button 
+                          colorPalette="cyber" 
+                          size="sm" 
+                          py="5" 
+                          onClick={() => startSingleUpgrade(selectedPackage)}
+                          disabled={!canExecuteRemediation}
+                          style={{ opacity: canExecuteRemediation ? 1 : 0.5, cursor: canExecuteRemediation ? 'pointer' : 'not-allowed' }}
+                        >
                           <Wrench size={14} />
                           <Text as="span">Upgrade to v{selectedPackage.LatestVersion}</Text>
                         </Button>
@@ -1231,7 +1276,14 @@ export const SoftwareIntelligence: React.FC<SoftwareIntelligenceProps> = ({
                         <Text as="span">Repair Configuration</Text>
                       </Button>
 
-                      <Button colorPalette="red" size="sm" mt="2" onClick={() => startUninstall(selectedPackage)}>
+                      <Button 
+                        colorPalette="red" 
+                        size="sm" 
+                        mt="2" 
+                        onClick={() => startUninstall(selectedPackage)}
+                        disabled={!canExecuteRemediation}
+                        style={{ opacity: canExecuteRemediation ? 1 : 0.5, cursor: canExecuteRemediation ? 'pointer' : 'not-allowed' }}
+                      >
                         <Trash2 size={14} />
                         <Text as="span">Uninstall Software</Text>
                       </Button>

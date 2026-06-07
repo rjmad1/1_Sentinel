@@ -357,6 +357,7 @@ interface ActionCardProps {
   isCompleted: boolean;
   onToggleComplete: () => void;
   onInspectClick?: () => void;
+  disabled?: boolean;
 }
 
 export const ActionCard: React.FC<ActionCardProps> = ({
@@ -369,7 +370,8 @@ export const ActionCard: React.FC<ActionCardProps> = ({
   validationText,
   isCompleted,
   onToggleComplete,
-  onInspectClick
+  onInspectClick,
+  disabled = false
 }) => {
   return (
     <Box
@@ -387,13 +389,15 @@ export const ActionCard: React.FC<ActionCardProps> = ({
         <input
           type="checkbox"
           checked={isCompleted}
-          onChange={() => onToggleComplete()}
+          disabled={disabled}
+          onChange={() => !disabled && onToggleComplete()}
           title="Mark remediation complete"
           style={{
-            cursor: 'pointer',
+            cursor: disabled ? 'not-allowed' : 'pointer',
             width: '16px',
             height: '16px',
             accentColor: '#16C784',
+            opacity: disabled ? 0.5 : 1
           }}
         />
       </Box>

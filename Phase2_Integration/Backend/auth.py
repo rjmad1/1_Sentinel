@@ -21,21 +21,22 @@ except ImportError:
     logger.warning("PyJWT not installed. Authentication will operate in local developer bypass mode.")
 
 class UserPayload:
-    def __init__(self, username: str, roles: List[str]):
+    def __init__(self, username: str, roles: List[str], tenant_id: str = "default-tenant"):
         self.username = username
         self.roles = roles
+        self.tenant_id = tenant_id
 
     def has_role(self, role: str) -> bool:
         return role in self.roles
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserPayload:
     """
-    Decodes Keycloak JWT claims, verifies signature, and extracts user roles.
+    Decodes Keycloak JWT claims, verifies signature, and extracts user roles and tenant ID.
     Falls back to a mock Admin payload in DEVELOPMENT_MODE if Keycloak is unreachable or PyJWT is missing.
     """
     if DEVELOPMENT_MODE or not token:
         logger.info("DEVELOPMENT BYPASS: Authenticating as Mock Admin (roles: ['admin', 'operator'])")
-        return UserPayload(username="dev_user", roles=["admin", "operator"])
+        return UserPayload(username="dev_user", roles=["admin", "operator"], tenant_id="default-tenant")
 
     if not JWT_AVAILABLE:
         raise HTTPException(
@@ -48,13 +49,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserPayload:
         payload = jwt.decode(token, options={"verify_signature": False})
         
         username = payload.get("preferred_username", "anonymous")
+        tenant_id = payload.get("tenant_id", "default-tenant")
         
         # Keycloak maps client/realm roles in resource_access or realm_access claims
         realm_access = payload.get("realm_access", {})
         roles = realm_access.get("roles", [])
 
-        logger.info(f"Authenticated user: {username} (roles: {roles})")
-        return UserPayload(username=username, roles=roles)
+        logger.info(f"Authenticated user: {username} (tenant: {tenant_id}, roles: {roles})")
+        return UserPayload(username=username, roles=roles, tenant_id=tenant_id)
     except Exception as e:
         logger.error(f"JWT decode error: {e}")
         raise HTTPException(
@@ -62,6 +64,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserPayload:
             detail="Could not validate credentials.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
 
 def require_role(required_role: str):
     """

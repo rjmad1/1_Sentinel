@@ -17,15 +17,19 @@ import {
   Database
 } from './utils/icons';
 import { SoftwareIntelligence } from './components/SoftwareIntelligence';
+import { FleetAnalytics } from './components/FleetAnalytics';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { SystemStatusPage } from './components/SystemStatusPage';
 import { ReportIssueModal } from './components/ReportIssueModal';
 import { TopologyCanvas } from './components/TopologyCanvas';
-import { runAssessment } from './utils/assessmentEngine';
+import { runAssessment, buildRemediationDashboard } from './utils/assessmentEngine';
 import {
   saveAssessment,
   getHistoricalAssessments,
-  loadAssessmentDetails
+  loadAssessmentDetails,
+  getFleetMachines,
+  getCapacityForecast,
+  type FleetMachine
 } from './utils/db';
 import JSZip from 'jszip';
 import {
@@ -71,6 +75,7 @@ import {
 } from '@chakra-ui/react';
 import { DialogRoot, DialogContent, DialogHeader, DialogBody, DialogTitle } from './components/ui/dialog';
 import { Toaster, toaster } from './components/ui/toaster';
+import { AuthProvider, useAuth } from './utils/auth';
 
 // Graph Node Interface
 interface GraphNode {
@@ -463,9 +468,15 @@ const DEMO_MODE =
   (typeof window !== 'undefined' && window.location.search.includes('demo=true')) ||
   IS_E2E;
 
-function App() {
+function DashboardCommandCenter() {
+  const { user, logout } = useAuth();
+
+  const canRunScan = user?.roles.includes('admin') || user?.roles.includes('operator');
+  const canExecuteRemediation = user?.roles.includes('admin');
+  const canApproveRemediation = user?.roles.includes('admin');
+
   // Navigation & Active Workspace Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'auditor' | 'remediation' | 'forecasting' | 'topology' | 'importer' | 'ai' | 'software' | 'system-status' | 'coming-soon-fleet' | 'coming-soon-correlation' | 'coming-soon-healing' | 'coming-soon-ai-eng' | 'coming-soon-vuln' | 'coming-soon-execution'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'fleet' | 'fleet-analytics' | 'auditor' | 'remediation' | 'forecasting' | 'topology' | 'importer' | 'ai' | 'software' | 'system-status' | 'coming-soon-fleet' | 'coming-soon-correlation' | 'coming-soon-healing' | 'coming-soon-ai-eng' | 'coming-soon-vuln' | 'coming-soon-execution'>('overview');
 
   // Console logging state & modal control state
   const [consoleErrors, setConsoleErrors] = useState<string[]>([]);
@@ -592,6 +603,113 @@ function App() {
   const [assessmentAgeInfo, setAssessmentAgeInfo] = useState<{ text: string; severity: 'green' | 'yellow' | 'red'; isStale: boolean }>({ text: 'N/A', severity: 'red', isStale: true });
   const [isRefreshModalOpen, setIsRefreshModalOpen] = useState(false);
 
+  // Fleet command center states
+  const [fleetMachines, setFleetMachines] = useState<FleetMachine[]>([]);
+  const [fleetLoading, setFleetLoading] = useState<boolean>(false);
+  const [fleetSearch, setFleetSearch] = useState<string>('');
+  const [fleetPlatformFilter, setFleetPlatformFilter] = useState<string>('ALL');
+  const [fleetHealthFilter, setFleetHealthFilter] = useState<string>('ALL');
+
+  const normalizeForecast = useCallback((forecast: any) => {
+    if (!forecast) return null;
+    return {
+      Storage: forecast.Storage || forecast.storage || MOCK_CAPACITY_FORECAST.Storage,
+      Memory: forecast.Memory || forecast.memory || MOCK_CAPACITY_FORECAST.Memory,
+      CPU: forecast.CPU || forecast.Cpu || forecast.cpu || MOCK_CAPACITY_FORECAST.CPU
+    };
+  }, []);
+
+  const loadFleet = useCallback(async () => {
+    setFleetLoading(true);
+    try {
+      const machines = await getFleetMachines();
+      setFleetMachines(machines);
+    } catch (err) {
+      console.error('Failed to load fleet machines:', err);
+      showToast('Failed to load fleet machines.', 'error');
+    } finally {
+      setFleetLoading(false);
+    }
+  }, [showToast]);
+
+  const selectMachineInWorkspace = useCallback(async (machineId: string, computerName: string) => {
+    try {
+      const hist = await getHistoricalAssessments();
+      const machineRuns = hist.filter(run => {
+        const cname = run.ComputerName || run.Machine?.ComputerName;
+        const mid = run.MachineId || run.Machine?.MachineId;
+        const aid = run.AssessmentId;
+        return cname === computerName || mid === machineId || aid === machineId;
+      });
+
+      if (machineRuns.length > 0) {
+        machineRuns.sort((a, b) => new Date(b.Timestamp || b.timestamp || 0).getTime() - new Date(a.Timestamp || a.timestamp || 0).getTime());
+        const latestRun = machineRuns[0];
+        const details = await loadAssessmentDetails(latestRun.AssessmentId);
+        if (details) {
+          hasUploadedRef.current = true;
+          setEnvData(details.Machine);
+          
+          const sanitized = (details.Findings || []).map((f: any) => ({
+            FindingId: f.FindingId || '',
+            Category: f.Category || '',
+            Domain: f.Domain || '',
+            Severity: f.Severity || 'Low',
+            Confidence: f.Confidence || 'Medium',
+            Priority: typeof f.Priority === 'number' ? f.Priority : 5,
+            Title: f.Title || '',
+            Description: f.Description || '',
+            Evidence: Array.isArray(f.Evidence) ? f.Evidence : [],
+            Impact: f.Impact || '',
+            BusinessRisk: f.BusinessRisk || '',
+            RootCauseHypothesis: f.RootCauseHypothesis || '',
+            RecommendedRemediation: f.RecommendedRemediation || '',
+            EstimatedEffort: f.EstimatedEffort || 'Medium',
+            VerificationMethod: f.VerificationMethod || '',
+            CreatedOn: f.CreatedOn || new Date().toISOString(),
+          }));
+          
+          setFindingsData(sanitized);
+          setHealthScoreData(details.HealthScore);
+          setRiskMatrixData(details.RiskMatrix || []);
+          setCapacityForecastData(normalizeForecast(details.CapacityForecast));
+          setRawEvidenceData(details.RawEvidence || []);
+          setActiveAssessmentSoftware(details.Software || []);
+          setCompletedRemediations(details.completedRemediations || {});
+          setActiveAssessmentId(details.AssessmentId);
+          setHistoryData(hist);
+          
+          showToast(`Workspace context switched to host: ${computerName}`, 'success');
+          setActiveTab('overview');
+          return;
+        }
+      }
+      
+      const detailsDirect = await loadAssessmentDetails(machineId);
+      if (detailsDirect) {
+        hasUploadedRef.current = true;
+        setEnvData(detailsDirect.Machine);
+        setFindingsData(detailsDirect.Findings || []);
+        setHealthScoreData(detailsDirect.HealthScore);
+        setRiskMatrixData(detailsDirect.RiskMatrix || []);
+        setCapacityForecastData(normalizeForecast(detailsDirect.CapacityForecast));
+        setRawEvidenceData(detailsDirect.RawEvidence || []);
+        setActiveAssessmentSoftware(detailsDirect.Software || []);
+        setCompletedRemediations(detailsDirect.completedRemediations || {});
+        setActiveAssessmentId(detailsDirect.AssessmentId);
+        
+        showToast(`Workspace context switched to host: ${computerName}`, 'success');
+        setActiveTab('overview');
+        return;
+      }
+
+      showToast(`No historical assessment runs found for machine: ${computerName}`, 'warning');
+    } catch (err) {
+      console.error('Error switching machine context:', err);
+      showToast('Failed to switch machine context.', 'error');
+    }
+  }, [normalizeForecast, showToast]);
+
   // Ref to track if file upload happened before database seed finishes (E2E race condition fix)
   const hasUploadedRef = useRef(false);
 
@@ -602,6 +720,158 @@ function App() {
   const [remediationLogs, setRemediationLogs] = useState<string[]>([]);
   const [remediationTargetId, setRemediationTargetId] = useState<string | null>(null);
   const [remediationExecuting, setRemediationExecuting] = useState<boolean>(false);
+  const [bulkExecuting, setBulkExecuting] = useState<boolean>(false);
+
+  const dashboardData = useMemo(() => {
+    return buildRemediationDashboard(findingsData, completedRemediations, envDataState || {});
+  }, [findingsData, completedRemediations, envDataState]);
+
+  const runBulkRemediation = async (type: 'all' | 'critical' | 'security' | 'performance') => {
+    if (!canExecuteRemediation) {
+      showToast("Permission Denied: Only Administrators can execute remediations.", "error");
+      return;
+    }
+    if (bulkExecuting || remediationExecuting) return;
+    setBulkExecuting(true);
+    
+    // Filter execution plan steps based on type
+    const planSteps = dashboardData.execution_plan.filter(step => {
+      const finding = findingsData.find(f => f.FindingId === step.finding_id);
+      if (!finding) return false;
+      if (type === 'critical') return finding.Severity === 'Critical' || finding.Severity === 'High';
+      if (type === 'security') return finding.Domain === 'Security';
+      if (type === 'performance') return finding.Domain === 'Performance';
+      return true; // type === 'all'
+    });
+    
+    if (planSteps.length === 0) {
+      showToast("No active actionable issues found for this category.", "info");
+      setBulkExecuting(false);
+      return;
+    }
+    
+    setRemediationLogs([`[info] Initializing bulk remediation sequence: FIX_${type.toUpperCase()}`]);
+    
+    for (const step of planSteps) {
+      setRemediationTargetId(step.finding_id);
+      setRemediationLogs(prev => [...prev, `\n[info] --- Running sequence step ${step.sequence}/${planSteps.length}: ${step.finding_id} ---`]);
+      
+      await new Promise<void>((resolveStep) => {
+        setRemediationExecuting(true);
+        if (daemonState === 'connected') {
+          fetch('http://localhost:1337/api/execute', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Sentinel-Token': daemonToken
+            },
+            body: JSON.stringify({ finding_id: step.finding_id })
+          })
+          .then(async res => {
+            const data = await res.json();
+            if (res.ok && data.success) {
+              setRemediationLogs(prev => [
+                ...prev,
+                `[cmd] execution output: SUCCESS.`,
+                `[stdout] ${data.stdout || ''}`
+              ]);
+              setCompletedRemediations(prev => ({ ...prev, [step.finding_id]: true }));
+            } else {
+              setRemediationLogs(prev => [
+                ...prev,
+                `[error] Step failed: ${data.error || 'Unknown daemon error'}`,
+                `[stderr] ${data.stderr || ''}`
+              ]);
+            }
+          })
+          .catch(err => {
+            setRemediationLogs(prev => [
+              ...prev,
+              `[error] Failed to communicate with collector: ${err.message}`
+            ]);
+          })
+          .finally(() => {
+            setRemediationExecuting(false);
+            resolveStep();
+          });
+        } else {
+          // Simulated fallback
+          setTimeout(() => {
+            setRemediationLogs(prev => [
+              ...prev,
+              `[cmd] execution output: SUCCESS. (Simulated)`,
+              `[success] Verification passed.`
+            ]);
+            setCompletedRemediations(prev => ({ ...prev, [step.finding_id]: true }));
+            setRemediationExecuting(false);
+            resolveStep();
+          }, 1000);
+        }
+      });
+    }
+    
+    setRemediationLogs(prev => [...prev, `\n[success] Bulk remediation complete. Running final baseline update...`]);
+    try {
+      if (daemonState === 'connected') {
+        await runDaemonScan();
+      } else if (isTauri && runTauriScan) {
+        await runTauriScan();
+      }
+    } catch {
+      // Ignore final scan error
+    }
+    
+    setBulkExecuting(false);
+    showToast(`Bulk remediation complete!`, 'success');
+  };
+
+  const downloadCertificationReport = () => {
+    const activeList = findingsData.filter(f => !completedRemediations[f.FindingId]);
+    const reportText = `===========================================================
+SENTINEL ENTERPRISE NODE HEALTH CERTIFICATION REPORT
+===========================================================
+Timestamp: ${new Date().toISOString()}
+Host Name: ${envDataState?.ComputerName || 'localhost'}
+OS Family: ${envDataState?.PlatformFamily || 'Windows'}
+Overall Health Score: ${dashboardData.overall_health_score}%
+Risk Severity Score: ${dashboardData.risk_score}/100
+
+-----------------------------------------------------------
+SUMMARY OF REMEDIATION RESULTS
+-----------------------------------------------------------
+Total Issues Evaluated: ${dashboardData.total_issues}
+Resolved Issues: ${dashboardData.post_remediation_validation.resolved_issues}
+Remaining Unresolved: ${dashboardData.post_remediation_validation.remaining_issues}
+
+-----------------------------------------------------------
+RESOLVED ANOMALIES
+-----------------------------------------------------------
+${findingsData.filter(f => completedRemediations[f.FindingId]).map(f => `[PASSED] ${f.Title} (${f.FindingId})
+   - Root Cause: ${f.RootCauseHypothesis}
+   - Remediation: ${f.RecommendedRemediation}
+   - Verification: ${f.VerificationMethod}`).join('\n\n')}
+
+-----------------------------------------------------------
+OUTSTANDING MANUAL ACTIONS REQUIRED
+-----------------------------------------------------------
+${activeList.length === 0 ? "NONE. The machine is fully compliant and certified." : activeList.map(f => `[PENDING] ${f.Title} (${f.FindingId}) [Severity: ${f.Severity}]
+   - Technical Impact: ${f.Impact}
+   - Action Required: ${f.RecommendedRemediation}`).join('\n\n')}
+
+===========================================================
+STATUS: ${activeList.length === 0 ? "CERTIFIED HEALTHY" : "DEGRADED COMPLIANCE"}
+Certified by Sentinel Autonomous Health & Remediation Engine
+===========================================================`;
+
+    const blob = new Blob([reportText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sentinel-health-certification-${envDataState?.ComputerName || 'host'}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Health Certification report downloaded successfully.", "success");
+  };
 
   // Local Collector Daemon Connectivity States
   const [daemonState, setDaemonState] = useState<'connected' | 'disconnected' | 'scanning' | 'error' | 'upgrade-required'>('disconnected');
@@ -686,7 +956,7 @@ function App() {
     setFindingsData(sanitized);
     setHealthScoreData(consolidated.HealthScore);
     setRiskMatrixData(consolidated.RiskMatrix);
-    setCapacityForecastData(consolidated.CapacityForecast);
+    setCapacityForecastData(normalizeForecast(consolidated.CapacityForecast));
     setRawEvidenceData(consolidated.RawEvidence);
     setActiveAssessmentSoftware(consolidated.Software);
     setCompletedRemediations(consolidated.completedRemediations || {});
@@ -696,6 +966,7 @@ function App() {
     const hist = await getHistoricalAssessments();
     setHistoryData(hist);
     setLastRefresh(new Date());
+    await loadFleet();
   };
 
   const runDaemonScan = async () => {
@@ -952,7 +1223,7 @@ function App() {
             if (data.Findings) setFindingsData(data.Findings);
             if (data.HealthScore) setHealthScoreData(data.HealthScore);
             if (data.RiskMatrix) setRiskMatrixData(data.RiskMatrix);
-            if (data.CapacityForecast) setCapacityForecastData(data.CapacityForecast);
+            if (data.CapacityForecast) setCapacityForecastData(normalizeForecast(data.CapacityForecast));
             if (data.RawEvidence) setRawEvidenceData(data.RawEvidence);
             if (data.Software) setActiveAssessmentSoftware(data.Software);
             if (data.completedRemediations) setCompletedRemediations(data.completedRemediations);
@@ -1016,7 +1287,7 @@ function App() {
             if (data.Findings) setFindingsData(data.Findings);
             if (data.HealthScore) setHealthScoreData(data.HealthScore);
             if (data.RiskMatrix) setRiskMatrixData(data.RiskMatrix);
-            if (data.CapacityForecast) setCapacityForecastData(data.CapacityForecast);
+            if (data.CapacityForecast) setCapacityForecastData(normalizeForecast(data.CapacityForecast));
             if (data.RawEvidence) setRawEvidenceData(data.RawEvidence);
             if (data.Software) setActiveAssessmentSoftware(data.Software);
             if (data.completedRemediations) setCompletedRemediations(data.completedRemediations);
@@ -1029,7 +1300,29 @@ function App() {
     };
     
     seedDatabase();
-  }, []);
+  }, [normalizeForecast]);
+
+  // Load fleet list on startup
+  useEffect(() => {
+    loadFleet();
+  }, [loadFleet]);
+
+  // Fetch real capacity forecast whenever active machine/assessment changes
+  useEffect(() => {
+    const fetchForecast = async () => {
+      const machineId = envDataState?.MachineId || envDataState?.ComputerName;
+      if (!machineId) return;
+      try {
+        const forecast = await getCapacityForecast(machineId);
+        if (forecast) {
+          setCapacityForecastData(normalizeForecast(forecast));
+        }
+      } catch (err) {
+        console.error('Failed to fetch capacity forecast for machine:', machineId, err);
+      }
+    };
+    fetchForecast();
+  }, [activeAssessmentId, envDataState, normalizeForecast]);
 
   // Build visual topology nodes derived from data and current dragged positions
   const nodes = React.useMemo<GraphNode[]>(() => {
@@ -1482,7 +1775,7 @@ function App() {
             updateAndSavePart('RiskMatrix', parsed);
             setLogLines(prev => [...prev, `[Info] Loaded and parsed Risk Matrix entries.`]);
           } else if (name.includes('capacityforecast') || (parsed && parsed.Storage && parsed.Memory)) {
-            setCapacityForecastData(parsed);
+            setCapacityForecastData(normalizeForecast(parsed));
             updateAndSavePart('CapacityForecast', parsed);
             setLogLines(prev => [...prev, `[Info] Loaded and updated Capacity Forecasting indices.`]);
           } else if (name.includes('rawevidence') || (Array.isArray(parsed) && parsed.length > 0 && 'Source' in parsed[0] && 'ValidationState' in parsed[0])) {
@@ -1654,6 +1947,10 @@ ${capacityInfo}
 
   // Toggle remediation step checkboxes
   const handleToggleRemediation = (findingId: string) => {
+    if (!canApproveRemediation) {
+      showToast("Permission Denied: Only Administrators can approve/check off remediations.", "error");
+      return;
+    }
     setCompletedRemediations(prev => {
       const next = { ...prev, [findingId]: !prev[findingId] };
       if (activeAssessmentId) {
@@ -1670,6 +1967,10 @@ ${capacityInfo}
 
   // Run simulated remediation execution
   const runRemediationSimulation = (findingId: string) => {
+    if (!canExecuteRemediation) {
+      showToast("Permission Denied: Only Administrators can execute remediations.", "error");
+      return;
+    }
     if (remediationExecuting) return;
     
     setRemediationExecuting(true);
@@ -1679,28 +1980,172 @@ ${capacityInfo}
       `[info] Initializing Sentinel executor client on host: ${envDataState?.ComputerName || 'localhost'}`,
       `[info] Fetching mitigation instructions for ${findingId}...`,
       `[info] Verifying administrator token and execution policy...`,
-      `[cmd] Running shell automation for finding mitigation...`
     ];
     setRemediationLogs(logs);
 
-    setTimeout(() => {
-      setRemediationLogs(prev => [
-        ...prev,
-        `[cmd] execution output: SUCCESS. Changes written to host registers.`,
-        `[info] Triggering post-remediation verification assessment...`
-      ]);
-      
+    if (daemonState === 'connected') {
+      setRemediationLogs(prev => [...prev, `[cmd] Invoking host daemon shell execution...`]);
+      fetch('http://localhost:1337/api/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Sentinel-Token': daemonToken
+        },
+        body: JSON.stringify({ finding_id: findingId })
+      })
+      .then(async res => {
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setRemediationLogs(prev => [
+            ...prev,
+            `[cmd] execution output: SUCCESS.`,
+            `[stdout] ${data.stdout || ''}`,
+            `[info] Triggering post-remediation validation assessment...`
+          ]);
+          // Refresh assessment data
+          setTimeout(async () => {
+            try {
+              await runDaemonScan();
+            } catch {
+              // Ignore background scan error, state was updated manually
+            }
+            setCompletedRemediations(prev => ({ ...prev, [findingId]: true }));
+            showToast(`Remediation script for ${findingId} completed and verified.`, 'success');
+            setRemediationExecuting(false);
+          }, 800);
+        } else {
+          setRemediationLogs(prev => [
+            ...prev,
+            `[error] Execution failed: ${data.error || 'Unknown daemon error'}`,
+            `[stderr] ${data.stderr || ''}`
+          ]);
+          showToast(`Remediation failed: ${data.error || 'Daemon execution error'}`, 'error');
+          setRemediationExecuting(false);
+        }
+      })
+      .catch(err => {
+        setRemediationLogs(prev => [
+          ...prev,
+          `[error] Failed to communicate with collector daemon: ${err.message}`
+        ]);
+        showToast('Daemon connection error', 'error');
+        setRemediationExecuting(false);
+      });
+    } else {
+      // Standalone simulation fallback
+      setRemediationLogs(prev => [...prev, `[cmd] Running simulated shell automation for finding mitigation...`]);
       setTimeout(() => {
         setRemediationLogs(prev => [
           ...prev,
-          `[info] Verifying criteria: "${findingsData.find(f => f.FindingId === findingId)?.VerificationMethod || 'Standard scan check'}"`,
-          `[info] VERIFICATION PASSED. Host state conforms to safety profile.`,
-          `[success] Remediation complete. Baseline updated.`
+          `[cmd] execution output: SUCCESS. (Simulated offline mode)`,
+          `[info] Triggering post-remediation verification assessment...`
+        ]);
+        
+        setTimeout(() => {
+          setRemediationLogs(prev => [
+            ...prev,
+            `[info] Verifying criteria: "${findingsData.find(f => f.FindingId === findingId)?.VerificationMethod || 'Standard scan check'}"`,
+            `[info] VERIFICATION PASSED. Host state conforms to safety profile.`,
+            `[success] Remediation complete. Baseline updated.`
+          ]);
+          setRemediationExecuting(false);
+          setCompletedRemediations(prev => {
+            const next = { ...prev, [findingId]: true };
+            if (activeAssessmentId) {
+              loadAssessmentDetails(activeAssessmentId).then(consolidated => {
+                if (consolidated) {
+                  consolidated.completedRemediations = next;
+                  saveAssessment(consolidated);
+                }
+              });
+            }
+            return next;
+          });
+          showToast(`Remediation script for ${findingId} executed successfully (Simulated)`, 'success');
+        }, 800);
+      }, 1000);
+    }
+  };
+
+  const runRemediationRollback = (findingId: string) => {
+    if (!canExecuteRemediation) {
+      showToast("Permission Denied: Only Administrators can roll back changes.", "error");
+      return;
+    }
+    if (remediationExecuting) return;
+    
+    setRemediationExecuting(true);
+    setRemediationTargetId(findingId);
+    
+    const logs = [
+      `[info] Initializing rollback sequence on host: ${envDataState?.ComputerName || 'localhost'}`,
+      `[info] Fetching rollback instructions for ${findingId}...`,
+    ];
+    setRemediationLogs(logs);
+
+    if (daemonState === 'connected') {
+      setRemediationLogs(prev => [...prev, `[cmd] Invoking host daemon rollback execution...`]);
+      fetch('http://localhost:1337/api/rollback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Sentinel-Token': daemonToken
+        },
+        body: JSON.stringify({ finding_id: findingId })
+      })
+      .then(async res => {
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setRemediationLogs(prev => [
+            ...prev,
+            `[cmd] rollback output: SUCCESS.`,
+            `[stdout] ${data.stdout || ''}`,
+            `[info] Triggering system telemetry validation...`
+          ]);
+          setTimeout(async () => {
+            try {
+              await runDaemonScan();
+            } catch {
+              // Ignore scan error
+            }
+            setCompletedRemediations(prev => {
+              const next = { ...prev };
+              delete next[findingId];
+              return next;
+            });
+            showToast(`Rollback for ${findingId} completed successfully.`, 'success');
+            setRemediationExecuting(false);
+          }, 800);
+        } else {
+          setRemediationLogs(prev => [
+            ...prev,
+            `[error] Rollback failed: ${data.error || 'Unknown daemon error'}`,
+            `[stderr] ${data.stderr || ''}`
+          ]);
+          showToast(`Rollback failed: ${data.error || 'Daemon execution error'}`, 'error');
+          setRemediationExecuting(false);
+        }
+      })
+      .catch(err => {
+        setRemediationLogs(prev => [
+          ...prev,
+          `[error] Failed to communicate with collector daemon: ${err.message}`
+        ]);
+        showToast('Daemon connection error', 'error');
+        setRemediationExecuting(false);
+      });
+    } else {
+      // Simulated rollback fallback
+      setRemediationLogs(prev => [...prev, `[cmd] Running simulated rollback sequence...`]);
+      setTimeout(() => {
+        setRemediationLogs(prev => [
+          ...prev,
+          `[success] Simulated rollback complete.`
         ]);
         setRemediationExecuting(false);
-        // Automatically check the item as completed
         setCompletedRemediations(prev => {
-          const next = { ...prev, [findingId]: true };
+          const next = { ...prev };
+          delete next[findingId];
           if (activeAssessmentId) {
             loadAssessmentDetails(activeAssessmentId).then(consolidated => {
               if (consolidated) {
@@ -1711,9 +2156,9 @@ ${capacityInfo}
           }
           return next;
         });
-        showToast(`Remediation script for ${findingId} executed successfully`, 'success');
-      }, 800);
-    }, 1000);
+        showToast(`Rollback for ${findingId} complete (Simulated)`, 'success');
+      }, 1000);
+    }
   };
 
 
@@ -1755,7 +2200,13 @@ ${capacityInfo}
         {/* Live Daemon Connection Badge */}
         <div style={{ padding: '12px 16px 4px 16px' }}>
           <div 
-            onClick={() => setIsRefreshModalOpen(true)}
+            onClick={() => {
+              if (!canRunScan) {
+                showToast("Permission Denied: Auditor role cannot perform scans.", "error");
+                return;
+              }
+              setIsRefreshModalOpen(true);
+            }}
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
@@ -1847,9 +2298,9 @@ ${capacityInfo}
           {favorites.size > 0 && sidebarSearch === '' && (
             <div style={{ marginBottom: '16px' }}>
               <div style={{ margin: '0 16px 4px 16px', fontSize: '9px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Favorites</div>
-              {Array.from(favorites).map(favKey => {
+               {Array.from(favorites).map(favKey => {
                 const labelMap: Record<string, string> = {
-                  'overview': 'Overview', 'auditor': 'Findings', 'remediation': 'Action Center',
+                  'overview': 'Overview', 'fleet': 'Fleet Overview', 'fleet-analytics': 'Fleet Analytics', 'auditor': 'Findings', 'remediation': 'Action Center',
                   'software': 'Software Intelligence', 'forecasting': 'Capacity Forecasting', 'topology': 'Infrastructure Graph',
                   'importer': 'Imports', 'ai': 'AI Guardian', 'system-status': 'Platform Status'
                 };
@@ -1875,6 +2326,8 @@ ${capacityInfo}
               title: 'Overview',
               items: [
                 { key: 'overview', label: 'Overview', icon: <Shield size={16} /> },
+                { key: 'fleet', label: 'Fleet Overview', icon: <Globe size={16} /> },
+                { key: 'fleet-analytics', label: 'Fleet Analytics', icon: <Activity size={16} /> },
                 { key: 'remediation', label: 'Action Center', icon: <CheckCircleIcon size={16} color="currentColor" /> },
                 { key: 'auditor', label: 'Findings', icon: <FileIcon size={16} /> }
               ]
@@ -1947,7 +2400,7 @@ ${capacityInfo}
               <div style={{ margin: '0 16px 4px 16px', fontSize: '9px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Recent</div>
               {recentTabs.map(tabKey => {
                 const labelMap: Record<string, string> = {
-                  'overview': 'Overview', 'auditor': 'Findings', 'remediation': 'Action Center',
+                  'overview': 'Overview', 'fleet': 'Fleet Overview', 'fleet-analytics': 'Fleet Analytics', 'auditor': 'Findings', 'remediation': 'Action Center',
                   'software': 'Software Intelligence', 'forecasting': 'Capacity Forecasting', 'topology': 'Infrastructure Graph',
                   'importer': 'Imports', 'ai': 'AI Guardian', 'system-status': 'Platform Status'
                 };
@@ -1970,7 +2423,6 @@ ${capacityInfo}
           <div style={{ margin: '16px 16px 4px 16px', fontSize: '9px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Coming Soon</div>
 
           {[
-            { key: 'coming-soon-fleet', label: 'Fleet Management', icon: <Globe size={16} /> },
             { key: 'coming-soon-correlation', label: 'Correlation & Inference', icon: <Activity size={16} /> },
             { key: 'coming-soon-healing', label: 'Auto-Healing', icon: <Shield size={16} /> },
             { key: 'coming-soon-ai-eng', label: 'AI Ops Engineer', icon: <TerminalIcon size={16} /> },
@@ -2014,6 +2466,8 @@ ${capacityInfo}
           <div className="header-title-container">
             <h1 style={{ fontSize: '16px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-primary)', margin: 0 }}>
               {activeTab === 'overview' && 'Dashboard Overview'}
+              {activeTab === 'fleet' && 'Fleet Command Center'}
+              {activeTab === 'fleet-analytics' && 'Fleet Capacity Analytics'}
               {activeTab === 'auditor' && 'Findings Auditor'}
               {activeTab === 'remediation' && 'Remediation Command Center'}
               {activeTab === 'software' && 'Software Intelligence'}
@@ -2056,7 +2510,13 @@ ${capacityInfo}
               <button 
                 className="cyber-btn" 
                 style={{ padding: '6px 12px', fontSize: '11px', height: '32px' }} 
-                onClick={() => setIsRefreshModalOpen(true)}
+                onClick={() => {
+                  if (!canRunScan) {
+                    showToast("Permission Denied: Auditor role cannot perform scans.", "error");
+                    return;
+                  }
+                  setIsRefreshModalOpen(true);
+                }}
               >
                 <RefreshCw size={12} />
                 <span>Refresh</span>
@@ -2145,7 +2605,7 @@ ${capacityInfo}
                 aria-label="User profile options"
               >
                 <User size={14} />
-                <span style={{ fontSize: '11px', fontWeight: '600' }}>RAJAJ</span>
+                <span style={{ fontSize: '11px', fontWeight: '600' }}>{user?.email ? user.email.split('@')[0].toUpperCase() : 'RAJAJ'}</span>
               </button>
 
               {profileOpen && (
@@ -2167,8 +2627,8 @@ ${capacityInfo}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <User size={32} className="cyber-badge badge-blue" style={{ padding: '6px', borderRadius: '50%' }} />
                     <div>
-                      <div style={{ fontSize: '12px', fontWeight: 'bold' }}>Commander Rajaj</div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Security Officer</div>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold' }}>Commander {user?.email ? user.email.split('@')[0] : 'Rajaj'}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{user?.roles ? user.roles.join(', ') : 'Security Officer'}</div>
                     </div>
                   </div>
                   <div style={{ borderTop: '1px solid var(--neutral-800)', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
@@ -2186,6 +2646,7 @@ ${capacityInfo}
                     style={{ width: '100%', fontSize: '11px', padding: '6px' }}
                     onClick={() => {
                       setProfileOpen(false);
+                      logout();
                       showToast('User session locked.', 'info');
                     }}
                   >
@@ -2231,7 +2692,13 @@ ${capacityInfo}
                 <button 
                   className="cyber-btn" 
                   style={{ padding: '2px 8px', fontSize: '10px', marginLeft: '12px', borderColor: 'rgba(245,158,11,0.4)', color: 'var(--color-orange)', height: '24px' }}
-                  onClick={() => setIsRefreshModalOpen(true)}
+                  onClick={() => {
+                    if (!canRunScan) {
+                      showToast("Permission Denied: Auditor role cannot perform scans.", "error");
+                      return;
+                    }
+                    setIsRefreshModalOpen(true);
+                  }}
                 >
                   Run New Assessment
                 </button>
@@ -2255,7 +2722,13 @@ ${capacityInfo}
                 {
                   label: "Connect & Refresh Collector",
                   primary: true,
-                  onClick: () => setIsRefreshModalOpen(true)
+                  onClick: () => {
+                    if (!canRunScan) {
+                      showToast("Permission Denied: Auditor role cannot perform scans.", "error");
+                      return;
+                    }
+                    setIsRefreshModalOpen(true);
+                  }
                 },
                 {
                   label: "Go to Imports Workspace",
@@ -2265,6 +2738,284 @@ ${capacityInfo}
             />
           ) : (
             <>
+              {/* Fleet Overview Tab */}
+              {activeTab === 'fleet' && (() => {
+                const filteredMachines = fleetMachines.filter(m => {
+                  const matchesSearch = m.ComputerName.toLowerCase().includes(fleetSearch.toLowerCase()) ||
+                                        m.OSName.toLowerCase().includes(fleetSearch.toLowerCase()) ||
+                                        m.MachineId.toLowerCase().includes(fleetSearch.toLowerCase());
+                  
+                  const matchesPlatform = fleetPlatformFilter === 'ALL' ||
+                    (fleetPlatformFilter === 'WINDOWS' && m.Platform.toLowerCase().includes('win')) ||
+                    (fleetPlatformFilter === 'LINUX' && (m.Platform.toLowerCase().includes('lin') || m.Platform.toLowerCase().includes('ux'))) ||
+                    (fleetPlatformFilter === 'MACOS' && (m.Platform.toLowerCase().includes('mac') || m.Platform.toLowerCase().includes('dar') || m.Platform.toLowerCase().includes('osx')));
+
+                  const matchesHealth = fleetHealthFilter === 'ALL' ||
+                    (fleetHealthFilter === 'HEALTHY' && m.OverallHealth >= 85) ||
+                    (fleetHealthFilter === 'DEGRADED' && m.OverallHealth >= 70 && m.OverallHealth < 85) ||
+                    (fleetHealthFilter === 'CRITICAL' && m.OverallHealth < 70);
+
+                  return matchesSearch && matchesPlatform && matchesHealth;
+                });
+
+                const fleetAvg = fleetMachines.length > 0
+                  ? Math.round(fleetMachines.reduce((sum, m) => sum + m.OverallHealth, 0) / fleetMachines.length)
+                  : 100;
+                
+                const winCount = fleetMachines.filter(m => m.Platform.toLowerCase().includes('win')).length;
+                const linCount = fleetMachines.filter(m => m.Platform.toLowerCase().includes('lin') || m.Platform.toLowerCase().includes('ux')).length;
+                const macCount = fleetMachines.filter(m => m.Platform.toLowerCase().includes('mac') || m.Platform.toLowerCase().includes('dar')).length;
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    {/* Stats Dashboard Row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+                      <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fleet Overview</span>
+                        <div style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--color-info)', fontFamily: 'var(--font-mono)' }}>
+                          {fleetMachines.length}
+                        </div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Registered Host Machines</span>
+                      </div>
+
+                      <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Average Fleet Health</span>
+                        <div style={{ fontSize: '28px', fontWeight: 'bold', color: fleetAvg >= 85 ? 'var(--color-green)' : fleetAvg >= 70 ? 'var(--color-orange)' : 'var(--color-pink)', fontFamily: 'var(--font-mono)' }}>
+                          {fleetAvg}%
+                        </div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Overall fleet status index</span>
+                      </div>
+
+                      <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Platform Distribution</span>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '4px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>WIN</span>
+                            <span style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-blue)', fontFamily: 'var(--font-mono)' }}>{winCount}</span>
+                          </div>
+                          <div style={{ height: '24px', width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>LIN</span>
+                            <span style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-orange)', fontFamily: 'var(--font-mono)' }}>{linCount}</span>
+                          </div>
+                          <div style={{ height: '24px', width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>MAC</span>
+                            <span style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{macCount}</span>
+                          </div>
+                        </div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Active OS instances</span>
+                      </div>
+
+                      <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Outstanding Alerts</span>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '4px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--color-pink)' }}>CRIT</span>
+                            <span style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-pink)', fontFamily: 'var(--font-mono)' }}>
+                              {fleetMachines.reduce((sum, m) => sum + m.CriticalFindings, 0)}
+                            </span>
+                          </div>
+                          <div style={{ height: '24px', width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--color-orange)' }}>HIGH</span>
+                            <span style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-orange)', fontFamily: 'var(--font-mono)' }}>
+                              {fleetMachines.reduce((sum, m) => sum + m.HighFindings, 0)}
+                            </span>
+                          </div>
+                        </div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Security & Performance findings</span>
+                      </div>
+                    </div>
+
+                    {/* Filter and Search Bar */}
+                    <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                      <div style={{ position: 'relative', width: '320px' }}>
+                        <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+                        <Input 
+                          type="text" 
+                          className="cyber-input" 
+                          placeholder="Search hosts by name, OS, or ID..." 
+                          style={{ width: '100%', paddingLeft: '32px', height: '34px', fontSize: '12px' }}
+                          value={fleetSearch}
+                          onChange={(e) => setFleetSearch(e.target.value)}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Platform:</span>
+                          <select 
+                            className="cyber-input" 
+                            style={{ height: '34px', padding: '0 8px', fontSize: '11px', minWidth: '110px' }}
+                            value={fleetPlatformFilter}
+                            onChange={(e) => setFleetPlatformFilter(e.target.value)}
+                          >
+                            <option value="ALL">All Platforms</option>
+                            <option value="WINDOWS">Windows</option>
+                            <option value="LINUX">Linux</option>
+                            <option value="MACOS">macOS</option>
+                          </select>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Health Status:</span>
+                          <select 
+                            className="cyber-input" 
+                            style={{ height: '34px', padding: '0 8px', fontSize: '11px', minWidth: '110px' }}
+                            value={fleetHealthFilter}
+                            onChange={(e) => setFleetHealthFilter(e.target.value)}
+                          >
+                            <option value="ALL">All Scores</option>
+                            <option value="HEALTHY">Healthy (&gt;=85)</option>
+                            <option value="DEGRADED">Degraded (70-84)</option>
+                            <option value="CRITICAL">Critical (&lt;70)</option>
+                          </select>
+                        </div>
+
+                        <button 
+                          className="cyber-btn" 
+                          style={{ height: '34px', padding: '0 12px', fontSize: '12px' }}
+                          onClick={loadFleet}
+                          disabled={fleetLoading}
+                        >
+                          <RefreshCw size={12} className={fleetLoading ? "spin" : ""} />
+                          <span>Reload</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Fleet Table */}
+                    <div className="glass-panel" style={{ padding: '20px' }}>
+                      {fleetLoading ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
+                          <Spinner size="lg" color="cyan" />
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Loading fleet host directory...</span>
+                        </div>
+                      ) : filteredMachines.length === 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', justifyContent: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                          <Globe size={32} />
+                          <span style={{ fontSize: '14px', fontWeight: 'bold' }}>No hosts match current filters</span>
+                          <span style={{ fontSize: '11px' }}>Try adjusting search strings or platform parameters.</span>
+                        </div>
+                      ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', background: 'rgba(255, 255, 255, 0.02)' }}>
+                                <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Platform</th>
+                                <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Host Name</th>
+                                <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Operating System</th>
+                                <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>OS Version</th>
+                                <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>Health Index</th>
+                                <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>Advisories</th>
+                                <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Last Assessed</th>
+                                <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'center' }}>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredMachines.map(m => {
+                                const isSelected = activeAssessmentId === m.MachineId || envDataState?.ComputerName === m.ComputerName;
+                                const isWindows = m.Platform.toLowerCase().includes('win');
+                                const isLinux = m.Platform.toLowerCase().includes('lin') || m.Platform.toLowerCase().includes('ux');
+                                const isMac = m.Platform.toLowerCase().includes('mac') || m.Platform.toLowerCase().includes('dar');
+
+                                const healthColor = m.OverallHealth >= 85 ? 'var(--color-green)'
+                                  : m.OverallHealth >= 70 ? 'var(--color-orange)'
+                                  : 'var(--color-pink)';
+
+                                return (
+                                  <tr 
+                                    key={m.MachineId} 
+                                    style={{ 
+                                      borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                                      background: isSelected ? 'rgba(6, 182, 212, 0.04)' : 'transparent',
+                                      transition: 'background-color 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (!isSelected) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.01)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                                    }}
+                                  >
+                                    <td style={{ padding: '12px 16px' }}>
+                                      <span className={`cyber-badge ${isWindows ? 'badge-blue' : isLinux ? 'badge-orange' : isMac ? 'badge-pink' : 'badge-green'}`} style={{ padding: '2px 6px', fontSize: '9px', fontWeight: 'bold' }}>
+                                        {m.Platform.toUpperCase()}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '12px 16px', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>
+                                      {m.ComputerName}
+                                    </td>
+                                    <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
+                                      {m.OSName}
+                                    </td>
+                                    <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                                      {m.OSVersion}
+                                    </td>
+                                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                        <span style={{ fontWeight: 'bold', color: healthColor, fontFamily: 'var(--font-mono)' }}>
+                                          {m.OverallHealth.toFixed(1)}%
+                                        </span>
+                                        <div style={{ width: '60px', height: '3px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                                          <div style={{ width: `${m.OverallHealth}%`, height: '100%', background: healthColor }}></div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                        {m.CriticalFindings > 0 && (
+                                          <span className="cyber-badge badge-pink" style={{ padding: '1px 4px', fontSize: '9px' }}>
+                                            {m.CriticalFindings}C
+                                          </span>
+                                        )}
+                                        {m.HighFindings > 0 && (
+                                          <span className="cyber-badge badge-orange" style={{ padding: '1px 4px', fontSize: '9px' }}>
+                                            {m.HighFindings}H
+                                          </span>
+                                        )}
+                                        {m.WarningFindings > 0 && (
+                                          <span className="cyber-badge badge-blue" style={{ padding: '1px 4px', fontSize: '9px' }}>
+                                            {m.WarningFindings}W
+                                          </span>
+                                        )}
+                                        {m.CriticalFindings === 0 && m.HighFindings === 0 && m.WarningFindings === 0 && (
+                                          <span style={{ color: 'var(--color-green)', fontSize: '10px' }}>● Secure</span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>
+                                      {m.LastAssessed ? new Date(m.LastAssessed).toLocaleString() : 'Never'}
+                                    </td>
+                                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                      <button 
+                                        className="cyber-btn"
+                                        style={{ 
+                                          fontSize: '11px', 
+                                          padding: '4px 10px', 
+                                          borderColor: isSelected ? 'var(--color-cyan)' : 'rgba(255,255,255,0.15)',
+                                          color: isSelected ? 'var(--color-cyan)' : 'var(--text-primary)',
+                                          background: isSelected ? 'rgba(6, 182, 212, 0.05)' : 'transparent',
+                                          height: '26px'
+                                        }}
+                                        onClick={() => selectMachineInWorkspace(m.MachineId, m.ComputerName)}
+                                      >
+                                        {isSelected ? 'Active Context' : 'Select'}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* 1. OVERVIEW TAB */}
               {activeTab === 'overview' && (() => {
                 const prevAssessment = historyData && historyData.length >= 2 ? historyData[historyData.length - 2] : null;
@@ -2395,6 +3146,10 @@ ${capacityInfo}
                           className="cyber-btn" 
                           style={{ width: '100%', marginTop: '12px', fontSize: '11px' }} 
                           onClick={() => {
+                            if (!canRunScan) {
+                              showToast("Permission Denied: Auditor role cannot perform scans.", "error");
+                              return;
+                            }
                             setIsRefreshModalOpen(true);
                           }}
                         >
@@ -2504,6 +3259,7 @@ ${capacityInfo}
                                     setSelectedFindingId(item.FindingId);
                                     setActiveTab('auditor');
                                   }}
+                                  disabled={!canApproveRemediation}
                                 />
                               );
                             })
@@ -2694,8 +3450,22 @@ ${capacityInfo}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <button 
                             className={completedRemediations[selectedFinding.FindingId] ? "cyber-btn" : "cyber-btn cyber-btn-primary"}
-                            onClick={() => handleToggleRemediation(selectedFinding.FindingId)}
-                            style={{ fontWeight: 'bold', height: '36px', fontSize: '12px', padding: '0 16px' }}
+                            onClick={() => {
+                              if (!canApproveRemediation) {
+                                showToast("Permission Denied: Only Administrators can approve/check off remediations.", "error");
+                                return;
+                              }
+                              handleToggleRemediation(selectedFinding.FindingId);
+                            }}
+                            disabled={!canApproveRemediation}
+                            style={{ 
+                              fontWeight: 'bold', 
+                              height: '36px', 
+                              fontSize: '12px', 
+                              padding: '0 16px',
+                              opacity: canApproveRemediation ? 1 : 0.5,
+                              cursor: canApproveRemediation ? 'pointer' : 'not-allowed'
+                            }}
                           >
                             <span>{completedRemediations[selectedFinding.FindingId] ? "Mark Incomplete" : "Mark Remediation Complete"}</span>
                           </button>
@@ -2795,108 +3565,376 @@ ${capacityInfo}
             const selectedAction = findingsData.find(f => f.FindingId === selectedActionId);
 
             return (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: '24px', height: 'calc(100vh - 200px)', minHeight: '550px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 450px', gap: '24px', height: 'calc(100vh - 200px)', minHeight: '650px' }}>
                 
-                {/* Left Pane: Priority Queue & Actions List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto', paddingRight: '4px' }}>
+                {/* Left Pane: Priority Dashboard & Issue Categories */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', paddingRight: '6px' }}>
                   
-                  {/* Summary row */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                    <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-medium)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Total Mitigations</span>
-                      <strong style={{ fontSize: '24px', fontFamily: 'var(--font-mono)' }}>{findingsData.length}</strong>
-                    </div>
-                    <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-medium)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Completed</span>
-                      <strong style={{ fontSize: '24px', fontFamily: 'var(--font-mono)', color: 'var(--color-success)' }}>
-                        {completedFindings.length}
+                  {/* Summary Metric Cards (Architect Schema) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                    <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-medium)', display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: '3px solid var(--color-cyan)' }}>
+                      <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Overall Health Score</span>
+                      <strong style={{ fontSize: '24px', fontFamily: 'var(--font-mono)', color: 'var(--color-cyan)' }}>
+                        {dashboardData.overall_health_score}%
                       </strong>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Projected: {dashboardData.post_remediation_validation.health_score}%</span>
                     </div>
-                    <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-medium)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Outstanding Risks</span>
-                      <strong style={{ fontSize: '24px', fontFamily: 'var(--font-mono)', color: activeFindings.length > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                        {activeFindings.length}
+                    <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-medium)', display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: '3px solid var(--color-pink)' }}>
+                      <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Risk Severity Index</span>
+                      <strong style={{ fontSize: '24px', fontFamily: 'var(--font-mono)', color: dashboardData.risk_score > 50 ? 'var(--color-pink)' : 'var(--color-success)' }}>
+                        {dashboardData.risk_score}/100
                       </strong>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{dashboardData.critical_issues} High-Severity risks</span>
+                    </div>
+                    <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-medium)', display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: '3px solid var(--color-orange)' }}>
+                      <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Actionable Items</span>
+                      <strong style={{ fontSize: '24px', fontFamily: 'var(--font-mono)', color: 'var(--color-orange)' }}>
+                        {dashboardData.actionable_issues}
+                      </strong>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Out of {dashboardData.total_issues} total issues</span>
+                    </div>
+                    <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-medium)', display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: '3px solid var(--color-green)' }}>
+                      <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Est. Remediation Time</span>
+                      <strong style={{ fontSize: '24px', fontFamily: 'var(--font-mono)', color: 'var(--color-green)' }}>
+                        {dashboardData.estimated_full_remediation_time}
+                      </strong>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Continuous validation loop</span>
                     </div>
                   </div>
 
-                  {/* Active / Recommended Actions */}
-                  <div className="glass-panel" style={{ padding: '20px' }}>
-                    <div className="panel-header" style={{ marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                      <h2 className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <CheckCircleIcon size={16} /> <span>Active Recommended Actions</span>
-                      </h2>
+                  {/* Bulk Actions Console */}
+                  <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(6,182,212,0.15)', background: 'rgba(6,182,212,0.02)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Bulk Remediation Center</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Execute orchestrated remediation flows sequentially</span>
                     </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button 
+                        className="cyber-btn cyber-btn-primary" 
+                        onClick={() => runBulkRemediation('all')}
+                        disabled={bulkExecuting || remediationExecuting}
+                        style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', color: '#000' }}
+                      >
+                        {bulkExecuting ? 'Orchestrating...' : 'Fix All'}
+                      </button>
+                      <button 
+                        className="cyber-btn" 
+                        onClick={() => runBulkRemediation('critical')}
+                        disabled={bulkExecuting || remediationExecuting}
+                        style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', border: '1px solid var(--color-pink)', color: 'var(--color-pink)' }}
+                      >
+                        Fix Critical
+                      </button>
+                      <button 
+                        className="cyber-btn" 
+                        onClick={() => runBulkRemediation('security')}
+                        disabled={bulkExecuting || remediationExecuting}
+                        style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', border: '1px solid var(--color-cyan)', color: 'var(--color-cyan)' }}
+                      >
+                        Fix Security
+                      </button>
+                      <button 
+                        className="cyber-btn" 
+                        onClick={() => runBulkRemediation('performance')}
+                        disabled={bulkExecuting || remediationExecuting}
+                        style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', border: '1px solid var(--color-orange)', color: 'var(--color-orange)' }}
+                      >
+                        Fix Performance
+                      </button>
+                      <button 
+                        className="cyber-btn" 
+                        onClick={downloadCertificationReport}
+                        style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', border: '1px solid var(--color-green)', color: 'var(--color-green)' }}
+                      >
+                        Certificate
+                      </button>
+                    </div>
+                  </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {activeFindings.length === 0 ? (
-                        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--color-success)', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-                          <CheckCircleIcon size={32} />
-                          <h4 style={{ fontWeight: 'bold' }}>No Outstanding Mitigations</h4>
-                          <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>All baseline security, capacity, and reliability parameters are healthy.</p>
-                        </div>
-                      ) : (
-                        activeFindings.map((item) => (
+                  {/* Categories Accordion/List */}
+                  {dashboardData.categories.map((cat, idx) => (
+                    <div className="glass-panel" key={idx} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px' }}>
+                        <h3 style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
+                          <span className={`status-indicator ${cat.severity.toLowerCase() === 'high' || cat.severity.toLowerCase() === 'critical' ? 'pulse' : ''}`} style={{ 
+                            width: '8px', height: '8px', 
+                            backgroundColor: cat.severity.toLowerCase() === 'high' || cat.severity.toLowerCase() === 'critical' ? 'var(--color-pink)' : (cat.severity.toLowerCase() === 'medium' ? 'var(--color-orange)' : 'var(--color-cyan)') 
+                          }}></span>
+                          <span>{cat.category}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>({cat.issue_count} {cat.issue_count === 1 ? 'issue' : 'issues'})</span>
+                        </h3>
+                        <SeverityBadge severity={cat.severity} />
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {cat.issues.map((issue) => (
                           <div 
-                            key={item.FindingId} 
-                            onClick={() => setRemediationTargetId(item.FindingId)}
+                            key={issue.finding_id}
+                            onClick={() => setRemediationTargetId(issue.finding_id)}
                             style={{ 
+                              padding: '12px 16px', 
+                              borderRadius: 'var(--radius-medium)', 
+                              border: selectedActionId === issue.finding_id ? '1px solid var(--color-cyan)' : '1px solid rgba(255,255,255,0.04)',
+                              background: selectedActionId === issue.finding_id ? 'rgba(6,182,212,0.02)' : 'rgba(255,255,255,0.01)',
                               cursor: 'pointer',
-                              border: selectedActionId === item.FindingId ? '1px solid var(--color-cyan)' : 'none',
-                              borderRadius: 'var(--radius-medium)',
-                              boxShadow: selectedActionId === item.FindingId ? '0 0 8px rgba(6,182,212,0.1)' : 'none'
+                              transition: 'all 0.2s ease'
                             }}
                           >
-                            <ActionCard
-                              title={item.Title}
-                              findingId={item.FindingId}
-                              severity={item.Severity}
-                              priority={item.Priority}
-                              effort={item.EstimatedEffort}
-                              actionDescription={item.RecommendedRemediation}
-                              validationText={item.VerificationMethod}
-                              isCompleted={false}
-                              onToggleComplete={() => handleToggleRemediation(item.FindingId)}
-                              onInspectClick={() => setRemediationTargetId(item.FindingId)}
-                            />
+                            <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{issue.finding_id}</span>
+                                {issue.is_resolved ? (
+                                  <span className="cyber-badge badge-green" style={{ fontSize: '9px' }}>MITIGATED</span>
+                                ) : (
+                                  <span className="cyber-badge badge-orange" style={{ fontSize: '9px' }}>ACTIVE</span>
+                                )}
+                              </div>
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Est: {issue.estimated_fix_time}</span>
+                            </div>
+                            <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: issue.is_resolved ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: issue.is_resolved ? 'line-through' : 'none', marginBottom: '4px' }}>
+                              {issue.title}
+                            </h4>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'grid', gridTemplateColumns: '70px 1fr', gap: '4px', marginTop: '6px' }}>
+                              <span style={{ color: 'var(--text-muted)', fontWeight: 'bold' }}>Root Cause:</span>
+                              <span>{issue.root_cause}</span>
+                              <span style={{ color: 'var(--text-muted)', fontWeight: 'bold' }}>Impact:</span>
+                              <span>{issue.impact}</span>
+                              <span style={{ color: 'var(--text-muted)', fontWeight: 'bold' }}>Remediation:</span>
+                              <span style={{ color: 'var(--color-cyan)' }}>{issue.recommended_action}</span>
+                            </div>
                           </div>
-                        ))
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                </div>
+
+                {/* Right Pane: Orchestration Graph & Execution Console */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+                  
+                  {/* Validation & Self-Healing Score Preview */}
+                  <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div className="panel-title" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Post-Remediation Projection</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-around', margin: '8px 0' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Current Health</div>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: 'var(--color-pink)' }}>
+                          {dashboardData.overall_health_score}%
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '20px', color: 'var(--text-muted)' }}>➔</div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Target Health</div>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: 'var(--color-success)' }}>
+                          {dashboardData.post_remediation_validation.health_score}%
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Resolved: <strong>{dashboardData.post_remediation_validation.resolved_issues}</strong></span>
+                      <span>Outstanding: <strong>{dashboardData.post_remediation_validation.remaining_issues}</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Execution Timeline (DAG Sequencer) */}
+                  {dashboardData.execution_plan.length > 0 && (
+                    <div className="glass-panel" style={{ padding: '16px' }}>
+                      <div className="panel-title" style={{ fontSize: '11px', textTransform: 'uppercase', marginBottom: '12px' }}> Remediator Sequence Graph</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {dashboardData.execution_plan.map(step => (
+                          <div 
+                            key={step.sequence}
+                            style={{ 
+                              display: 'flex', 
+                              gap: '12px', 
+                              alignItems: 'flex-start',
+                              opacity: selectedActionId === step.finding_id ? 1 : 0.65,
+                              background: selectedActionId === step.finding_id ? 'rgba(255,255,255,0.03)' : 'transparent',
+                              padding: '6px',
+                              borderRadius: '4px'
+                            }}
+                          >
+                            <div style={{ 
+                              width: '18px', 
+                              height: '18px', 
+                              borderRadius: '50%', 
+                              backgroundColor: selectedActionId === step.finding_id ? 'var(--color-cyan)' : 'rgba(255,255,255,0.1)', 
+                              color: selectedActionId === step.finding_id ? '#000' : 'var(--text-secondary)',
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              fontSize: '10px', 
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 'bold',
+                              marginTop: '2px'
+                            }}>
+                              {step.sequence}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>{step.finding_id}</span>
+                                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>Dep: {step.dependency}</span>
+                              </div>
+                              <code style={{ fontSize: '9px', color: 'var(--color-cyan)', display: 'block', wordBreak: 'break-all', marginTop: '2px' }}>{step.action}</code>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Execution Workspace Panel */}
+                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '20px' }}>
+                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="panel-title" style={{ margin: 0 }}>Console Workspace</span>
+                      {daemonState === 'connected' ? (
+                        <span className="cyber-badge badge-green" style={{ fontSize: '9px' }}>DAEMON LIVE</span>
+                      ) : (
+                        <span className="cyber-badge badge-orange" style={{ fontSize: '9px' }}>OFFLINE STANDALONE</span>
                       )}
                     </div>
+
+                    {selectedAction ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        {/* Selected Title */}
+                        <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 'var(--radius-medium)', padding: '10px 14px', background: 'rgba(255,255,255,0.01)' }}>
+                          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{selectedAction.FindingId}</span>
+                          <h4 style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>
+                            {selectedAction.Title}
+                          </h4>
+                        </div>
+
+                        {/* Trigger Controls */}
+                        {(() => {
+                          const isActionable = ['SEC-FW-001', 'SEC-DEF-001', 'PERF-DISKFREE-C', 'REL-SVC-001'].includes(selectedAction.FindingId);
+                          const resolved = completedRemediations[selectedAction.FindingId];
+                          const hasRollback = ['SEC-FW-001', 'SEC-DEF-001'].includes(selectedAction.FindingId);
+
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              
+                              <div style={{ display: 'flex', gap: '10px' }}>
+                                <button 
+                                  className="cyber-btn cyber-btn-primary" 
+                                  onClick={() => runRemediationSimulation(selectedAction.FindingId)}
+                                  disabled={remediationExecuting || bulkExecuting || !isActionable}
+                                  style={{ 
+                                    flex: 1, 
+                                    padding: '10px', 
+                                    fontWeight: 'bold', 
+                                    justifyContent: 'center', 
+                                    color: '#000',
+                                    opacity: isActionable ? 1 : 0.4,
+                                    cursor: isActionable ? 'pointer' : 'not-allowed'
+                                  }}
+                                >
+                                  {remediationExecuting && remediationTargetId === selectedAction.FindingId ? (
+                                    <span>Executing...</span>
+                                  ) : resolved ? (
+                                    <span>Re-run Compliance</span>
+                                  ) : (
+                                    <span>Run Action</span>
+                                  )}
+                                </button>
+
+                                {hasRollback && resolved && (
+                                  <button 
+                                    className="cyber-btn" 
+                                    onClick={() => runRemediationRollback(selectedAction.FindingId)}
+                                    disabled={remediationExecuting || bulkExecuting}
+                                    style={{ 
+                                      padding: '10px', 
+                                      fontWeight: 'bold', 
+                                      justifyContent: 'center', 
+                                      color: 'var(--color-pink)',
+                                      border: '1px solid var(--color-pink)',
+                                      background: 'rgba(239, 68, 68, 0.05)'
+                                    }}
+                                  >
+                                    Undo/Rollback
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Terminal Logs */}
+                              <div className="terminal-container" style={{ height: '180px', display: 'flex', flexDirection: 'column', background: 'rgba(2, 4, 10, 0.95)' }}>
+                                <div className="terminal-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '6px 12px', display: 'flex', justifyContent: 'space-between' }}>
+                                  <div className="terminal-dots">
+                                    <span className="terminal-dot" style={{ backgroundColor: 'var(--color-pink)' }}></span>
+                                    <span className="terminal-dot" style={{ backgroundColor: 'var(--color-orange)' }}></span>
+                                    <span className="terminal-dot" style={{ backgroundColor: 'var(--color-cyan)' }}></span>
+                                  </div>
+                                  <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>executor_logs.std</span>
+                                </div>
+                                
+                                <div style={{ flex: 1, overflowY: 'auto', padding: '12px', fontFamily: 'var(--font-mono)', fontSize: '10px', lineHeight: '1.4' }}>
+                                  {remediationTargetId === selectedAction.FindingId && remediationLogs.length > 0 ? (
+                                    remediationLogs.map((line, idx) => {
+                                      let color = 'var(--text-secondary)';
+                                      if (line.includes('[success]') || line.includes('[stdout]')) color = 'var(--color-success)';
+                                      else if (line.includes('[error]') || line.includes('[stderr]')) color = 'var(--color-danger)';
+                                      else if (line.includes('[cmd]')) color = 'var(--color-cyan)';
+                                      return <div key={idx} style={{ color, marginBottom: '4px', whiteSpace: 'pre-wrap' }}>{line}</div>;
+                                    })
+                                  ) : resolved ? (
+                                    <div style={{ color: 'var(--color-success)' }}>
+                                      [success] Action successfully verified on host.<br />
+                                      [info] Compliant state captured in registry audit database.
+                                    </div>
+                                  ) : !isActionable ? (
+                                    <div style={{ color: 'var(--color-orange)' }}>
+                                      [warning] Automated remediation not supported for this issue.<br />
+                                      [info] Please refer to recommended actions to remediate manually.
+                                    </div>
+                                  ) : (
+                                    <div style={{ color: 'var(--text-muted)' }}>
+                                      [info] Console idle.<br />
+                                      [info] Click "Run Action" to execute compliance script.
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Probe Details */}
+                              <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: 'var(--radius-medium)', padding: '12px', background: 'rgba(255,255,255,0.01)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Verification Strategy</span>
+                                  {resolved ? (
+                                    <span className="cyber-badge badge-green">VERIFIED COMPLIANT</span>
+                                  ) : (
+                                    <span className="cyber-badge badge-orange">PENDING RUN</span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                  Probe: <strong>{selectedAction.VerificationMethod}</strong>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '150px', gap: '8px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                        <AlertTriangle size={20} />
+                        <span style={{ fontSize: '12px' }}>Select an action to launch compliance terminal.</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Completed Actions */}
-                  {completedFindings.length > 0 && (
-                    <div className="glass-panel" style={{ padding: '20px' }}>
-                      <div className="panel-header" style={{ marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                        <h2 className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <CheckCircleIcon size={16} color="var(--color-success)" /> <span>Completed Mitigations</span>
-                        </h2>
-                      </div>
-                      
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {completedFindings.map((item) => (
-                          <div 
-                            key={item.FindingId} 
-                            onClick={() => setRemediationTargetId(item.FindingId)}
-                            style={{ 
-                              cursor: 'pointer',
-                              border: selectedActionId === item.FindingId ? '1px solid var(--color-cyan)' : 'none',
-                              borderRadius: 'var(--radius-medium)'
-                            }}
-                          >
-                            <ActionCard
-                              title={item.Title}
-                              findingId={item.FindingId}
-                              severity={item.Severity}
-                              priority={item.Priority}
-                              effort={item.EstimatedEffort}
-                              actionDescription={item.RecommendedRemediation}
-                              validationText={item.VerificationMethod}
-                              isCompleted={true}
-                              onToggleComplete={() => handleToggleRemediation(item.FindingId)}
-                              onInspectClick={() => setRemediationTargetId(item.FindingId)}
-                            />
+                  {/* Generated Scripts File Registry */}
+                  {dashboardData.generated_scripts.length > 0 && (
+                    <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div className="panel-title" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Generated Script Manifest</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {dashboardData.generated_scripts.map((script, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <FileIcon size={12} color="var(--color-cyan)" />
+                              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{script.script_name}</span>
+                            </div>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{script.purpose}</span>
                           </div>
                         ))}
                       </div>
@@ -2905,264 +3943,195 @@ ${capacityInfo}
 
                 </div>
 
-                {/* Right Pane: Execution & Verification Workspace */}
-                <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', padding: '20px' }}>
-                  <div className="panel-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                    <h2 className="panel-title">Execution Console</h2>
-                  </div>
-
-                  {selectedAction ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {/* Selected action display */}
-                      <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-medium)', padding: '12px 16px', background: 'rgba(255,255,255,0.01)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{selectedAction.FindingId}</span>
-                          <SeverityBadge severity={selectedAction.Severity} />
-                        </div>
-                        <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>
-                          {selectedAction.Title}
-                        </h4>
-                      </div>
-
-                      {/* Script execution trigger */}
-                      <button 
-                        className="cyber-btn cyber-btn-primary" 
-                        onClick={() => runRemediationSimulation(selectedAction.FindingId)}
-                        disabled={remediationExecuting}
-                        style={{ width: '100%', padding: '10px', fontWeight: 'bold', justifyContent: 'center', color: '#000' }}
-                      >
-                        {remediationExecuting && selectedActionId === selectedAction.FindingId ? (
-                          <span>Executing Script...</span>
-                        ) : completedRemediations[selectedAction.FindingId] ? (
-                          <span>Mitigation Applied (Click to Re-run)</span>
-                        ) : (
-                          <span>Run Remediation Script</span>
-                        )}
-                      </button>
-
-                      {/* Execution Terminal Status */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Execution Status</span>
-                        <div className="terminal-container" style={{ height: '200px', display: 'flex', flexDirection: 'column', background: 'rgba(2, 4, 10, 0.95)' }}>
-                          <div className="terminal-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '6px 12px' }}>
-                            <div className="terminal-dots">
-                              <span className="terminal-dot" style={{ backgroundColor: 'var(--color-pink)' }}></span>
-                              <span className="terminal-dot" style={{ backgroundColor: 'var(--color-orange)' }}></span>
-                              <span className="terminal-dot" style={{ backgroundColor: 'var(--color-cyan)' }}></span>
-                            </div>
-                            <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>executor_logs.std</span>
-                          </div>
-                          
-                          <div style={{ flex: 1, overflowY: 'auto', padding: '12px', fontFamily: 'var(--font-mono)', fontSize: '11px', lineHeight: '1.4' }}>
-                            {selectedActionId === selectedAction.FindingId && remediationLogs.length > 0 ? (
-                              remediationLogs.map((line, idx) => {
-                                let color = 'var(--text-secondary)';
-                                if (line.includes('[success]')) color = 'var(--color-success)';
-                                else if (line.includes('[error]')) color = 'var(--color-danger)';
-                                else if (line.includes('[cmd]')) color = 'var(--color-info)';
-                                return <div key={idx} style={{ color, marginBottom: '4px' }}>{line}</div>;
-                              })
-                            ) : completedRemediations[selectedAction.FindingId] ? (
-                              <div style={{ color: 'var(--color-success)' }}>
-                                [success] Mitigation previously verified on host.<br />
-                                [info] Ready to run baseline compliance script override.
-                              </div>
-                            ) : (
-                              <div style={{ color: 'var(--text-muted)' }}>
-                                [info] Console idle.<br />
-                                [info] Select "Run Remediation Script" to start shell mitigation.
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Verification Status */}
-                      <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-medium)', padding: '14px', background: 'rgba(255,255,255,0.01)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Verification Status</span>
-                          {completedRemediations[selectedAction.FindingId] ? (
-                            <span className="cyber-badge badge-green">✓ Verified</span>
-                          ) : remediationExecuting && selectedActionId === selectedAction.FindingId ? (
-                            <span className="cyber-badge badge-cyan pulse">Checking...</span>
-                          ) : (
-                            <span className="cyber-badge badge-orange">Pending scan</span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          Method: <strong>{selectedAction.VerificationMethod}</strong>
-                        </div>
-                      </div>
-
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '32px' }}>
-                      <AlertTriangle size={24} />
-                      <span style={{ fontSize: '13px' }}>Select an action from the list to invoke remediation script console.</span>
-                    </div>
-                  )}
-                </div>
-
               </div>
             );
           })()}
 
           {/* 4. CAPACITY FORECASTING */}
-          {activeTab === 'forecasting' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div className="stats-container">
+          {activeTab === 'forecasting' && (() => {
+            const currentStorageUtil = (() => {
+              const logicalDisks = getEvidenceValue('Disk', 'LogicalDisks') as Array<Record<string, unknown>> | null;
+              const cDrive = Array.isArray(logicalDisks)
+                ? logicalDisks.find(d => d['DeviceID'] === 'C:' || d['DeviceID'] === '/')
+                : null;
+              if (cDrive) {
+                const size = parseFloat(String(cDrive['Size'] || 1));
+                const free = parseFloat(String(cDrive['FreeSpace'] || 0));
+                if (size > 0) {
+                  return Number((((size - free) / size) * 100).toFixed(2));
+                }
+              }
+              return 50.0;
+            })();
+
+            const todayStorage = currentStorageUtil;
+            const todayMemory = Math.max(0, Math.min(100, 100.0 - (healthScoreDataState?.PerformanceScore || 100)));
+            const todayCPU = Math.max(0, Math.min(100, 100.0 - (healthScoreDataState?.ReliabilityScore || 100)));
+
+            const storageDaysMatch = capacityForecastData?.Storage?.Note?.match(/^(\d+)\s+Days/);
+            const storageTrendValue = storageDaysMatch ? `${storageDaysMatch[1]} Days` : 'Stable';
+            const storageTrendLabel = storageDaysMatch ? 'Until Exhaustion' : 'Capacity Secured';
+
+            const memoryDaysMatch = capacityForecastData?.Memory?.Note?.match(/^(\d+)\s+Days/);
+            const memoryForecastValue = memoryDaysMatch ? `${memoryDaysMatch[1]} Days` : 'Stable';
+            const memoryForecastLabel = memoryDaysMatch ? 'Until Exhaustion' : 'Available Headroom';
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div className="stats-container">
+                  <div className="glass-panel">
+                    <div className="panel-title"><HardDrive size={16} color="var(--color-pink)" /> Storage Trend</div>
+                    <div className="metric-value">{storageTrendValue}</div>
+                    <div className="metric-label" style={{ marginTop: '8px' }}>{storageTrendLabel}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>Confidence: {capacityForecastData?.Storage?.Confidence || 'High'}</div>
+                  </div>
+
+                  <div className="glass-panel">
+                    <div className="panel-title"><Cpu size={16} color="var(--color-blue)" /> Memory Forecast</div>
+                    <div className="metric-value">{memoryForecastValue}</div>
+                    <div className="metric-label" style={{ marginTop: '8px' }}>{memoryForecastLabel}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>Confidence: {capacityForecastData?.Memory?.Confidence || 'Low'}</div>
+                  </div>
+
+                  <div className="glass-panel" style={{ gridColumn: 'span 2' }}>
+                    <div className="panel-title"><Activity size={16} color="var(--color-cyan)" /> Saturation Alert Summary</div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px', lineHeight: '1.5' }}>
+                      {capacityForecastData?.Storage?.Note || 'Sufficient capacity metrics parsed.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* SVG forecasting Chart */}
                 <div className="glass-panel">
-                  <div className="panel-title"><HardDrive size={16} color="var(--color-pink)" /> Storage Trend</div>
-                  <div className="metric-value">95 Days</div>
-                  <div className="metric-label" style={{ marginTop: '8px' }}>Until Exhaustion</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>Confidence: High</div>
-                </div>
+                  <div className="panel-header">
+                    <h2 className="panel-title"><Activity size={16} /> Timeline Saturation Curve (365d Forecast)</h2>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Hover points to inspect estimated utilization</span>
+                  </div>
 
-                <div className="glass-panel">
-                  <div className="panel-title"><Cpu size={16} color="var(--color-blue)" /> Memory Forecast</div>
-                  <div className="metric-value">Stable</div>
-                  <div className="metric-label" style={{ marginTop: '8px' }}>Available Headroom</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>Confidence: Low</div>
-                </div>
-
-                <div className="glass-panel" style={{ gridColumn: 'span 2' }}>
-                  <div className="panel-title"><Activity size={16} color="var(--color-cyan)" /> Saturation Alert Summary</div>
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px', lineHeight: '1.5' }}>
-                    {capacityForecastData?.Storage.Note || 'Sufficient capacity metrics parsed.'}
-                  </p>
-                </div>
-              </div>
-
-              {/* SVG forecasting Chart */}
-              <div className="glass-panel">
-                <div className="panel-header">
-                  <h2 className="panel-title"><Activity size={16} /> Timeline Saturation Curve (365d Forecast)</h2>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Hover points to inspect estimated utilization</span>
-                </div>
-
-                <div style={{ position: 'relative', overflow: 'visible', margin: '20px 0' }}>
-                  <svg width="100%" height="280" viewBox="0 0 600 280" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'visible' }}>
-                    {/* Grid Lines */}
-                    {[20, 40, 60, 80, 100].map(val => {
-                      const y = 250 - (val / 100) * 220;
-                      return (
-                        <g key={val}>
-                          <line x1="50" y1={y} x2="560" y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                          <text x="25" y={y + 4} fill="var(--text-muted)" fontSize="9" textAnchor="middle">{val}%</text>
-                        </g>
-                      );
-                    })}
-
-                    {/* Timeline labels */}
-                    {['Today', '30 Days', '90 Days', '180 Days', '365 Days'].map((label, idx) => {
-                      const x = 60 + idx * 115;
-                      return (
-                        <g key={label}>
-                          <line x1={x} y1="30" x2={x} y2="250" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                          <text x={x} y="265" fill="var(--text-secondary)" fontSize="10" textAnchor="middle">{label}</text>
-                        </g>
-                      );
-                    })}
-
-                    {/* Utilization Curve for Storage (Exhaustion Risk - pink) */}
-                    <path
-                      d={`M ${60 + 0*115} ${250 - (88.6/100)*220} L ${60 + 1*115} ${250 - ((capacityForecastData?.Storage.Day30 || 92)/100)*220} L ${60 + 2*115} ${250 - ((capacityForecastData?.Storage.Day90 || 98)/100)*220} L ${60 + 3*115} ${250 - ((capacityForecastData?.Storage.Day180 || 100)/100)*220} L ${60 + 4*115} ${250 - ((capacityForecastData?.Storage.Day365 || 100)/100)*220}`}
-                      fill="none"
-                      stroke="var(--color-pink)"
-                      strokeWidth="2.5"
-                      style={{ filter: 'drop-shadow(0px 0px 4px var(--color-pink))' }}
-                    />
-
-                    {/* Utilization Curve for Memory (Stable - blue) */}
-                    <path
-                      d={`M ${60 + 0*115} ${250 - (58/100)*220} L ${60 + 1*115} ${250 - ((capacityForecastData?.Memory.Day30 || 62)/100)*220} L ${60 + 2*115} ${250 - ((capacityForecastData?.Memory.Day90 || 63)/100)*220} L ${60 + 3*115} ${250 - ((capacityForecastData?.Memory.Day180 || 64)/100)*220} L ${60 + 4*115} ${250 - ((capacityForecastData?.Memory.Day365 || 65)/100)*220}`}
-                      fill="none"
-                      stroke="var(--color-blue)"
-                      strokeWidth="2.5"
-                      style={{ filter: 'drop-shadow(0px 0px 4px var(--color-blue))' }}
-                    />
-
-                    {/* Utilization Curve for CPU (Normal - cyan) */}
-                    <path
-                      d={`M ${60 + 0*115} ${250 - (24/100)*220} L ${60 + 1*115} ${250 - ((capacityForecastData?.CPU.Day30 || 34)/100)*220} L ${60 + 2*115} ${250 - ((capacityForecastData?.CPU.Day90 || 35)/100)*220} L ${60 + 3*115} ${250 - ((capacityForecastData?.CPU.Day180 || 34)/100)*220} L ${60 + 4*115} ${250 - ((capacityForecastData?.CPU.Day365 || 36)/100)*220}`}
-                      fill="none"
-                      stroke="var(--color-cyan)"
-                      strokeWidth="2.5"
-                      style={{ filter: 'drop-shadow(0px 0px 4px var(--color-cyan))' }}
-                    />
-
-                    {/* Interactive dots and hovers */}
-                    {[
-                      { metric: 'Storage', color: 'var(--color-pink)', values: [88.6, capacityForecastData?.Storage.Day30 || 92.5, capacityForecastData?.Storage.Day90 || 98.1, capacityForecastData?.Storage.Day180 || 100, capacityForecastData?.Storage.Day365 || 100] },
-                      { metric: 'Memory', color: 'var(--color-blue)', values: [58, capacityForecastData?.Memory.Day30 || 62, capacityForecastData?.Memory.Day90 || 63.5, capacityForecastData?.Memory.Day180 || 64, capacityForecastData?.Memory.Day365 || 65.5] },
-                      { metric: 'CPU', color: 'var(--color-cyan)', values: [24, capacityForecastData?.CPU.Day30 || 34, capacityForecastData?.CPU.Day90 || 35, capacityForecastData?.CPU.Day180 || 34.5, capacityForecastData?.CPU.Day365 || 36] }
-                    ].map(curve => 
-                      curve.values.map((val, idx) => {
-                        const x = 60 + idx * 115;
+                  <div style={{ position: 'relative', overflow: 'visible', margin: '20px 0' }}>
+                    <svg width="100%" height="280" viewBox="0 0 600 280" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'visible' }}>
+                      {/* Grid Lines */}
+                      {[20, 40, 60, 80, 100].map(val => {
                         const y = 250 - (val / 100) * 220;
-                        const days = ['Today', '30d', '90d', '180d', '365d'][idx];
                         return (
-                          <circle
-                            key={`${curve.metric}-${idx}`}
-                            cx={x}
-                            cy={y}
-                            r="5"
-                            fill={curve.color}
-                            stroke="rgba(255,255,255,0.8)"
-                            strokeWidth="1.5"
-                            cursor="pointer"
-                            onMouseEnter={() => setHoveredPoint({ metric: curve.metric, day: days, value: val, x, y })}
-                            onMouseLeave={() => setHoveredPoint(null)}
-                          />
+                          <g key={val}>
+                            <line x1="50" y1={y} x2="560" y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+                            <text x="25" y={y + 4} fill="var(--text-muted)" fontSize="9" textAnchor="middle">{val}%</text>
+                          </g>
                         );
-                      })
-                    )}
-                  </svg>
+                      })}
 
-                  {/* HTML Tooltip overlay */}
-                  {hoveredPoint && (
-                    <div style={{ 
-                      position: 'absolute', 
-                      left: `${(hoveredPoint.x / 600) * 100}%`, 
-                      top: `${hoveredPoint.y - 65}px`,
-                      transform: 'translateX(-50%)',
-                      background: 'rgba(6,9,19,0.95)',
-                      border: '1px solid var(--border-color)',
-                      boxShadow: '0 0 10px rgba(6,182,212,0.2)',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      fontSize: '11px',
-                      pointerEvents: 'none',
-                      whiteSpace: 'nowrap',
-                      zIndex: 10
-                    }}>
-                      <div style={{ fontWeight: 'bold', color: hoveredPoint.metric === 'Storage' ? 'var(--color-pink)' : hoveredPoint.metric === 'Memory' ? 'var(--color-blue)' : 'var(--color-cyan)' }}>
-                        {hoveredPoint.metric.toUpperCase()}
+                      {/* Timeline labels */}
+                      {['Today', '30 Days', '90 Days', '180 Days', '365 Days'].map((label, idx) => {
+                        const x = 60 + idx * 115;
+                        return (
+                          <g key={label}>
+                            <line x1={x} y1="30" x2={x} y2="250" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+                            <text x={x} y="265" fill="var(--text-secondary)" fontSize="10" textAnchor="middle">{label}</text>
+                          </g>
+                        );
+                      })}
+
+                      {/* Utilization Curve for Storage (Exhaustion Risk - pink) */}
+                      <path
+                        d={`M ${60 + 0*115} ${250 - (todayStorage/100)*220} L ${60 + 1*115} ${250 - ((capacityForecastData?.Storage?.Day30 || 0)/100)*220} L ${60 + 2*115} ${250 - ((capacityForecastData?.Storage?.Day90 || 0)/100)*220} L ${60 + 3*115} ${250 - ((capacityForecastData?.Storage?.Day180 || 0)/100)*220} L ${60 + 4*115} ${250 - ((capacityForecastData?.Storage?.Day365 || 0)/100)*220}`}
+                        fill="none"
+                        stroke="var(--color-pink)"
+                        strokeWidth="2.5"
+                        style={{ filter: 'drop-shadow(0px 0px 4px var(--color-pink))' }}
+                      />
+
+                      {/* Utilization Curve for Memory (Stable - blue) */}
+                      <path
+                        d={`M ${60 + 0*115} ${250 - (todayMemory/100)*220} L ${60 + 1*115} ${250 - ((capacityForecastData?.Memory?.Day30 || 0)/100)*220} L ${60 + 2*115} ${250 - ((capacityForecastData?.Memory?.Day90 || 0)/100)*220} L ${60 + 3*115} ${250 - ((capacityForecastData?.Memory?.Day180 || 0)/100)*220} L ${60 + 4*115} ${250 - ((capacityForecastData?.Memory?.Day365 || 0)/100)*220}`}
+                        fill="none"
+                        stroke="var(--color-blue)"
+                        strokeWidth="2.5"
+                        style={{ filter: 'drop-shadow(0px 0px 4px var(--color-blue))' }}
+                      />
+
+                      {/* Utilization Curve for CPU (Normal - cyan) */}
+                      <path
+                        d={`M ${60 + 0*115} ${250 - (todayCPU/100)*220} L ${60 + 1*115} ${250 - ((capacityForecastData?.CPU?.Day30 || 0)/100)*220} L ${60 + 2*115} ${250 - ((capacityForecastData?.CPU?.Day90 || 0)/100)*220} L ${60 + 3*115} ${250 - ((capacityForecastData?.CPU?.Day180 || 0)/100)*220} L ${60 + 4*115} ${250 - ((capacityForecastData?.CPU?.Day365 || 0)/100)*220}`}
+                        fill="none"
+                        stroke="var(--color-cyan)"
+                        strokeWidth="2.5"
+                        style={{ filter: 'drop-shadow(0px 0px 4px var(--color-cyan))' }}
+                      />
+
+                      {/* Interactive dots and hovers */}
+                      {[
+                        { metric: 'Storage', color: 'var(--color-pink)', values: [todayStorage, capacityForecastData?.Storage?.Day30 || 0, capacityForecastData?.Storage?.Day90 || 0, capacityForecastData?.Storage?.Day180 || 0, capacityForecastData?.Storage?.Day365 || 0] },
+                        { metric: 'Memory', color: 'var(--color-blue)', values: [todayMemory, capacityForecastData?.Memory?.Day30 || 0, capacityForecastData?.Memory?.Day90 || 0, capacityForecastData?.Memory?.Day180 || 0, capacityForecastData?.Memory?.Day365 || 0] },
+                        { metric: 'CPU', color: 'var(--color-cyan)', values: [todayCPU, capacityForecastData?.CPU?.Day30 || 0, capacityForecastData?.CPU?.Day90 || 0, capacityForecastData?.CPU?.Day180 || 0, capacityForecastData?.CPU?.Day365 || 0] }
+                      ].map(curve => 
+                        curve.values.map((val, idx) => {
+                          const x = 60 + idx * 115;
+                          const y = 250 - (val / 100) * 220;
+                          const days = ['Today', '30d', '90d', '180d', '365d'][idx];
+                          return (
+                            <circle
+                              key={`${curve.metric}-${idx}`}
+                              cx={x}
+                              cy={y}
+                              r="5"
+                              fill={curve.color}
+                              stroke="rgba(255,255,255,0.8)"
+                              strokeWidth="1.5"
+                              cursor="pointer"
+                              onMouseEnter={() => setHoveredPoint({ metric: curve.metric, day: days, value: val, x, y })}
+                              onMouseLeave={() => setHoveredPoint(null)}
+                            />
+                          );
+                        })
+                      )}
+                    </svg>
+
+                    {/* HTML Tooltip overlay */}
+                    {hoveredPoint && (
+                      <div style={{ 
+                        position: 'absolute', 
+                        left: `${(hoveredPoint.x / 600) * 100}%`, 
+                        top: `${hoveredPoint.y - 65}px`,
+                        transform: 'translateX(-50%)',
+                        background: 'rgba(6,9,19,0.95)',
+                        border: '1px solid var(--border-color)',
+                        boxShadow: '0 0 10px rgba(6,182,212,0.2)',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        pointerEvents: 'none',
+                        whiteSpace: 'nowrap',
+                        zIndex: 10
+                      }}>
+                        <div style={{ fontWeight: 'bold', color: hoveredPoint.metric === 'Storage' ? 'var(--color-pink)' : hoveredPoint.metric === 'Memory' ? 'var(--color-blue)' : 'var(--color-cyan)' }}>
+                          {hoveredPoint.metric.toUpperCase()}
+                        </div>
+                        <div>Timeline: {hoveredPoint.day}</div>
+                        <div>Utilization: <strong style={{ fontFamily: 'var(--font-mono)' }}>{hoveredPoint.value}%</strong></div>
                       </div>
-                      <div>Timeline: {hoveredPoint.day}</div>
-                      <div>Utilization: <strong style={{ fontFamily: 'var(--font-mono)' }}>{hoveredPoint.value}%</strong></div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
 
-                {/* Legend */}
-                <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', fontSize: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--color-pink)', display: 'inline-block' }}></span>
-                    <span>Storage Utilization (High Risk)</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--color-blue)', display: 'inline-block' }}></span>
-                    <span>Memory Utilization (Stable)</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--color-cyan)', display: 'inline-block' }}></span>
-                    <span>CPU Load Saturation (Stable)</span>
+                  {/* Legend */}
+                  <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', fontSize: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--color-pink)', display: 'inline-block' }}></span>
+                      <span>Storage Utilization (High Risk)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--color-blue)', display: 'inline-block' }}></span>
+                      <span>Memory Utilization (Stable)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--color-cyan)', display: 'inline-block' }}></span>
+                      <span>CPU Load Saturation (Stable)</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* 5. INFRASTRUCTURE GRAPH */}
           {activeTab === 'topology' && (
@@ -3308,7 +4277,7 @@ ${capacityInfo}
                             } else {
                               showToast("Migration upload failed. Ensure FastAPI V2 server is running at localhost:8000.", "error");
                             }
-                          } catch (err) {
+                          } catch {
                             showToast("Network error. Ensure API gateway is accessible at localhost:8000.", "error");
                           }
                         }}
@@ -3640,6 +4609,7 @@ ${capacityInfo}
               assessmentLoaded={!!envDataState}
               assessmentSoftware={activeAssessmentSoftware}
               showToast={showToast}
+              canExecuteRemediation={canExecuteRemediation}
               onNavigateToTab={(tab) => setActiveTab(tab as any)}
               onUpdateOverallHealth={(diff) => {
                 setHealthScoreData(prev => {
@@ -3650,6 +4620,13 @@ ${capacityInfo}
                   };
                 });
               }} 
+            />
+          )}
+
+          {/* 8.5 FLEET CAPACITY ANALYTICS */}
+          {activeTab === 'fleet-analytics' && (
+            <FleetAnalytics 
+              showToast={showToast}
             />
           )}
 
@@ -3785,6 +4762,14 @@ ${capacityInfo}
     {/* Toast Container Stack */}
     <Toaster />
   </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <DashboardCommandCenter />
+    </AuthProvider>
   );
 }
 

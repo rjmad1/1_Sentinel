@@ -1,8 +1,8 @@
-# Welcome to the EIIP Wiki
+# Welcome to the EIIP / Sentinel Wiki
 
-Welcome to the official documentation for the **Enterprise Infrastructure Intelligence Platform (EIIP)**. 
+Welcome to the official documentation for the **Enterprise Infrastructure Intelligence Platform (EIIP) / Sentinel**. 
 
-EIIP is an Infrastructure Intelligence Platform that transforms infrastructure data into operational understanding. Unlike traditional monitoring tools that simply tell you *what happened*, EIIP builds a living, local-first model of your environment to explain *why it happened*, *what it affects*, and *what should happen next*.
+Sentinel is a fleet-capable infrastructure intelligence system designed to discover, model, assess, correlate, predict, remediate, validate, and learn from enterprise computing environments. Unlike traditional monitoring tools that simply tell you *what happened*, Sentinel builds a living, centralized model of your environment to explain *why it happened*, *what it affects*, and *what should happen next*.
 
 ---
 
@@ -18,20 +18,22 @@ graph TD
     Act --> Learn[Learn: Accumulate operational memory]
 ```
 
-1. **Discover**: Identify assets, inventory hardware, operating systems, applications, and services.
+1. **Discover**: Identify assets, inventory hardware specifications, operating systems, running services, and security configurations.
 2. **Understand**: Reconstruct dependencies and build a topological infrastructure graph showing how components work together.
 3. **Reason**: Assess health states, calculate risk metrics, correlate anomalies, and forecast resource limits.
 4. **Act**: Plan remediations, validate outcomes, and configure simulated upgrades or uninstalls.
-5. **Learn**: Accumulate historical assessments in local browser storage, creating an evolving operational memory of the environment.
+5. **Learn**: Accumulate historical assessments in the centralized ledger, creating an evolving operational memory of the environment.
 
 ---
 
-## ✨ Core Benefits
+## ✨ Core Benefits (Phase 2 Capabilities)
 
-* **Zero Infrastructure Overhead**: Runs instantly in your browser as a static web application. No server deployments, agent agents, database setups, or cloud dependencies.
-* **100% Data Sovereignty**: Designed for local-first privacy. Absolutely zero data leaves your local machine. All assessment files imported and historical trends are saved locally inside browser-native IndexedDB.
-* **AI-Ready Diagnostics**: Converts complex system logs and registry configurations into a clean, structured ZIP bundle. This bundle can be directly uploaded to Large Language Models (LLMs) to perform automated architecture audits.
-* **Lifecycle & Security Awareness**: Normalizes application packages across 9 separate discovery channels (Winget, Chocolatey, Scoop, WSL, Docker, pip, npm, etc.) and highlights End-of-Life (EOL), deprecations, and vulnerability exposures.
+* **Centralized Fleet Ledger (Postgres & InsForge)**: Consolidate configuration profiles, OS metadata, package inventory, and vulnerabilities across multiple nodes instead of a single workstation.
+* **Automated Telemetry Ingestion API (FastAPI & NATS)**: Streamlined telemetry uploading via `/api/v2/discovery/upload` and legacy V1 JSON migration via `/api/v2/migrate/import`. Ingested data is processed asynchronously with NATS JetStream and CloudEvents 1.0 specifications.
+* **Interactive Topology Canvas (React Flow / XYFlow & Graphology)**: Sleek React Flow topology map featuring custom styled nodes (Machine, OS, Service, Database, Storage) with status-based neon highlights (Green, Orange, Red) mapping vulnerability severities.
+* **Enterprise RBAC Auth (InsForge Auth)**: Enforce roles (`admin`, `operator`, `auditor`) from JWT claims to secure endpoints and gate operations like running scans or executing remediations.
+* **Dynamic Assessment & Risk Engine (RulesEngine)**: Dynamic JSON-based policies evaluating compliance against technical baselines and updating domain health scores and findings in real-time.
+* **Local-First Privacy Option**: While centralized enterprise features are supported, the browser application preserves local-first capability (browser-native IndexedDB) for air-gapped workstations or legacy deployments.
 
 ---
 
@@ -40,7 +42,7 @@ graph TD
 Use the following directory to navigate through the platform guides and documentation:
 
 ### 🏁 Getting Started
-* **[Getting Started](GettingStarted.md)**: Accessing the UI, running the PowerShell collector, importing assessments, and review workflows for different user personas.
+* **[Getting Started](GettingStarted.md)**: Accessing the UI, logging in with SSO/RBAC roles, running the PowerShell collector, importing assessments, and review workflows for different user personas.
 
 ### 📊 Feature Guides
 * **[Understanding Your Dashboard](DashboardGuide.md)**: Health Index gauges, findings counts, Risk Matrix quadrants, and historical run tracking.

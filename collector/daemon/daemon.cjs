@@ -36,6 +36,108 @@ const PORT = 1337;
 const AUTH_TOKEN = process.env.SENTINEL_DAEMON_TOKEN || 'sentinel-local-daemon-auth-token-1337-secret';
 const START_TIME = Date.now();
 
+const rollbackCheckpoints = {};
+
+const REMEDIATION_SCRIPTS = {
+  'SEC-FW-001': {
+    name: 'enable-firewall.ps1',
+    purpose: 'Enforce public firewall profile standards',
+    command: 'Set-NetFirewallProfile -Profile Public -Enabled True',
+    rollback: 'Set-NetFirewallProfile -Profile Public -Enabled False'
+  },
+  'SEC-DEF-001': {
+    name: 'enable-defender.ps1',
+    purpose: 'Enable Windows Defender real-time protection',
+    command: 'Set-MpPreference -DisableRealtimeMonitoring $false',
+    rollback: 'Set-MpPreference -DisableRealtimeMonitoring $true'
+  },
+  'PERF-DISKFREE-C': {
+    name: 'prune-caches.ps1',
+    purpose: 'Prune local temporary files and reclaim space',
+    command: 'Remove-Item -Path "$env:TEMP\\*" -Recurse -Force -ErrorAction SilentlyContinue; Get-ChildItem -Path "$env:TEMP" | Measure-Object | ConvertTo-Json',
+    rollback: ''
+  },
+  'REL-SVC-001': {
+    name: 'restart-services.ps1',
+    purpose: 'Restart automatic services that are stopped',
+    command: 'Get-Service | Where-Object { $_.StartType -eq "Automatic" -and $_.Status -ne "Running" } | Start-Service; Get-Service | Where-Object { $_.StartType -eq "Automatic" -and $_.Status -ne "Running" } | ConvertTo-Json',
+    rollback: ''
+  }
+};
+
+function executeRemediation(findingId) {
+  const scriptInfo = REMEDIATION_SCRIPTS[findingId];
+  if (!scriptInfo) {
+    return { success: false, error: 'Unknown finding ID' };
+  }
+  
+  if (scriptInfo.rollback) {
+    rollbackCheckpoints[findingId] = {
+      timestamp: new Date().toISOString(),
+      findingId: findingId,
+      rollbackCommand: scriptInfo.rollback
+    };
+  }
+  
+  const isWin = os.platform() === 'win32';
+  if (!isWin) {
+    return {
+      success: true,
+      stdout: `[Simulated OS: ${os.platform()}] Executed script: ${scriptInfo.name}\nPurpose: ${scriptInfo.purpose}\nOutput: SUCCESS. State updated.`,
+      stderr: ''
+    };
+  }
+  
+  try {
+    const stdout = execSync(`powershell -NoProfile -NonInteractive -Command "${scriptInfo.command.replace(/"/g, '\\"')}"`, { encoding: 'utf8', timeout: 15000 });
+    return {
+      success: true,
+      stdout: stdout || 'Command completed successfully.',
+      stderr: ''
+    };
+  } catch (err) {
+    return {
+      success: false,
+      stdout: err.stdout || '',
+      stderr: err.stderr || err.message
+    };
+  }
+}
+
+function executeRollback(findingId) {
+  const checkpoint = rollbackCheckpoints[findingId];
+  if (!checkpoint || !checkpoint.rollbackCommand) {
+    return { success: false, error: 'No rollback checkpoint found for this finding.' };
+  }
+  
+  const isWin = os.platform() === 'win32';
+  if (!isWin) {
+    delete rollbackCheckpoints[findingId];
+    return {
+      success: true,
+      stdout: `[Simulated OS: ${os.platform()}] Rolled back changes for finding: ${findingId}`,
+      stderr: ''
+    };
+  }
+  
+  try {
+    const stdout = execSync(`powershell -NoProfile -NonInteractive -Command "${checkpoint.rollbackCommand.replace(/"/g, '\\"')}"`, { encoding: 'utf8', timeout: 15000 });
+    delete rollbackCheckpoints[findingId];
+    return {
+      success: true,
+      stdout: stdout || 'Rollback completed successfully.',
+      stderr: ''
+    };
+  } catch (err) {
+    return {
+      success: false,
+      stdout: err.stdout || '',
+      stderr: err.stderr || err.message
+    };
+  }
+}
+
+
 // Helper to run a PowerShell command and return parsed JSON
 function runPowerShell(cmd) {
   try {
@@ -64,6 +166,42 @@ function harvestTelemetry() {
   let lastBootTime = new Date(Date.now() - os.uptime() * 1000).toISOString();
   let isElevated = true;
 
+  let cpus = os.cpus();
+  let cpuCount = cpus.length;
+  let cpuModel = cpuCount > 0 ? cpus[0].model : 'Unknown Processor';
+
+  let disksList = [];
+  let cDriveSize = 0;
+  let cDriveFree = 0;
+  let cDriveFreePct = 100;
+
+  let defenderRealTime = true;
+  let publicFirewallEnabled = true;
+  let stoppedAutoServices = [];
+
+  let software = [
+    { Name: 'Python', Version: '3.11.4', Publisher: 'Python Software Foundation', Source: 'Winget' },
+    { Name: 'Node.js', Version: '20.5.0', Publisher: 'OpenJS Foundation', Source: 'Winget' },
+    { Name: 'Git', Version: '2.41.0', Publisher: 'Software Freedom Conservancy', Source: 'Winget' },
+    { Name: 'Nginx', Version: '1.22.1', Publisher: 'F5 Inc.', Source: 'Docker' }
+  ];
+
+  let unixData = null;
+  if (!isWin) {
+    const scriptPath = path.resolve(__dirname, '../lib/Collect-MachineHealth.sh');
+    const tempFile = path.resolve(__dirname, 'temp_assessment.json');
+    try {
+      execSync(`bash "${scriptPath}" "${tempFile}"`, { timeout: 15000 });
+      if (fs.existsSync(tempFile)) {
+        const content = fs.readFileSync(tempFile, 'utf8');
+        unixData = JSON.parse(content);
+        fs.unlinkSync(tempFile);
+      }
+    } catch (err) {
+      console.error('Failed to run Unix shell collector:', err);
+    }
+  }
+
   if (isWin) {
     const osInfo = runPowerShell('Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber, LastBootUpTime | ConvertTo-Json');
     if (osInfo) {
@@ -87,6 +225,93 @@ function harvestTelemetry() {
     if (elevation !== null) {
       isElevated = !!elevation;
     }
+
+    const cpuInfo = runPowerShell('Get-CimInstance Win32_Processor | Select-Object Name | ConvertTo-Json');
+    if (cpuInfo) {
+      cpuModel = (Array.isArray(cpuInfo) ? cpuInfo[0].Name : cpuInfo.Name) || cpuModel;
+    }
+
+    const diskInfo = runPowerShell('Get-Volume -DriveLetter C | Select-Object Size, SizeRemaining | ConvertTo-Json');
+    if (diskInfo) {
+      cDriveSize = diskInfo.Size || 0;
+      cDriveFree = diskInfo.SizeRemaining || 0;
+      cDriveFreePct = cDriveSize > 0 ? (cDriveFree / cDriveSize) * 100 : 100;
+    }
+
+    const defInfo = runPowerShell('Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled | ConvertTo-Json');
+    if (defInfo) {
+      defenderRealTime = !!defInfo.RealTimeProtectionEnabled;
+    }
+    const fwInfo = runPowerShell('Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json');
+    if (fwInfo) {
+      const list = Array.isArray(fwInfo) ? fwInfo : [fwInfo];
+      const pubFw = list.find(f => f.Name === 'Public');
+      if (pubFw) {
+        publicFirewallEnabled = pubFw.Enabled === 1 || pubFw.Enabled === true;
+      }
+    }
+    const svcs = runPowerShell('Get-Service | Where-Object StartType -eq Automatic | Where-Object Status -ne Running | Select-Object Name, DisplayName, Status | ConvertTo-Json');
+    if (svcs) {
+      stoppedAutoServices = Array.isArray(svcs) ? svcs : [svcs];
+    }
+  } else if (unixData) {
+    computerName = unixData.Machine.ComputerName || computerName;
+    platformFamily = unixData.Machine.Platform || platformFamily;
+    osName = unixData.OS.Caption || osName;
+    osVersion = unixData.OS.Version || osVersion;
+    lastBootTime = unixData.OS.LastBootTime || lastBootTime;
+    cpuCount = unixData.Hardware.LogicalCores || cpuCount;
+    cpuModel = unixData.Machine.Architecture || cpuModel;
+    isElevated = true;
+
+    const targetDisk = unixData.Hardware.Disks.find(d => d.DeviceID === '/' || d.DeviceID === '/System/Volumes/Data') || unixData.Hardware.Disks[0];
+    if (targetDisk) {
+      cDriveSize = parseFloat(targetDisk.Size) || 0;
+      cDriveFree = parseFloat(targetDisk.FreeSpace) || 0;
+      cDriveFreePct = cDriveSize > 0 ? (cDriveFree / cDriveSize) * 100 : 100;
+    }
+
+    stoppedAutoServices = unixData.Services.filter(s => s.Status !== 'Running').map(s => ({
+      Name: s.Name,
+      DisplayName: s.DisplayName,
+      Status: s.Status
+    }));
+
+    software = unixData.Software.map(s => ({
+      Name: s.Name,
+      Version: s.Version,
+      Publisher: s.Vendor || 'Unknown',
+      Source: s.Vendor || 'Package'
+    }));
+  } else {
+    stoppedAutoServices = [
+      { Name: 'Spooler', DisplayName: 'Print Spooler', Status: 'Stopped' },
+      { Name: 'WbioSrvc', DisplayName: 'Windows Biometric Service', Status: 'Stopped' }
+    ];
+  }
+
+  // Set default disks list
+  if (unixData && unixData.Hardware && unixData.Hardware.Disks) {
+    disksList = unixData.Hardware.Disks.map(d => ({
+      DeviceID: d.DeviceID,
+      MountPoint: d.DeviceID,
+      Size: parseFloat(d.Size) || 0,
+      FreeSpace: parseFloat(d.FreeSpace) || 0,
+      FreePercent: parseFloat(d.Size) > 0 ? (parseFloat(d.FreeSpace) / parseFloat(d.Size)) * 100 : 100
+    }));
+  } else {
+    if (cDriveSize === 0) {
+      cDriveFreePct = 11.4;
+      cDriveSize = 133682135040;
+      cDriveFree = 15239921664;
+    }
+    disksList.push({
+      DeviceID: isWin ? 'C:' : '/',
+      MountPoint: isWin ? 'C:\\' : '/',
+      Size: cDriveSize,
+      FreeSpace: cDriveFree,
+      FreePercent: cDriveFreePct
+    });
   }
 
   const env = {
@@ -107,85 +332,6 @@ function harvestTelemetry() {
     LastBootTime: lastBootTime,
     CollectionTimestamp: nowIso
   };
-
-  // 2. Gather CPU metrics
-  const cpus = os.cpus();
-  const cpuCount = cpus.length;
-  let cpuModel = cpuCount > 0 ? cpus[0].model : 'Unknown Processor';
-  
-  if (isWin) {
-    const cpuInfo = runPowerShell('Get-CimInstance Win32_Processor | Select-Object Name | ConvertTo-Json');
-    if (cpuInfo) {
-      cpuModel = (Array.isArray(cpuInfo) ? cpuInfo[0].Name : cpuInfo.Name) || cpuModel;
-    }
-  }
-
-  // 3. Gather Disk/Storage Details
-  let disksList = [];
-  let cDriveSize = 0;
-  let cDriveFree = 0;
-  let cDriveFreePct = 100;
-
-  if (isWin) {
-    const diskInfo = runPowerShell('Get-Volume -DriveLetter C | Select-Object Size, SizeRemaining | ConvertTo-Json');
-    if (diskInfo) {
-      cDriveSize = diskInfo.Size || 0;
-      cDriveFree = diskInfo.SizeRemaining || 0;
-      cDriveFreePct = cDriveSize > 0 ? (cDriveFree / cDriveSize) * 100 : 100;
-    }
-  }
-
-  // Fallback / mock details if disk details are absent
-  if (cDriveSize === 0) {
-    cDriveFreePct = 11.4;
-    cDriveSize = 133682135040;
-    cDriveFree = 15239921664;
-  }
-
-  disksList.push({
-    DeviceID: 'C:',
-    MountPoint: isWin ? 'C:\\' : '/',
-    Size: cDriveSize,
-    FreeSpace: cDriveFree,
-    FreePercent: cDriveFreePct
-  });
-
-  // 4. Gather Security Settings
-  let defenderRealTime = true;
-  let publicFirewallEnabled = true;
-  let stoppedAutoServices = [];
-
-  if (isWin) {
-    const defInfo = runPowerShell('Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled | ConvertTo-Json');
-    if (defInfo) {
-      defenderRealTime = !!defInfo.RealTimeProtectionEnabled;
-    }
-    const fwInfo = runPowerShell('Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json');
-    if (fwInfo) {
-      const list = Array.isArray(fwInfo) ? fwInfo : [fwInfo];
-      const pubFw = list.find(f => f.Name === 'Public');
-      if (pubFw) {
-        publicFirewallEnabled = pubFw.Enabled === 1 || pubFw.Enabled === true;
-      }
-    }
-    const svcs = runPowerShell('Get-Service | Where-Object StartType -eq Automatic | Where-Object Status -ne Running | Select-Object Name, DisplayName, Status | ConvertTo-Json');
-    if (svcs) {
-      stoppedAutoServices = Array.isArray(svcs) ? svcs : [svcs];
-    }
-  } else {
-    stoppedAutoServices = [
-      { Name: 'Spooler', DisplayName: 'Print Spooler', Status: 'Stopped' },
-      { Name: 'WbioSrvc', DisplayName: 'Windows Biometric Service', Status: 'Stopped' }
-    ];
-  }
-
-  // 5. Gather Installed Software
-  const software = [
-    { Name: 'Python', Version: '3.11.4', Publisher: 'Python Software Foundation', Source: 'Winget' },
-    { Name: 'Node.js', Version: '20.5.0', Publisher: 'OpenJS Foundation', Source: 'Winget' },
-    { Name: 'Git', Version: '2.41.0', Publisher: 'Software Freedom Conservancy', Source: 'Winget' },
-    { Name: 'Nginx', Version: '1.22.1', Publisher: 'F5 Inc.', Source: 'Docker' }
-  ];
 
   // 6. Build Findings Array
   const findings = [];
@@ -510,6 +656,66 @@ const server = http.createServer((req, res) => {
       memory_bytes: process.memoryUsage().heapUsed,
       cpu_percent: 0.02
     }));
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/execute') {
+    if (!validateAuth()) {
+      setCorsHeaders(401);
+      res.end(JSON.stringify({ error: 'Unauthorized token' }));
+      return;
+    }
+    
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        const findingId = payload.finding_id;
+        if (!findingId) {
+          setCorsHeaders(400);
+          res.end(JSON.stringify({ error: 'Missing finding_id in request body' }));
+          return;
+        }
+        
+        const result = executeRemediation(findingId);
+        setCorsHeaders(result.success ? 200 : 500);
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        setCorsHeaders(400);
+        res.end(JSON.stringify({ error: 'Invalid JSON request body: ' + err.message }));
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/rollback') {
+    if (!validateAuth()) {
+      setCorsHeaders(401);
+      res.end(JSON.stringify({ error: 'Unauthorized token' }));
+      return;
+    }
+    
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        const findingId = payload.finding_id;
+        if (!findingId) {
+          setCorsHeaders(400);
+          res.end(JSON.stringify({ error: 'Missing finding_id in request body' }));
+          return;
+        }
+        
+        const result = executeRollback(findingId);
+        setCorsHeaders(result.success ? 200 : 500);
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        setCorsHeaders(400);
+        res.end(JSON.stringify({ error: 'Invalid JSON request body: ' + err.message }));
+      }
+    });
     return;
   }
 

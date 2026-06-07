@@ -125,7 +125,7 @@ export function getHelpContentForTab(tab: string): HelpContent | null {
   if (!targetSection) return null;
 
   const lines = targetSection.split('\n');
-  let title = sectionTitle;
+  const title = sectionTitle;
   let purpose = '';
   const benefits: string[] = [];
   const workflows: string[] = [];

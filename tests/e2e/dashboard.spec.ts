@@ -140,13 +140,49 @@ test.describe('EIIP Operations Command Center E2E Tests', () => {
     const pendingBadge = page.locator('.glass-panel:has-text("Audit Action Panel") .badge-orange');
     const initialText = await pendingBadge.innerText();
     
-    // Switch to Action Center to perform mitigation check-off
-    await page.click('button.menu-item:has-text("Action Center")');
+    // Perform mitigation check-off directly on the Overview page
     await page.locator('input[type="checkbox"]').first().click();
     
-    // Switch back to Dashboard Overview to verify pending badge decrements
-    await page.click('button.menu-item:has-text("Overview")');
+    // Verify pending badge decrements
+    await page.waitForTimeout(500); // Allow state to propagate
     const updatedText = await pendingBadge.innerText();
     expect(parseInt(updatedText)).toBeLessThan(parseInt(initialText));
+
+    // Scenario 12: Validate Fleet Command Center
+    await page.click('button.menu-item:has-text("Fleet Overview")');
+    await expect(page.locator('h1')).toContainText('Fleet Command Center');
+    
+    // Verify that the table is rendered and contains hosts (like VULN-LAPTOP15)
+    await expect(page.locator('tbody')).toContainText('VULN-LAPTOP15');
+    
+    // Test filtering by platform
+    await page.locator('div:has(span:has-text("Platform:")) select').first().selectOption('MACOS');
+    // Since VULN-LAPTOP15 is Windows/not macos, it should say "No hosts match current filters"
+    await expect(page.locator('body')).toContainText(/No hosts match current filters/i);
+    
+    // Reset platform filter
+    await page.locator('div:has(span:has-text("Platform:")) select').first().selectOption('ALL');
+    await expect(page.locator('tbody')).toContainText('VULN-LAPTOP15');
+    
+    // Test filtering by search query
+    await page.locator('input[placeholder="Search hosts by name, OS, or ID..."]').fill('VULN-LAPTOP15');
+    await expect(page.locator('tbody')).toContainText('VULN-LAPTOP15');
+    await page.locator('input[placeholder="Search hosts by name, OS, or ID..."]').fill('');
+
+    // Test context switcher by selecting the machine context
+    // It should switch activeTab to 'overview' and change context
+    await page.locator('tr:has-text("VULN-LAPTOP15") button').click();
+    await expect(page.locator('h1')).toContainText('Dashboard Overview');
+
+    // Scenario 13: Validate Capacity Forecasting
+    await page.click('button.menu-item:has-text("Capacity Forecasting")');
+    await expect(page.locator('h1')).toContainText('Capacity Forecast');
+    
+    // Verify presence of forecast trends panels
+    await expect(page.locator('.glass-panel:has-text("Storage Trend")')).toBeVisible();
+    await expect(page.locator('.glass-panel:has-text("Memory Forecast")')).toBeVisible();
+    
+    // Verify SVG trend chart is present
+    await expect(page.locator('.glass-panel:has-text("Timeline Saturation Curve") svg[viewBox="0 0 600 280"]')).toBeVisible();
   });
 });
