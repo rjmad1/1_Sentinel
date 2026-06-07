@@ -49,6 +49,9 @@ Here is a simple explanation of what each file in the codebase does:
 *   **[collector/daemon/src/collector.rs](file:///c:/AIProjects/1_Sentinel/collector/daemon/src/collector.rs) & [src-tauri/src/collector.rs](file:///c:/AIProjects/1_Sentinel/src-tauri/src/collector.rs):**  
     *   *What they are:* Rust-based native telemetry collectors.
     *   *What they do:* Spawn silent background queries to measure system performance and security baseline properties on the host, returning structured evidence payloads to the frontend.
+*   **[Phase2_Integration/Backend/self_healing.py](file:///c:/AIProjects/1_Sentinel/Phase2_Integration/Backend/self_healing.py):**  
+    *   *What it is:* Centralized backend self-healing process execution manager.
+    *   *What it does:* Evaluates self-healing policies (`self_healing_policies`) and asynchronously schedules/executes remediation scripts on connected local collectors via HTTP daemon protocols, updating status run records (`self_healing_runs`).
 
 ---
 
@@ -56,6 +59,12 @@ Here is a simple explanation of what each file in the codebase does:
 *   **[App.tsx](file:///c:/AIProjects/1_Sentinel/src/App.tsx):**  
     *   *What it is:* The heart of the web application.
     *   *What it does:* This is the main controller file. It builds the sidebar layout, handles keyboard navigation shortcuts, logs system errors, and renders the central dashboards using Chakra UI v3 layout primitives. It also draws the **Interactive SVG Topology Node Graph** which lets users drag and drop system components (disks, services, hardware) to visualize dependency relationships and highlights.
+*   **[components/AutoHealingDashboard.tsx](file:///c:/AIProjects/1_Sentinel/src/components/AutoHealingDashboard.tsx):**  
+    *   *What it is:* Closed-Loop Self-Healing control panel.
+    *   *What it does:* Renders policies configurations (autonomous vs. gated approval) and audit execution stdout/stderr run history logs.
+*   **[components/VulnerabilityThreatIntel.tsx](file:///c:/AIProjects/1_Sentinel/src/components/VulnerabilityThreatIntel.tsx):**  
+    *   *What it is:* Threat Intelligence CVE Catalog.
+    *   *What it does:* Lists active exposures in the fleet, correlates them against seeded CVE profiles, and provides remediation guidelines.
 *   **[index.css](file:///c:/AIProjects/1_Sentinel/src/index.css):**  
     *   *What it is:* The design system stylesheet.
     *   *What it does:* Defines the global visual theme tokens, custom cyberpunk scrollbars, scanline background filter grids, and green/pink pulse animations. Redundant vanilla CSS modal and toast classes are cleaned up in favor of Chakra UI v3 layout tokens.
@@ -80,7 +89,17 @@ Here is a simple explanation of what each file in the codebase does:
 
 ---
 
-### 3. Storage & Mock Data (Utilities)
+### 3. Backend Services & Migrations
+*   **[Phase2_Integration/Backend/endpoints.py](file:///c:/AIProjects/1_Sentinel/Phase2_Integration/Backend/endpoints.py):**  
+    *   *What it is:* Backend FastAPI routes.
+    *   *What it does:* Exposes REST endpoints for assessments ingestion, analytics summary compilation, forecast regression computing, policies updates, and runs logging.
+*   **[migrations/20260607173100_phase3-schema.sql](file:///c:/AIProjects/1_Sentinel/migrations/20260607173100_phase3-schema.sql):**  
+    *   *What it is:* Database migration script.
+    *   *What it does:* Builds PostgreSQL tables for self-healing policies, execution logs, and vulnerability CVE records, configuring Row Level Security (RLS) policies for tenant isolation.
+
+---
+
+### 4. Storage & Mock Data (Utilities)
 *   **[utils/db.ts](file:///c:/AIProjects/1_Sentinel/src/utils/db.ts):**  
     *   *What it is:* The browser database controller.
     *   *What it does:* Utilizes Dexie.js (IndexedDB) to store all parsed assessment JSONs, historical scan points, and issue logs directly inside your web browser. This ensures **100% local-first privacy**—no data is uploaded to external servers.
@@ -93,10 +112,13 @@ Here is a simple explanation of what each file in the codebase does:
 
 ---
 
-### 4. Tests & Quality Engineering
+### 5. Tests & Quality Engineering
 *   **[tests/unit/](file:///c:/AIProjects/1_Sentinel/tests/unit) & [tests/integration/](file:///c:/AIProjects/1_Sentinel/tests/integration):**  
     *   *What they are:* Automated testing suites.
     *   *What they do:* Written in PowerShell (Pester), these tests check the scoring and evaluation algorithms of the collector. They ensure that risks, software severities, and overall health scores are calculated with 100% accuracy.
+*   **[tests/backend/](file:///c:/AIProjects/1_Sentinel/tests/backend):**  
+    *   *What they are:* Backend Pytest suites.
+    *   *What they do:* Validate backend features including historical capacity forecasting trends, ingestion APIs, and self-healing policies updates.
 *   **[tests/e2e/](file:///c:/AIProjects/1_Sentinel/tests/e2e):**  
     *   *What they are:* Browser simulation tests (Playwright).
     *   *What they do:* Simulate real user actions in the web browser (e.g., uploading files, clicking tabs, searching for packages, and dragging nodes in the dependency graph) to guarantee the visual dashboard runs flawlessly across all browsers.

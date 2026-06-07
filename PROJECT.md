@@ -24,8 +24,8 @@ The Enterprise Infrastructure Intelligence Platform (EIIP) / Sentinel is a fleet
 - **Zero Infrastructure**: Runs as a static browser application. Just run the PowerShell collector and import the result.
 
 ## Roadmap
-1. **V1: Discover & Map**: Local PowerShell collector, interactive SVG topology graph, IndexedDB, software catalog normalization, AI Review Package export.
-2. **V2: Reason & Guide**: Enhanced Risk Scoring matrix, root cause hypotheses and remediation checklist, version upgrade validation simulations.
-3. **V3: Predict & Scale**: Disk/memory capacity forecasting charts, multi-node data aggregation, Linux/macOS Shell collectors support.
-4. **V4: Closed-Loop Act**: Automated remediation script generation, API integrations (Jira, ServiceNow), live package upgrades.
-5. **V5: Autonomous AIOps**: Continuous background scanning agents, self-healing thresholds, in-browser local conversational AI Copilot.
+1. **V1: Discover & Map [COMPLETE]**: Local PowerShell collector, interactive SVG topology graph, IndexedDB, software catalog normalization, AI Review Package export.
+2. **V2: Reason & Guide [COMPLETE]**: Enhanced Risk Scoring matrix, root cause hypotheses and remediation checklist, version upgrade validation simulations.
+3. **V3: Predict & Scale [COMPLETE]**: Disk/memory capacity forecasting charts, multi-node data aggregation, Linux/macOS Shell collectors support.
+4. **V4: Closed-Loop Act [COMPLETE]**: Closed-loop self-healing policies, auto-remediation logs, API integrations, and vulnerability threat intelligence correlation.
+5. **V5: Autonomous AIOps [PLANNED]**: Continuous background scanning agents, self-healing thresholds, in-browser local conversational AI Copilot.

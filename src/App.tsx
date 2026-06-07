@@ -22,6 +22,8 @@ import { ComingSoonPage } from './components/ComingSoonPage';
 import { SystemStatusPage } from './components/SystemStatusPage';
 import { ReportIssueModal } from './components/ReportIssueModal';
 import { TopologyCanvas } from './components/TopologyCanvas';
+import { AutoHealingDashboard } from './components/AutoHealingDashboard';
+import { VulnerabilityThreatIntel } from './components/VulnerabilityThreatIntel';
 import { runAssessment, buildRemediationDashboard } from './utils/assessmentEngine';
 import {
   saveAssessment,
@@ -2436,7 +2438,11 @@ ${capacityInfo}
             >
               {item.icon}
               <span style={{ flex: 1 }}>{item.label}</span>
-              <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px' }}>Soon</span>
+              {item.key === 'coming-soon-healing' || item.key === 'coming-soon-vuln' ? (
+                <span className="cyber-badge badge-green" style={{ fontSize: '8px', padding: '1px 4px' }}>Active</span>
+              ) : (
+                <span className="cyber-badge badge-orange" style={{ fontSize: '8px', padding: '1px 4px' }}>Soon</span>
+              )}
             </button>
           ))}
         </nav>
@@ -4657,7 +4663,13 @@ ${capacityInfo}
 
           {/* 10. COMING SOON PAGES */}
           {activeTab.startsWith('coming-soon-') && (
-            <ComingSoonPage featureKey={activeTab} />
+            activeTab === 'coming-soon-healing' ? (
+              <AutoHealingDashboard showToast={showToast} />
+            ) : activeTab === 'coming-soon-vuln' ? (
+              <VulnerabilityThreatIntel showToast={showToast} onNavigateToTab={(tab) => setActiveTab(tab as any)} />
+            ) : (
+              <ComingSoonPage featureKey={activeTab} />
+            )
           )}
 
         </>

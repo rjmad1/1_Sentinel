@@ -11,6 +11,31 @@ logger = logging.getLogger("eiip-main")
 # Load configuration from environmental parameters
 NATS_SERVERS = os.getenv("NATS_SERVERS", "nats://localhost:4222")
 
+async def run_migrations():
+    import asyncpg
+    migration_dir = os.path.join(os.path.dirname(__file__), "../../migrations")
+    if os.path.exists(migration_dir):
+        files = sorted([f for f in os.listdir(migration_dir) if f.endswith(".sql")])
+        for file in files:
+            filepath = os.path.join(migration_dir, file)
+            logger.info(f"Applying migration: {file}")
+            with open(filepath, "r", encoding="utf-8") as f:
+                sql_content = f.read()
+                # Split statements by semicolon
+                statements = [s.strip() for s in sql_content.split(";") if s.strip()]
+                for stmt in statements:
+                    try:
+                        await postgres_db.execute(stmt)
+                    except Exception as e:
+                        err_msg = str(e).lower()
+                        if "already exists" in err_msg or "duplicate" in err_msg:
+                            pass
+                        else:
+                            logger.error(f"Migration statement failed: {stmt[:50]}... Error: {e}")
+        logger.info("Database migrations applied successfully.")
+    else:
+        logger.warning("Migration directory not found.")
+
 # Define lifespan event handler to manage async resources
 async def lifespan(app: FastAPI):
     # Startup actions
@@ -19,6 +44,9 @@ async def lifespan(app: FastAPI):
     # Connect to PostgreSQL
     await postgres_db.connect()
     app.state.db = postgres_db
+    
+    # Run migrations
+    await run_migrations()
     
     nats_manager = NatsManager(servers=NATS_SERVERS)
     await nats_manager.connect()

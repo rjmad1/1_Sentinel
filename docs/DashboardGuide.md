@@ -72,3 +72,28 @@ One of the most powerful features of EIIP is its **Historical Assessment Trend C
 4. **June 05**: System is fully patched. Health score rises to **84.75%**.
 
 Hovering over any point in the history timeline displays the exact machine name, execution timestamp, and active score breakdown.
+
+---
+
+## 🛡️ Closed-Loop Auto-Healing
+
+The **Auto-Healing** dashboard allows operators to define automated remediation rules for common system findings. This transitions operations from detection to autonomous recovery.
+
+### Execution Modes
+* **Autonomous**: As soon as a matching finding is ingested, the system automatically triggers remediation commands on the local daemon and reports stdout/stderr results to the database.
+* **Approval Gated**: Automatically flags matching findings, but halts execution until an administrator reviews and explicitly approves the action.
+
+### Dashboard Key Elements
+1. **Policy Switchers**: Toggles individual finding IDs (e.g. `SEC-FW-001` for firewalls, `REL-SVC-001` for stopped services) between enabled/disabled and configures the execution mode.
+2. **Audit Execution Logs**: Displays real-time and historical lists of all auto-remediation runs across the fleet, showing machine names, findings, status (`success`, `failed`, `running`), timestamps, and output logs.
+
+---
+
+## 🔍 Vulnerability & Threat Intelligence
+
+The **Vulnerability Intel** dashboard correlates host software catalogs against known common vulnerabilities and exposures (CVEs).
+
+### Core Features
+* **Threat Intelligence Catalog**: Displays seeded CVE records (e.g. `CVE-2023-27043` for Python email address parsing, `CVE-2023-44487` for Nginx HTTP/2 Rapid Reset) with CVSS scores, threat summaries, and remediation instructions.
+* **Active Vulnerabilities List**: Outlines active exposures across the fleet. Clicking on any vulnerability displays a detailed description, affected package versions, remediation guidelines, and a list of all affected hosts.
+* **Mitigation Guidance**: Provides clickable navigation links to help operators resolve issues via packages upgrade or automated healing.

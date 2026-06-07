@@ -52,8 +52,8 @@ To help you get the most out of Sentinel, we have defined workflows for our core
 * **Workflow**:
   1. Open the **Fleet Command Center** and review the **Average Fleet Health** score.
   2. Filter by machines that are **Saturating in 90 Days** to identify critical storage or memory constraints.
-  3. Pivot to a vulnerable host and review its **Actionable Remediation Dashboard** under the **Remediation** tab.
-  4. Select tasks and run automated fixes directly (for administrators), verifying stdout/stderr logs in the embedded terminal.
+  3. Navigate to the **Auto-Healing** dashboard to configure autonomous execution policies for standard findings (e.g. stopped service remediation, disk temp cleaning).
+  4. Track execution outcomes in the **Healing Execution Logs** to verify stdout/stderr results and system state restoration.
 
 ### 💻 2. Workstation Developer
 * **Goal**: Validate local development configurations and package dependencies.
@@ -71,9 +71,9 @@ To help you get the most out of Sentinel, we have defined workflows for our core
   3. Review the ML-based linear regression models projecting Disk C: space and physical memory saturation timelines.
 
 ### 🕵️ 4. Security Officer
-* **Goal**: Assess risk matrices, software lifecycles, and access permissions.
+* **Goal**: Assess risk matrices, software lifecycles, and CVE vulnerabilities.
 * **Workflow**:
   1. Navigate to the **Risk Matrix** to identify high-probability, high-impact security findings.
-  2. Go to the **Auditor** tab to filter findings by the **Security** domain.
-  3. Open the **Topology** graph view to visually trace network listeners, open port scopes, and local administrator membership groups.
-  4. Check the **EOL Software** list on the Fleet Analytics page to find unauthorized or end-of-life programs running on fleet endpoints.
+  2. Go to the **Vulnerability Intel** dashboard to review the fleet's active CVE exposure list (correlated against live software catalogs).
+  3. Filter vulnerabilities by severity or package name (e.g., Python, Nginx) and review recommended remediation steps.
+  4. Trace network listeners, open port scopes, and local administrator membership groups in the **Infrastructure Graph** visualization.

@@ -26,9 +26,11 @@ graph TD
 
 ---
 
-## ✨ Core Benefits (Phase 2 Capabilities)
+## ✨ Core Benefits (Phase 2 & 3 Capabilities)
 
 * **Centralized Fleet Ledger (Postgres & InsForge)**: Consolidate configuration profiles, OS metadata, package inventory, and vulnerabilities across multiple nodes instead of a single workstation.
+* **Closed-Loop Self-Healing Policies**: Define automated remediation rules for findings (e.g., firewall profile status, service status, disk cleaning). Supports both `autonomous` auto-fix execution and manual `approval_gated` oversight.
+* **Threat Intelligence & CVE Correlation**: A dedicated Vulnerability Intel database mapping real-time host software catalogs against critical CVE databases (e.g., CVE-2023-27043 for Python, CVE-2023-44487 for Nginx).
 * **Automated Telemetry Ingestion API (FastAPI & NATS)**: Streamlined telemetry uploading via `/api/v2/discovery/upload` and legacy V1 JSON migration via `/api/v2/migrate/import`. Ingested data is processed asynchronously with NATS JetStream and CloudEvents 1.0 specifications.
 * **Interactive Topology Canvas (React Flow / XYFlow & Graphology)**: Sleek React Flow topology map featuring custom styled nodes (Machine, OS, Service, Database, Storage) with status-based neon highlights (Green, Orange, Red) mapping vulnerability severities.
 * **Enterprise RBAC Auth (InsForge Auth)**: Enforce roles (`admin`, `operator`, `auditor`) from JWT claims to secure endpoints and gate operations like running scans or executing remediations.
@@ -45,7 +47,7 @@ Use the following directory to navigate through the platform guides and document
 * **[Getting Started](GettingStarted.md)**: Accessing the UI, logging in with SSO/RBAC roles, running the PowerShell collector, importing assessments, and review workflows for different user personas.
 
 ### 📊 Feature Guides
-* **[Understanding Your Dashboard](DashboardGuide.md)**: Health Index gauges, findings counts, Risk Matrix quadrants, and historical run tracking.
+* **[Understanding Your Dashboard](DashboardGuide.md)**: Health Index gauges, findings counts, Risk Matrix quadrants, historical run tracking, Auto-Healing policies, and Vulnerability Intel dashboards.
 * **[Software Intelligence Guide](SoftwareIntelligenceGuide.md)**: Search, sort, filter, and group normalized catalogs, and utilize the simulated upgrade/uninstall planners.
 * **[Dependency Graph Guide](DependencyGraphGuide.md)**: Interactive topology mechanics, node severity visual borders, and relationship meanings.
 * **[Assessment Reports Guide](AssessmentGuide.md)**: Reviewing findings, severity levels, root cause hypotheses, and recommended remediation plans.

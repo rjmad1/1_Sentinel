@@ -184,5 +184,17 @@ test.describe('EIIP Operations Command Center E2E Tests', () => {
     
     // Verify SVG trend chart is present
     await expect(page.locator('.glass-panel:has-text("Timeline Saturation Curve") svg[viewBox="0 0 600 280"]')).toBeVisible();
+
+    // Scenario 14: Validate Auto-Healing Dashboard
+    await page.click('button.menu-item:has-text("Auto-Healing")');
+    await expect(page.locator('body')).toContainText('Closed-Loop Self-Healing Policies');
+    await expect(page.locator('body')).toContainText('Active Policies');
+    await expect(page.locator('body')).toContainText('Healing Execution Logs');
+
+    // Scenario 15: Validate Vulnerability Intel Dashboard
+    await page.click('button.menu-item:has-text("Vulnerability Intel")');
+    await expect(page.locator('body')).toContainText('Threat intelligence Catalog');
+    await expect(page.locator('body')).toContainText('Active Vulnerabilities');
+    await expect(page.locator('body')).toContainText('Vulnerability Summary & Description');
   });
 });
