@@ -1707,6 +1707,8 @@ Certified by Sentinel Autonomous Health & Remediation Engine
     }
     const hist = await getHistoricalAssessments();
     setHistoryData(hist);
+    await loadFleet();
+
   };
 
   // Parsing JSON/Log reports upload

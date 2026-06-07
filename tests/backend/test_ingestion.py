@@ -93,3 +93,40 @@ def test_migrate_import():
         assert data["status"] == "success"
         assert data["imported_runs"] == 1
         assert "machine_uuid" in data
+
+def test_create_assessment_non_uuid_id():
+    import uuid
+    with TestClient(app) as client:
+        payload = {
+            "AssessmentId": "my-custom-assessment-id-123",
+            "Machine": {
+                "ComputerName": "NON-UUID-HOST-01",
+                "Platform": "Windows",
+                "Architecture": "x64"
+            },
+            "OS": {
+                "Caption": "Microsoft Windows 11 Enterprise",
+                "Version": "10.0.22631",
+                "InstallDate": "2023-10-15T12:00:00Z",
+                "LastBootTime": "2026-06-07T08:00:00Z"
+            },
+            "Hardware": {
+                "LogicalCores": 8,
+                "PhysicalProcessors": 1,
+                "TotalMemoryGB": 16.0,
+                "FreeMemoryGB": 4.5,
+                "Disks": [],
+                "NetworkAdapters": []
+            },
+            "Services": [],
+            "LocalAdmins": [],
+            "Software": []
+        }
+        response = client.post("/api/v2/assessments", json=payload)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["status"] == "success"
+        assert "assessment_id" in data
+        expected_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, "my-custom-assessment-id-123"))
+        assert data["assessment_id"] == expected_uuid
+

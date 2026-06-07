@@ -49,7 +49,10 @@ async def save_consolidated_assessment(data: dict, tenant_id: str):
             machine_id = uuid.uuid5(uuid.NAMESPACE_DNS, cname)
             
     assessment_id_str = data.get("AssessmentId") or str(uuid.uuid4())
-    assessment_id = uuid.UUID(assessment_id_str)
+    try:
+        assessment_id = uuid.UUID(assessment_id_str)
+    except ValueError:
+        assessment_id = uuid.uuid5(uuid.NAMESPACE_DNS, assessment_id_str)
 
     # 1. Upsert Machine details
     platform = machine.get("Platform") or machine.get("PlatformFamily") or "Windows"
