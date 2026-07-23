@@ -71,20 +71,20 @@ ALTER TABLE workspace_cleanup_logs ENABLE ROW LEVEL SECURITY;
 -- Configure RLS Policies
 CREATE POLICY tenant_isolation_policy ON workspace_repositories
     FOR ALL
-    USING (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL)
-    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL);
+    USING (tenant_id = (auth.jwt() ->> 'tenant_id'))
+    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id'));
 
 CREATE POLICY tenant_isolation_policy ON workspace_profiles
     FOR ALL
-    USING (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL)
-    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL);
+    USING (tenant_id = (auth.jwt() ->> 'tenant_id'))
+    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id'));
 
 CREATE POLICY tenant_isolation_policy ON workspace_snapshots
     FOR ALL
-    USING (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL)
-    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL);
+    USING (tenant_id = (auth.jwt() ->> 'tenant_id'))
+    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id'));
 
 CREATE POLICY tenant_isolation_policy ON workspace_cleanup_logs
     FOR ALL
-    USING (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL)
-    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL);
+    USING (tenant_id = (auth.jwt() ->> 'tenant_id'))
+    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id'));

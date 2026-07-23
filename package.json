@@ -11,9 +11,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:unit": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Invoke-Pester -Path tests/unit\"",
+    "test:backend": "pytest tests/backend",
     "test:integration": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Invoke-Pester -Path tests/integration\"",
     "test:e2e": "npx playwright test",
-    "test:evaluate": "node tests/intelligence/evaluateRelease.js"
+    "test:evaluate": "npx tsx tests/intelligence/evaluateRelease.js",
+    "test": "npm run test:unit && npm run test:backend"
   },
   "dependencies": {
     "@chakra-ui/react": "^3.35.0",

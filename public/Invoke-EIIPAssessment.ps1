@@ -1,4 +1,4 @@
-#requires -Version 7.0
+#requires -Version 5.1
 <#
 .SYNOPSIS
     Enterprise Machine Health Assessment Framework
@@ -34,7 +34,7 @@ param(
     [ValidateSet('HTML','Markdown','JSON','All')]
     [string]$OutputFormat = 'All',
 
-    [string]$OutputPath = 'C:\Users\rjkum\OneDrive\Desktop\1_Delete Friendly\MachineHealthReport',
+    [string]$OutputPath = "$env:TEMP\MachineHealthReport",
 
     [switch]$IncludeSecurityScan,
     [switch]$IncludeNetworkAnalysis,
@@ -2296,6 +2296,8 @@ function Export-MhaToSqlite {
 #  MAIN ORCHESTRATION
 #══════════════════════════════════════════════════════════════════════════════
 
+if ($MyInvocation.InvocationName -ne '.') {
+
 if (-not (Test-Path $OutputPath)) {
     New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
 }
@@ -2445,6 +2447,8 @@ finally {
     $endTime  = Get-Date
     $duration = New-TimeSpan -Start $script:AssessmentStart -End $endTime
     Write-MhaLog -Level Info -Message "Assessment finished. Duration=$($duration.ToString())"
+}
+
 }
 
 #endregion

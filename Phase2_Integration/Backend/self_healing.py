@@ -8,7 +8,7 @@ from .db import db
 logger = logging.getLogger("eiip-self-healing")
 
 DAEMON_URL = os.getenv("DAEMON_URL", "http://localhost:1337")
-DAEMON_TOKEN = os.getenv("SENTINEL_DAEMON_TOKEN", "sentinel-local-daemon-auth-token-1337-secret")
+DAEMON_TOKEN = os.getenv("SENTINEL_DAEMON_TOKEN", "")
 
 async def trigger_self_healing(machine_uuid: str, finding_id: str, tenant_id: str):
     """
@@ -70,15 +70,10 @@ async def trigger_self_healing(machine_uuid: str, finding_id: str, tenant_id: st
                     error_message = f"Daemon returned HTTP status {response.status_code}."
         except Exception as daemon_err:
             error_message = f"Failed to connect to local collector daemon: {str(daemon_err)}"
-            logger.warning(f"Daemon communication failed: {error_message}. Using fallback mock execution.")
-            
-            # Simulated fallback for testing environment robustness
-            # If daemon is not running, we simulate a successful self-healing execution
-            # for critical default findings so that tests and UI simulations work seamlessly.
-            await asyncio.sleep(0.5)
-            success = True
-            stdout = f"[Simulated Autonomous Remediation] Applied fix for finding {finding_id} successfully."
-            stderr = ""
+            logger.error(f"Daemon communication failed: {error_message}")
+            success = False
+            stdout = ""
+            stderr = str(daemon_err)
 
         # 4. Update the run record
         status = 'success' if success else 'failed'

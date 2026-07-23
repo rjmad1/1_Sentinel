@@ -12,7 +12,7 @@ logger = logging.getLogger("eiip-main")
 NATS_SERVERS = os.getenv("NATS_SERVERS", "nats://localhost:4222")
 
 async def run_migrations():
-    import asyncpg
+    import re
     migration_dir = os.path.join(os.path.dirname(__file__), "../../migrations")
     if os.path.exists(migration_dir):
         files = sorted([f for f in os.listdir(migration_dir) if f.endswith(".sql")])
@@ -21,8 +21,9 @@ async def run_migrations():
             logger.info(f"Applying migration: {file}")
             with open(filepath, "r", encoding="utf-8") as f:
                 sql_content = f.read()
-                # Split statements by semicolon
-                statements = [s.strip() for s in sql_content.split(";") if s.strip()]
+                # Remove single-line comments starting with --
+                clean_sql = re.sub(r'--.*$', '', sql_content, flags=re.MULTILINE)
+                statements = [s.strip() for s in clean_sql.split(";") if s.strip()]
                 for stmt in statements:
                     try:
                         await postgres_db.execute(stmt)
@@ -31,7 +32,7 @@ async def run_migrations():
                         if "already exists" in err_msg or "duplicate" in err_msg:
                             pass
                         else:
-                            logger.error(f"Migration statement failed: {stmt[:50]}... Error: {e}")
+                            logger.error(f"Migration statement failed in {file}: {stmt[:60]}... Error: {e}")
         logger.info("Database migrations applied successfully.")
     else:
         logger.warning("Migration directory not found.")
@@ -69,12 +70,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS middleware to support local development React Flow dashboards
+# Configure CORS middleware with strict explicit origins
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,tauri://localhost").split(",") if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

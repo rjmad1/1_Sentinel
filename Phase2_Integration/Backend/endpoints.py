@@ -21,15 +21,23 @@ async def get_nats(request: Request) -> NatsManager:
     return request.app.state.nats_manager
 
 async def get_optional_user(request: Request) -> UserPayload:
-    # Get Authorization header if present, otherwise bypass for collectors/tests
+    import os
     auth_header = request.headers.get("Authorization")
+    daemon_token = request.headers.get("X-Sentinel-Token")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
         try:
             return await get_current_user(token)
         except Exception:
-            pass
-    return UserPayload(username="collector_daemon", roles=["operator"], tenant_id="default-tenant")
+            raise HTTPException(status_code=401, detail="Invalid authorization token")
+    if daemon_token:
+        expected_token = os.getenv("SENTINEL_DAEMON_TOKEN", "")
+        if expected_token and daemon_token == expected_token:
+            return UserPayload(username="collector_daemon", roles=["operator"], tenant_id="default-tenant")
+        raise HTTPException(status_code=401, detail="Invalid daemon token")
+    if os.getenv("DEVELOPMENT_MODE", "false").lower() == "true":
+        return UserPayload(username="dev_user", roles=["operator"], tenant_id="default-tenant")
+    raise HTTPException(status_code=401, detail="Authentication credentials were not provided")
 
 async def save_consolidated_assessment(data: dict, tenant_id: str):
     """
@@ -130,36 +138,45 @@ async def save_consolidated_assessment(data: dict, tenant_id: str):
             tenant_id = EXCLUDED.tenant_id;
     """, assessment_id, machine_id, perf, sec, rel, scale, serv, usability, overall, json.dumps(data), tenant_id)
 
-    # 3. Insert findings
+    # 3. Bulk Insert findings
     await db.execute("DELETE FROM findings WHERE assessment_id = $1", assessment_id)
     findings = data.get("Findings") or []
-    for f in findings:
-        evidence_json = json.dumps(f.get("Evidence") or [])
-        await db.execute("""
+    if findings:
+        findings_args = [
+            (
+                machine_id, assessment_id, f.get("FindingId"), f.get("Category"), f.get("Domain"),
+                f.get("Severity"), f.get("Confidence"), int(f.get("Priority") or 0), f.get("Title"),
+                f.get("Description"), json.dumps(f.get("Evidence") or []), f.get("Impact"), f.get("BusinessRisk"),
+                f.get("RootCauseHypothesis"), f.get("RecommendedRemediation"), f.get("EstimatedEffort"),
+                f.get("VerificationMethod"), tenant_id
+            )
+            for f in findings
+        ]
+        await db.executemany("""
             INSERT INTO findings (
                 machine_id, assessment_id, finding_id, category, domain, severity, confidence, 
                 priority, title, description, evidence, impact, business_risk, 
                 root_cause_hypothesis, recommended_remediation, estimated_effort, verification_method, tenant_id
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-        """, machine_id, assessment_id, f.get("FindingId"), f.get("Category"), f.get("Domain"),
-           f.get("Severity"), f.get("Confidence"), int(f.get("Priority") or 0), f.get("Title"),
-           f.get("Description"), evidence_json, f.get("Impact"), f.get("BusinessRisk"),
-           f.get("RootCauseHypothesis"), f.get("RecommendedRemediation"), f.get("EstimatedEffort"),
-           f.get("VerificationMethod"), tenant_id)
+        """, findings_args)
 
-    # 4. Insert remediation scripts if any findings have recommendations
+    # 4. Bulk Insert remediation scripts
+    remediation_args = []
     for f in findings:
         if f.get("RecommendedRemediation"):
-            # Mock remediation plan script structures
             exec_script = {"type": "powershell", "code": f"Write-Output 'Executing: {f.get('RecommendedRemediation')}'"}
             rollback_script = {"type": "powershell", "code": "Write-Output 'No rollback required.'"}
             val_script = {"type": "powershell", "code": "exit 0"}
-            await db.execute("""
-                INSERT INTO remediation_plans (
-                    machine_id, finding_id, status, execution_script, rollback_script, validation_script, tenant_id
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-                ON CONFLICT DO NOTHING;
-            """, machine_id, f.get("FindingId"), "pending", json.dumps(exec_script), json.dumps(rollback_script), json.dumps(val_script), tenant_id)
+            remediation_args.append((
+                machine_id, f.get("FindingId"), "pending", json.dumps(exec_script), json.dumps(rollback_script), json.dumps(val_script), tenant_id
+            ))
+    if remediation_args:
+        await db.executemany("""
+            INSERT INTO remediation_plans (
+                machine_id, finding_id, status, execution_script, rollback_script, validation_script, tenant_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT DO NOTHING;
+        """, remediation_args)
 
     return machine_id, assessment_id
 

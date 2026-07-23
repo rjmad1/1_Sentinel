@@ -32,11 +32,10 @@ function loadEnv() {
 }
 loadEnv();
 
-const PORT = 1337;
-const AUTH_TOKEN = process.env.SENTINEL_DAEMON_TOKEN || 'sentinel-local-daemon-auth-token-1337-secret';
+const crypto = require('crypto');
+const PORT = process.env.PORT || 1337;
+const AUTH_TOKEN = process.env.SENTINEL_DAEMON_TOKEN || crypto.randomBytes(16).toString('hex');
 const START_TIME = Date.now();
-
-const rollbackCheckpoints = {};
 
 const REMEDIATION_SCRIPTS = {
   'SEC-FW-001': {
@@ -65,6 +64,22 @@ const REMEDIATION_SCRIPTS = {
   }
 };
 
+const CHECKPOINT_FILE = path.join(__dirname, 'checkpoints.json');
+function loadCheckpoints() {
+  try {
+    if (fs.existsSync(CHECKPOINT_FILE)) {
+      return JSON.parse(fs.readFileSync(CHECKPOINT_FILE, 'utf8'));
+    }
+  } catch (e) {}
+  return {};
+}
+function saveCheckpoints(cp) {
+  try {
+    fs.writeFileSync(CHECKPOINT_FILE, JSON.stringify(cp, null, 2), 'utf8');
+  } catch (e) {}
+}
+const rollbackCheckpoints = loadCheckpoints();
+
 function executeRemediation(findingId) {
   const scriptInfo = REMEDIATION_SCRIPTS[findingId];
   if (!scriptInfo) {
@@ -77,6 +92,7 @@ function executeRemediation(findingId) {
       findingId: findingId,
       rollbackCommand: scriptInfo.rollback
     };
+    saveCheckpoints(rollbackCheckpoints);
   }
   
   const isWin = os.platform() === 'win32';
@@ -89,7 +105,8 @@ function executeRemediation(findingId) {
   }
   
   try {
-    const stdout = execSync(`powershell -NoProfile -NonInteractive -Command "${scriptInfo.command.replace(/"/g, '\\"')}"`, { encoding: 'utf8', timeout: 15000 });
+    const { execFileSync } = require('child_process');
+    const stdout = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', scriptInfo.command], { encoding: 'utf8', timeout: 15000 });
     return {
       success: true,
       stdout: stdout || 'Command completed successfully.',
@@ -113,6 +130,7 @@ function executeRollback(findingId) {
   const isWin = os.platform() === 'win32';
   if (!isWin) {
     delete rollbackCheckpoints[findingId];
+    saveCheckpoints(rollbackCheckpoints);
     return {
       success: true,
       stdout: `[Simulated OS: ${os.platform()}] Rolled back changes for finding: ${findingId}`,
@@ -121,8 +139,10 @@ function executeRollback(findingId) {
   }
   
   try {
-    const stdout = execSync(`powershell -NoProfile -NonInteractive -Command "${checkpoint.rollbackCommand.replace(/"/g, '\\"')}"`, { encoding: 'utf8', timeout: 15000 });
+    const { execFileSync } = require('child_process');
+    const stdout = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', checkpoint.rollbackCommand], { encoding: 'utf8', timeout: 15000 });
     delete rollbackCheckpoints[findingId];
+    saveCheckpoints(rollbackCheckpoints);
     return {
       success: true,
       stdout: stdout || 'Rollback completed successfully.',

@@ -51,15 +51,15 @@ ALTER TABLE vulnerabilities ENABLE ROW LEVEL SECURITY;
 -- Configure RLS Policies
 CREATE POLICY tenant_isolation_policy ON self_healing_policies
     FOR ALL
-    USING (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL)
-    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL);
+    USING (tenant_id = (auth.jwt() ->> 'tenant_id'))
+    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id'));
 
 CREATE POLICY tenant_isolation_policy ON self_healing_runs
     FOR ALL
-    USING (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL)
-    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL);
+    USING (tenant_id = (auth.jwt() ->> 'tenant_id'))
+    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id'));
 
 CREATE POLICY tenant_isolation_policy ON vulnerabilities
     FOR ALL
-    USING (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL)
-    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL);
+    USING (tenant_id = (auth.jwt() ->> 'tenant_id'))
+    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id'));

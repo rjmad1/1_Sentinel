@@ -13,7 +13,7 @@ logger = logging.getLogger("eiip-db")
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:48c2eb0044739942911b123eb476e6fb@ba47g6qs.ap-southeast.database.insforge.app:5432/insforge?sslmode=require"
+    "postgresql://postgres:postgres@localhost:5432/insforge"
 )
 
 class Database:
@@ -161,7 +161,11 @@ class Database:
                     return await conn.fetch(query, *args)
             except Exception as e:
                 logger.error(f"Database fetch error: {e}")
-        # In-memory query simulation for testing
+                if os.getenv("DEVELOPMENT_MODE", "false").lower() != "true":
+                    raise e
+        if os.getenv("DEVELOPMENT_MODE", "false").lower() != "true" and not self.pool:
+            raise RuntimeError("Database pool unavailable")
+        # In-memory query simulation for isolated testing environment
         q_lower = query.lower()
         if re.search(r"from\s+machines", q_lower):
             return [
@@ -203,6 +207,10 @@ class Database:
                     return await conn.fetchrow(query, *args)
             except Exception as e:
                 logger.error(f"Database fetchrow error: {e}")
+                if os.getenv("DEVELOPMENT_MODE", "false").lower() != "true":
+                    raise e
+        if os.getenv("DEVELOPMENT_MODE", "false").lower() != "true" and not self.pool:
+            raise RuntimeError("Database pool unavailable")
         q_lower = query.lower()
         if re.search(r"from\s+machines", q_lower) and args:
             m_id = str(args[0])
@@ -218,6 +226,23 @@ class Database:
                 }
         return None
 
+    async def executemany(self, query: str, args_list: list):
+        if not args_list:
+            return "INSERT 0 0"
+        if self.pool:
+            try:
+                async with self.pool.acquire() as conn:
+                    return await conn.executemany(query, args_list)
+            except Exception as e:
+                logger.error(f"Database executemany error: {e}")
+                if os.getenv("DEVELOPMENT_MODE", "false").lower() != "true":
+                    raise e
+        if os.getenv("DEVELOPMENT_MODE", "false").lower() != "true" and not self.pool:
+            raise RuntimeError("Database pool unavailable")
+        for args in args_list:
+            await self.execute(query, *args)
+        return f"INSERT 0 {len(args_list)}"
+
     async def execute(self, query: str, *args):
         if self.pool:
             try:
@@ -225,6 +250,10 @@ class Database:
                     return await conn.execute(query, *args)
             except Exception as e:
                 logger.error(f"Database execute error: {e}")
+                if os.getenv("DEVELOPMENT_MODE", "false").lower() != "true":
+                    raise e
+        if os.getenv("DEVELOPMENT_MODE", "false").lower() != "true" and not self.pool:
+            raise RuntimeError("Database pool unavailable")
         
         q_lower = query.lower()
         if "delete from machines" in q_lower:

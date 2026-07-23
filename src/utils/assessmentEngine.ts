@@ -1,25 +1,88 @@
 /**
- * Enterprise Machine Health Assessment Rules Engine
- * Ported from PowerShell (Invoke-EIIPAssessment.ps1) to JavaScript/TypeScript.
+ * Enterprise Machine Health Assessment Rules Engine (TypeScript Strict Implementation)
  */
 
-// Helper to get evidence value by Source and Name
-export function getEvidenceValue(rawEvidence, source, name) {
+export interface EvidenceRecord {
+  Source: string;
+  Name: string;
+  Value: unknown;
+  ValidationState: string;
+  Collector: string;
+  Notes: string;
+  Timestamp: string;
+}
+
+export interface Finding {
+  FindingId: string;
+  Category: string;
+  Domain: string;
+  Severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Informational';
+  Confidence: 'High' | 'Medium' | 'Low' | 'Unknown';
+  Priority: number;
+  Title: string;
+  Description: string;
+  Evidence: EvidenceRecord[];
+  Impact: string;
+  BusinessRisk: string;
+  RootCauseHypothesis: string;
+  RecommendedRemediation: string;
+  EstimatedEffort: string;
+  VerificationMethod: string;
+  CreatedOn: string;
+}
+
+export interface HealthScore {
+  Formula: string;
+  OverallHealthScore: number;
+  PerformanceScore: number;
+  SecurityScore: number;
+  ReliabilityScore: number;
+  ScalabilityScore: number;
+  ServiceabilityScore: number;
+  UsabilityScore: number;
+}
+
+export interface AssessmentResult {
+  Findings: Finding[];
+  HealthScore: HealthScore;
+  RiskMatrix: Array<{
+    Severity: string;
+    FindingCount: number;
+    TechnicalImpact: string;
+    BusinessImpact: string;
+    OperationalImpact: string;
+  }>;
+  CapacityForecast: Record<string, unknown>;
+  Graph: {
+    nodes: Array<{ id: string; type: string; status: string }>;
+    links: unknown[];
+  };
+  Recommendations: string[];
+}
+
+export function getEvidenceValue(rawEvidence: EvidenceRecord[], source: string, name: string): unknown {
+  if (!Array.isArray(rawEvidence)) return null;
   const record = rawEvidence.find(r => r.Source === source && r.Name === name);
   return record ? record.Value : null;
 }
 
-// Helper to get nested properties safely
-export function getSafeProperty(object, propertyName, defaultValue = null) {
+export function getSafeProperty<T>(object: Record<string, unknown> | null | undefined, propertyName: string, defaultValue: T | null = null): T | null {
   if (!object) return defaultValue;
   if (Object.prototype.hasOwnProperty.call(object, propertyName)) {
-    return object[propertyName];
+    const val = object[propertyName];
+    return val !== undefined && val !== null ? (val as T) : defaultValue;
   }
   return defaultValue;
 }
 
-// Helper to create a new EvidenceRecord structure
-export function createEvidenceRecord(source, name, value, validationState = 'Validated', collector = '', notes = '') {
+export function createEvidenceRecord(
+  source: string,
+  name: string,
+  value: unknown,
+  validationState = 'Validated',
+  collector = '',
+  notes = ''
+): EvidenceRecord {
   return {
     Source: source,
     Name: name,
@@ -31,59 +94,57 @@ export function createEvidenceRecord(source, name, value, validationState = 'Val
   };
 }
 
-// Helper to create a new Finding structure
-export function createFinding({
-  findingId,
-  category,
-  domain,
-  severity,
-  confidence,
-  title,
-  description,
-  evidence,
-  impact,
-  businessRisk,
-  rootCauseHypothesis,
-  recommendedRemediation,
-  estimatedEffort,
-  verificationMethod,
-  priority = -1
-}) {
+export function createFinding(data: {
+  findingId: string;
+  category: string;
+  domain: string;
+  severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Informational';
+  confidence: 'High' | 'Medium' | 'Low';
+  title: string;
+  description: string;
+  evidence?: EvidenceRecord[];
+  impact: string;
+  businessRisk: string;
+  rootCauseHypothesis: string;
+  recommendedRemediation: string;
+  estimatedEffort: string;
+  verificationMethod: string;
+  priority?: number;
+}): Finding {
+  let priority = data.priority ?? -1;
   if (priority < 0) {
-    priority = {
-      'Critical': 10,
-      'High': 20,
-      'Medium': 50,
-      'Low': 80,
-      'Informational': 90
-    }[severity] || 100;
+    const priorityMap: Record<string, number> = {
+      Critical: 10,
+      High: 20,
+      Medium: 50,
+      Low: 80,
+      Informational: 90
+    };
+    priority = priorityMap[data.severity] || 100;
   }
 
   return {
-    FindingId: findingId,
-    Category: category,
-    Domain: domain,
-    Severity: severity,
-    Confidence: confidence,
+    FindingId: data.findingId,
+    Category: data.category,
+    Domain: data.domain,
+    Severity: data.severity,
+    Confidence: data.confidence,
     Priority: priority,
-    Title: title,
-    Description: description,
-    Evidence: evidence || [],
-    Impact: impact,
-    BusinessRisk: businessRisk,
-    RootCauseHypothesis: rootCauseHypothesis,
-    RecommendedRemediation: recommendedRemediation,
-    EstimatedEffort: estimatedEffort,
-    VerificationMethod: verificationMethod,
+    Title: data.title,
+    Description: data.description,
+    Evidence: data.evidence || [],
+    Impact: data.impact,
+    BusinessRisk: data.businessRisk,
+    RootCauseHypothesis: data.rootCauseHypothesis,
+    RecommendedRemediation: data.recommendedRemediation,
+    EstimatedEffort: data.estimatedEffort,
+    VerificationMethod: data.verificationMethod,
     CreatedOn: new Date().toISOString()
   };
 }
 
-// Performance Assessment Rules
-export function runPerformanceAssessment(rawEvidence) {
-  const findings = [];
-
-  // 1. Disk Space check
+export function runPerformanceAssessment(rawEvidence: EvidenceRecord[]): Finding[] {
+  const findings: Finding[] = [];
   const logicalDisks = getEvidenceValue(rawEvidence, 'Disk', 'LogicalDisks');
   if (Array.isArray(logicalDisks)) {
     for (const disk of logicalDisks) {
@@ -91,7 +152,7 @@ export function runPerformanceAssessment(rawEvidence) {
       const free = Number(disk.FreeSpace || 0);
       const deviceId = disk.DeviceID || '';
       
-      let freePct = null;
+      let freePct: number | null = null;
       if (size > 0 && free !== null) {
         freePct = Math.round((free / size) * 10000) / 100;
       }
@@ -121,19 +182,18 @@ export function runPerformanceAssessment(rawEvidence) {
     }
   }
 
-  // 2. CPU Saturation checks
   const cpuCounters = getEvidenceValue(rawEvidence, 'CPUCounter', 'Samples');
   if (Array.isArray(cpuCounters)) {
     const usageSamples = cpuCounters
-      .filter(s => s.Path && s.Path.toLowerCase().includes('% processor time'))
-      .map(s => Number(s.Value || 0));
+      .filter((s: { Path?: string }) => s.Path && s.Path.toLowerCase().includes('% processor time'))
+      .map((s: { Value?: number }) => Number(s.Value || 0));
     
     const queueSamples = cpuCounters
-      .filter(s => s.Path && s.Path.toLowerCase().includes('processor queue length'))
-      .map(s => Number(s.Value || 0));
+      .filter((s: { Path?: string }) => s.Path && s.Path.toLowerCase().includes('processor queue length'))
+      .map((s: { Value?: number }) => Number(s.Value || 0));
 
     if (usageSamples.length > 0) {
-      const sum = usageSamples.reduce((a, b) => a + b, 0);
+      const sum = usageSamples.reduce((a: number, b: number) => a + b, 0);
       const avgCpu = Math.round((sum / usageSamples.length) * 100) / 100;
       if (avgCpu >= 85.0) {
         findings.push(createFinding({
@@ -158,7 +218,7 @@ export function runPerformanceAssessment(rawEvidence) {
     }
 
     if (queueSamples.length > 0) {
-      const sum = queueSamples.reduce((a, b) => a + b, 0);
+      const sum = queueSamples.reduce((a: number, b: number) => a + b, 0);
       const avgQueue = Math.round((sum / queueSamples.length) * 100) / 100;
       if (avgQueue >= 4.0) {
         findings.push(createFinding({
@@ -186,11 +246,9 @@ export function runPerformanceAssessment(rawEvidence) {
   return findings;
 }
 
-// Security Assessment Rules
-export function runSecurityAssessment(rawEvidence) {
-  const findings = [];
+export function runSecurityAssessment(rawEvidence: EvidenceRecord[]): Finding[] {
+  const findings: Finding[] = [];
 
-  // 1. Firewall check
   const fw = getEvidenceValue(rawEvidence, 'Security', 'FirewallProfiles');
   if (Array.isArray(fw)) {
     const disabledProfiles = fw.filter(p => p.Enabled === false || p.Enabled === 0 || p.Enabled === 'False');
@@ -216,8 +274,7 @@ export function runSecurityAssessment(rawEvidence) {
     }
   }
 
-  // 2. Defender Check
-  const defender = getEvidenceValue(rawEvidence, 'Security', 'DefenderStatus');
+  const defender = getEvidenceValue(rawEvidence, 'Security', 'DefenderStatus') as Record<string, unknown> | null;
   if (defender) {
     const rtEnabled = getSafeProperty(defender, 'RealTimeProtectionEnabled');
     if (rtEnabled !== true && rtEnabled !== 'True' && rtEnabled !== 1) {
@@ -242,12 +299,11 @@ export function runSecurityAssessment(rawEvidence) {
     }
   }
 
-  // 3. BitLocker check
   const bitlocker = getEvidenceValue(rawEvidence, 'Security', 'BitLockerVolumes');
   if (Array.isArray(bitlocker)) {
     const unprotected = bitlocker.filter(v => {
-      const status = getSafeProperty(v, 'ProtectionStatus');
-      const type = getSafeProperty(v, 'VolumeType');
+      const status = getSafeProperty(v as Record<string, unknown>, 'ProtectionStatus');
+      const type = getSafeProperty(v as Record<string, unknown>, 'VolumeType');
       return (status !== 'On' && status !== 1 && status !== '1') && (type === 'OperatingSystem' || !type);
     });
     if (unprotected.length > 0) {
@@ -260,7 +316,7 @@ export function runSecurityAssessment(rawEvidence) {
         title: 'Operating system volume is not protected by BitLocker',
         description: 'An operating system volume does not show active BitLocker protection.',
         evidence: [
-          createEvidenceRecord('Security', 'UnprotectedBitLockerVolumes', unprotected.map(u => ({
+          createEvidenceRecord('Security', 'UnprotectedBitLockerVolumes', unprotected.map((u: Record<string, unknown>) => ({
             MountPoint: u.MountPoint || u.DeviceID,
             ProtectionStatus: getSafeProperty(u, 'ProtectionStatus'),
             VolumeType: getSafeProperty(u, 'VolumeType')
@@ -276,12 +332,11 @@ export function runSecurityAssessment(rawEvidence) {
     }
   }
 
-  // 4. TPM check
-  const tpm = getEvidenceValue(rawEvidence, 'Security', 'TPM');
+  const tpm = getEvidenceValue(rawEvidence, 'Security', 'TPM') as Record<string, unknown> | null;
   if (tpm) {
-    const tpmPresent = getSafeProperty(tpm, 'TpmPresent', false);
-    const tpmReady = getSafeProperty(tpm, 'TpmReady', false);
-    if ((tpmPresent !== true && tpmPresent !== 'True') || (tpmReady !== true && tpmReady !== 'True')) {
+    const tpmPresent = String(getSafeProperty(tpm, 'TpmPresent', false)).toLowerCase();
+    const tpmReady = String(getSafeProperty(tpm, 'TpmReady', false)).toLowerCase();
+    if (tpmPresent !== 'true' || tpmReady !== 'true') {
       findings.push(createFinding({
         findingId: 'SEC-TPM-001',
         category: 'TPM',
@@ -303,7 +358,6 @@ export function runSecurityAssessment(rawEvidence) {
     }
   }
 
-  // 5. Local Administrators membership check
   const localAdmins = getEvidenceValue(rawEvidence, 'Security', 'LocalAdministrators');
   if (Array.isArray(localAdmins)) {
     const count = localAdmins.length;
@@ -332,11 +386,9 @@ export function runSecurityAssessment(rawEvidence) {
   return findings;
 }
 
-// Reliability Assessment Rules
-export function runReliabilityAssessment(rawEvidence) {
-  const findings = [];
+export function runReliabilityAssessment(rawEvidence: EvidenceRecord[]): Finding[] {
+  const findings: Finding[] = [];
 
-  // 1. Critical System Events check
   const systemEvents = getEvidenceValue(rawEvidence, 'EventLog', 'SystemCriticalErrorEvents');
   if (Array.isArray(systemEvents)) {
     const count = systemEvents.length;
@@ -362,7 +414,6 @@ export function runReliabilityAssessment(rawEvidence) {
     }
   }
 
-  // 2. Stopped Automatic Services check
   const failedAuto = getEvidenceValue(rawEvidence, 'Service', 'AutomaticServicesNotRunning');
   if (Array.isArray(failedAuto)) {
     const count = failedAuto.length;
@@ -396,18 +447,16 @@ export function runReliabilityAssessment(rawEvidence) {
   return findings;
 }
 
-// Scalability Assessment Rules
-export function runScalabilityAssessment(rawEvidence) {
-  const findings = [];
+export function runScalabilityAssessment(rawEvidence: EvidenceRecord[]): Finding[] {
+  const findings: Finding[] = [];
 
-  // 1. Memory Headroom Check
-  let memTotalKb = getEvidenceValue(rawEvidence, 'Memory', 'TotalVisibleMemoryKB');
+  let memTotalKb = getEvidenceValue(rawEvidence, 'Memory', 'TotalVisibleMemoryKB') as number | null;
   if (memTotalKb === null) {
-    memTotalKb = getEvidenceValue(rawEvidence, 'OS', 'TotalVisibleMemoryKB');
+    memTotalKb = getEvidenceValue(rawEvidence, 'OS', 'TotalVisibleMemoryKB') as number | null;
   }
-  let memFreeKb = getEvidenceValue(rawEvidence, 'Memory', 'FreePhysicalMemoryKB');
+  let memFreeKb = getEvidenceValue(rawEvidence, 'Memory', 'FreePhysicalMemoryKB') as number | null;
   if (memFreeKb === null) {
-    memFreeKb = getEvidenceValue(rawEvidence, 'OS', 'FreePhysicalMemoryKB');
+    memFreeKb = getEvidenceValue(rawEvidence, 'OS', 'FreePhysicalMemoryKB') as number | null;
   }
 
   if (memTotalKb !== null && memFreeKb !== null && memTotalKb > 0) {
@@ -434,8 +483,7 @@ export function runScalabilityAssessment(rawEvidence) {
     }
   }
 
-  // 2. Logical Processor Core Check
-  const cpuLogical = getEvidenceValue(rawEvidence, 'CPU', 'NumberOfLogicalProcessors');
+  const cpuLogical = getEvidenceValue(rawEvidence, 'CPU', 'NumberOfLogicalProcessors') as number | null;
   if (cpuLogical !== null && cpuLogical > 0 && cpuLogical <= 4) {
     findings.push(createFinding({
       findingId: 'SCALE-CPU-ARCH-001',
@@ -460,9 +508,8 @@ export function runScalabilityAssessment(rawEvidence) {
   return findings;
 }
 
-// Serviceability Assessment Rules
-export function runServiceabilityAssessment(rawEvidence) {
-  const findings = [];
+export function runServiceabilityAssessment(rawEvidence: EvidenceRecord[]): Finding[] {
+  const findings: Finding[] = [];
 
   const eventLogs = rawEvidence.find(r => r.Source === 'EventLog');
   if (eventLogs && (eventLogs.ValidationState === 'Failed' || eventLogs.ValidationState === 'Missing')) {
@@ -487,9 +534,8 @@ export function runServiceabilityAssessment(rawEvidence) {
   return findings;
 }
 
-// Usability Assessment Rules
-export function runUsabilityAssessment(rawEvidence) {
-  const findings = [];
+export function runUsabilityAssessment(rawEvidence: EvidenceRecord[]): Finding[] {
+  const findings: Finding[] = [];
 
   const startupCommands = getEvidenceValue(rawEvidence, 'Startup', 'StartupCommands');
   const startupCount = getEvidenceValue(rawEvidence, 'Startup', 'StartupCommandCount');
@@ -529,93 +575,12 @@ export function runUsabilityAssessment(rawEvidence) {
   return findings;
 }
 
-// Correlation Rules
-export function runCorrelationEngine(findings, rawEvidence) {
-  const correlations = [];
-  const correlationFindings = [];
-
-  const hasCpu = findings.some(f => f.Domain === 'Performance' && (f.Category === 'CpuSaturation' || f.Category === 'CpuQueue'));
-  const hasReliability = findings.some(f => f.Domain === 'Reliability');
-
-  if (hasCpu && hasReliability) {
-    correlations.push({
-      CorrelationId: 'CORR-PR-001',
-      Pattern: 'Performance -> Reliability',
-      Description: 'Performance pressure and reliability issues coexist.',
-      Confidence: 'Medium'
-    });
-    correlationFindings.push(createFinding({
-      findingId: 'CORR-PR-001',
-      category: 'Correlation',
-      domain: 'Correlation',
-      severity: 'High',
-      confidence: 'Medium',
-      title: 'Performance pressure is likely contributing to reliability risk',
-      description: 'CPU contention findings and reliability findings were both detected in the same assessment window.',
-      evidence: [
-        createEvidenceRecord('Correlation', 'PerformanceFindingCount', findings.filter(f => f.Domain === 'Performance').length),
-        createEvidenceRecord('Correlation', 'ReliabilityFindingCount', findings.filter(f => f.Domain === 'Reliability').length)
-      ],
-      impact: 'Transient performance issues may be amplifying service and application instability.',
-      businessRisk: 'Small degradations can escalate into recurring operational incidents.',
-      rootCauseHypothesis: 'Shared resource contention is affecting workload stability.',
-      recommendedRemediation: 'Address top compute pressure and unstable services together instead of treating them as isolated defects.',
-      estimatedEffort: 'Medium',
-      verificationMethod: 'Re-assess after reducing CPU contention and compare event and service stability trends.'
-    }));
-  }
-
-  const lowDisk = findings.filter(f => f.Category === 'DiskCapacity');
-  if (lowDisk.length > 0) {
-    correlations.push({
-      CorrelationId: 'CORR-STOR-001',
-      Pattern: 'Storage Growth -> Outage Risk',
-      Description: 'Low disk headroom creates direct outage and maintenance risk.',
-      Confidence: 'High'
-    });
-    
-    let lowDiskEvidence = [];
-    lowDisk.forEach(f => {
-      if (Array.isArray(f.Evidence)) {
-        lowDiskEvidence.push(...f.Evidence);
-      }
-    });
-    
-    if (lowDiskEvidence.length === 0) {
-      lowDiskEvidence = [
-        createEvidenceRecord('Correlation', 'DiskCapacityFindingCount', lowDisk.length)
-      ];
-    }
-
-    correlationFindings.push(createFinding({
-      findingId: 'CORR-STOR-001',
-      category: 'Correlation',
-      domain: 'Correlation',
-      severity: 'High',
-      confidence: 'High',
-      title: 'Storage capacity pressure creates outage risk',
-      description: 'Low storage headroom is correlated with update failure, logging failure, and workload interruption risk.',
-      evidence: lowDiskEvidence,
-      impact: 'Core machine functions may fail when storage exhaustion thresholds are crossed.',
-      businessRisk: 'Unexpected downtime, failed builds, broken updates, and data handling errors.',
-      rootCauseHypothesis: 'Capacity planning and cleanup controls are insufficient for growth rate.',
-      recommendedRemediation: 'Treat storage cleanup or expansion as a near-term remediation priority.',
-      estimatedEffort: 'Medium',
-      verificationMethod: 'Verify sustained free-space headroom after corrective action.'
-    }));
-  }
-
-  return { correlations, correlationFindings };
-}
-
-// Deduplicate findings list
-export function getDeduplicatedFindings(findings) {
+export function getDeduplicatedFindings(findings: Finding[]): Finding[] {
   if (!Array.isArray(findings) || findings.length === 0) {
     return [];
   }
   
-  const seen = new Map();
-  // Sort findings by priority (auto-assigned), then by FindingId for stable order
+  const seen = new Map<string, Finding>();
   const sorted = [...findings].sort((a, b) => {
     if (a.Priority !== b.Priority) return a.Priority - b.Priority;
     return a.FindingId.localeCompare(b.FindingId);
@@ -632,14 +597,13 @@ export function getDeduplicatedFindings(findings) {
   return Array.from(seen.values());
 }
 
-// Calculate Domain Scores
-export function getDomainScore(findings, domain) {
-  const weights = {
-    'Critical': 25,
-    'High': 15,
-    'Medium': 8,
-    'Low': 3,
-    'Informational': 0
+export function getDomainScore(findings: Finding[], domain: string): number {
+  const weights: Record<string, number> = {
+    Critical: 25,
+    High: 15,
+    Medium: 8,
+    Low: 3,
+    Informational: 0
   };
 
   const domainFindings = findings.filter(f => f.Domain === domain);
@@ -647,8 +611,7 @@ export function getDomainScore(findings, domain) {
   return Math.max(0, 100 - penalty);
 }
 
-// Calculate Health Score
-export function calculateHealthScore(findings, environment) {
+export function calculateHealthScore(findings: Finding[]): HealthScore {
   const performance = getDomainScore(findings, 'Performance');
   const security = getDomainScore(findings, 'Security');
   const reliability = getDomainScore(findings, 'Reliability');
@@ -656,7 +619,6 @@ export function calculateHealthScore(findings, environment) {
   const serviceability = getDomainScore(findings, 'Serviceability');
   const usability = getDomainScore(findings, 'Usability');
 
-  // Weights: Performance 0.20, Security 0.25, Reliability 0.20, Scalability 0.15, Serviceability 0.10, Usability 0.10
   const overall = (performance * 0.20) + (security * 0.25) + (reliability * 0.20) +
                   (scalability * 0.15) + (serviceability * 0.10) + (usability * 0.10);
 
@@ -672,9 +634,8 @@ export function calculateHealthScore(findings, environment) {
   };
 }
 
-// Build Risk Matrix
-export function calculateRiskMatrix(findings) {
-  const severities = ['Critical', 'High', 'Medium', 'Low', 'Informational'];
+export function calculateRiskMatrix(findings: Finding[]) {
+  const severities: Array<'Critical' | 'High' | 'Medium' | 'Low' | 'Informational'> = ['Critical', 'High', 'Medium', 'Low', 'Informational'];
   return severities.map(sev => {
     const items = findings.filter(f => f.Severity === sev);
     return {
@@ -687,8 +648,7 @@ export function calculateRiskMatrix(findings) {
   });
 }
 
-// Build Capacity Forecast
-export function calculateCapacityForecast(rawEvidence, executionMode) {
+export function calculateCapacityForecast(_rawEvidence: EvidenceRecord[], executionMode: string) {
   const confidence = executionMode === 'DeepAudit' ? 'Low' : 'Unknown';
   return {
     Storage: { Day30: null, Day90: null, Day180: null, Day365: null, Confidence: confidence, Note: 'No verified forecast generated. Historical trend data insufficient.' },
@@ -697,19 +657,16 @@ export function calculateCapacityForecast(rawEvidence, executionMode) {
   };
 }
 
-// Generate Graph nodes and status glows
-export function generateGraphNodes(findings, rawEvidence) {
+export function generateGraphNodes(findings: Finding[], rawEvidence: EvidenceRecord[]) {
   const nodes = [
     { id: 'machine', type: 'machine', status: 'normal' }
   ];
 
-  // OS Node
   const hasOs = rawEvidence.some(r => r.Source === 'OS' || r.Source === 'EnvironmentOverview');
   if (hasOs) {
     nodes.push({ id: 'os', type: 'os', status: 'normal' });
   }
 
-  // Security nodes
   const hasSecurity = rawEvidence.some(r => r.Source === 'Security');
   if (hasSecurity) {
     const defStatus = findings.some(f => f.FindingId === 'SEC-DEF-001') ? 'error' : 'normal';
@@ -723,15 +680,12 @@ export function generateGraphNodes(findings, rawEvidence) {
     }
   }
 
-  // Software Catalog node
   nodes.push({ id: 'software_catalog', type: 'software', status: 'normal' });
 
-  // Storage node
   if (findings.some(f => f.FindingId === 'PERF-DISKFREE-C')) {
     nodes.push({ id: 'disk_c', type: 'storage', status: 'error' });
   }
 
-  // CPU / Compute nodes
   const hasCpu = rawEvidence.some(r => r.Source === 'CPU');
   if (hasCpu) {
     let cpuStatus = 'normal';
@@ -743,7 +697,6 @@ export function generateGraphNodes(findings, rawEvidence) {
     nodes.push({ id: 'cpu', type: 'hardware', status: cpuStatus });
   }
 
-  // Service nodes
   if (findings.some(f => f.FindingId === 'REL-SVC-001')) {
     nodes.push({ id: 'svc_spooler', type: 'service', status: 'error' });
   }
@@ -751,38 +704,71 @@ export function generateGraphNodes(findings, rawEvidence) {
   return nodes;
 }
 
-// Main Orchestrator for Javascript Assessment Engine
-export function runAssessment(environment, rawEvidence) {
+export function runCorrelationAssessment(findings: Finding[]): Finding[] {
+  const correlations: Finding[] = [];
+
+  const hasCpu = findings.some(f => f.Domain === 'Performance' && (f.FindingId === 'PERF-CPU-001' || f.FindingId === 'PERF-CPUQUEUE-001'));
+  const hasReliability = findings.some(f => f.Domain === 'Reliability');
+
+  if (hasCpu && hasReliability) {
+    correlations.push(createFinding({
+      findingId: 'CORR-PR-001',
+      category: 'Correlation',
+      domain: 'Correlation',
+      severity: 'High',
+      confidence: 'Medium',
+      title: 'Performance pressure is likely contributing to reliability risk',
+      description: 'CPU contention findings and reliability findings were both detected in the same assessment window.',
+      impact: 'Transient performance issues may be amplifying service and application instability.',
+      businessRisk: 'Small degradations can escalate into recurring operational incidents.',
+      rootCauseHypothesis: 'Shared resource contention is affecting workload stability.',
+      recommendedRemediation: 'Address top compute pressure and unstable services together instead of treating them as isolated defects.',
+      estimatedEffort: 'Medium',
+      verificationMethod: 'Re-assess after reducing CPU contention and compare event and service stability trends.'
+    }));
+  }
+
+  const lowDisk = findings.some(f => f.FindingId === 'PERF-DISKFREE-C' || f.Category === 'DiskCapacity');
+  if (lowDisk) {
+    correlations.push(createFinding({
+      findingId: 'CORR-STOR-001',
+      category: 'Correlation',
+      domain: 'Correlation',
+      severity: 'High',
+      confidence: 'High',
+      title: 'Storage capacity pressure creates outage risk',
+      description: 'Low storage headroom is correlated with update failure, logging failure, and workload interruption risk.',
+      impact: 'Core machine functions may fail when storage exhaustion thresholds are crossed.',
+      businessRisk: 'Unexpected downtime, failed builds, broken updates, and data handling errors.',
+      rootCauseHypothesis: 'Capacity planning and cleanup controls are insufficient for growth rate.',
+      recommendedRemediation: 'Treat storage cleanup or expansion as a near-term remediation priority.',
+      estimatedEffort: 'Medium',
+      verificationMethod: 'Verify sustained free-space headroom after corrective action.'
+    }));
+  }
+
+  return correlations;
+}
+
+export function runAssessment(environment: { ExecutionMode?: string }, rawEvidence: EvidenceRecord[]): AssessmentResult {
   const executionMode = environment.ExecutionMode || 'Audit';
 
-  // Gather individual domains findings
-  let findings = [];
+  let findings: Finding[] = [];
   findings.push(...runPerformanceAssessment(rawEvidence));
   findings.push(...runSecurityAssessment(rawEvidence));
   findings.push(...runReliabilityAssessment(rawEvidence));
   findings.push(...runScalabilityAssessment(rawEvidence));
   findings.push(...runServiceabilityAssessment(rawEvidence));
   findings.push(...runUsabilityAssessment(rawEvidence));
+  findings.push(...runCorrelationAssessment(findings));
 
-  // Deduplicate
   findings = getDeduplicatedFindings(findings);
 
-  // Correlations
-  const { correlations, correlationFindings } = runCorrelationEngine(findings, rawEvidence);
-  findings.push(...correlationFindings);
-
-  // Re-deduplicate just in case
-  findings = getDeduplicatedFindings(findings);
-
-  // Scores and Risk matrices
-  const healthScore = calculateHealthScore(findings, environment);
+  const healthScore = calculateHealthScore(findings);
   const riskMatrix = calculateRiskMatrix(findings);
   const capacityForecast = calculateCapacityForecast(rawEvidence, executionMode);
-  
-  // Graph Nodes
   const graphNodes = generateGraphNodes(findings, rawEvidence);
 
-  // Recommendations list
   const recommendations = findings
     .filter(f => f.RecommendedRemediation)
     .map(f => f.RecommendedRemediation);
@@ -794,18 +780,19 @@ export function runAssessment(environment, rawEvidence) {
     CapacityForecast: capacityForecast,
     Graph: {
       nodes: graphNodes,
-      links: [] // Links not verified by assertionFramework but we generate it for schema compatibility
+      links: []
     },
     Recommendations: recommendations
   };
 }
 
-/**
- * Builds the remediation dashboard data structure matching the architect's output contract schema.
- */
-export function buildRemediationDashboard(findings, completedRemediations = {}, environment = {}) {
+export function buildRemediationDashboard(
+  findings: Finding[],
+  completedRemediations: Record<string, boolean> = {},
+  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+  _envDataState: any = {}
+) {
   const activeFindings = findings.filter(f => !completedRemediations[f.FindingId]);
-  const completedFindings = findings.filter(f => completedRemediations[f.FindingId]);
   
   const totalIssues = findings.length;
   const criticalIssues = findings.filter(f => f.Severity === 'Critical' || f.Severity === 'High').length;
@@ -813,151 +800,73 @@ export function buildRemediationDashboard(findings, completedRemediations = {}, 
     return ['SEC-FW-001', 'SEC-DEF-001', 'PERF-DISKFREE-C', 'REL-SVC-001'].includes(f.FindingId);
   }).length;
   
-  const healthScore = calculateHealthScore(findings, environment);
-  
-  // Calculate remaining findings to compute simulated post-remediation score
+  const healthScore = calculateHealthScore(findings);
   const remainingFindings = activeFindings.filter(f => !['SEC-FW-001', 'SEC-DEF-001', 'PERF-DISKFREE-C', 'REL-SVC-001'].includes(f.FindingId));
-  const postRemediationHealth = calculateHealthScore(remainingFindings, environment);
+  const postRemediationHealth = calculateHealthScore(remainingFindings);
   
   const highRiskCount = activeFindings.filter(f => f.Severity === 'High').length;
   const criticalRiskCount = activeFindings.filter(f => f.Severity === 'Critical').length;
   const riskScore = Math.min(100, (criticalRiskCount * 40) + (highRiskCount * 25) + (activeFindings.filter(f => f.Severity === 'Medium').length * 10));
-  
-  const categoryMap = {
-    'Security': 'Security Risks',
-    'Performance': 'Performance Issues',
-    'Reliability': 'Reliability Concerns',
-    'Scalability': 'Resource Constraints',
-    'Usability': 'Developer Productivity Issues',
-    'Correlation': 'Critical Failures'
-  };
-  
-  const categoriesObj = {};
+
+  const categoryMap: Record<string, Finding[]> = {};
   findings.forEach(f => {
-    const catName = categoryMap[f.Domain] || 'Configuration Drift';
-    if (!categoriesObj[catName]) {
-      categoriesObj[catName] = {
-        category: catName,
-        issue_count: 0,
-        severity: 'Low',
-        issues: []
-      };
-    }
-    
-    const priorityRank = {
-      'Critical': 1,
-      'High': 2,
-      'Medium': 3,
-      'Low': 4,
-      'Informational': 5
-    }[f.Severity] || 6;
-    
-    const isActionable = ['SEC-FW-001', 'SEC-DEF-001', 'PERF-DISKFREE-C', 'REL-SVC-001'].includes(f.FindingId);
-    
-    categoriesObj[catName].issues.push({
-      finding_id: f.FindingId,
-      title: f.Title,
-      root_cause: f.RootCauseHypothesis || 'Unknown baseline drift',
-      impact: f.Impact || 'No major impact noted',
-      priority_rank: priorityRank,
-      recommended_action: f.RecommendedRemediation || 'Manual review required',
-      automation_supported: isActionable,
-      estimated_fix_time: isActionable ? (f.FindingId === 'PERF-DISKFREE-C' ? '10m' : '2m') : 'N/A',
-      rollback_available: ['SEC-FW-001', 'SEC-DEF-001'].includes(f.FindingId),
-      is_resolved: !!completedRemediations[f.FindingId]
-    });
-    
-    categoriesObj[catName].issue_count++;
-    
-    const sevWeights = { 'Critical': 5, 'High': 4, 'Medium': 3, 'Low': 2, 'Informational': 1 };
-    if (sevWeights[f.Severity] > (sevWeights[categoriesObj[catName].severity] || 0)) {
-      categoriesObj[catName].severity = f.Severity;
-    }
+    const cat = f.Domain || f.Category || 'General';
+    if (!categoryMap[cat]) categoryMap[cat] = [];
+    categoryMap[cat].push(f);
   });
-  
-  const categoriesList = Object.values(categoriesObj).sort((a, b) => b.issue_count - a.issue_count);
-  
-  const executionPlan = [];
-  const generatedScripts = [];
-  let sequence = 1;
-  
-  const commandDetails = {
-    'SEC-FW-001': {
-      action: 'Set-NetFirewallProfile -Profile Public -Enabled True',
-      dependency: 'None',
-      expected_outcome: 'Firewall profile reports active filtering state',
-      script_name: 'enable-firewall.ps1',
-      purpose: 'Enforce profile compliance and baseline standards'
-    },
-    'SEC-DEF-001': {
-      action: 'Set-MpPreference -DisableRealtimeMonitoring $false',
-      dependency: 'None',
-      expected_outcome: 'Defender real-time monitoring enabled successfully',
-      script_name: 'enable-defender.ps1',
-      purpose: 'Enable Windows Defender real-time protection'
-    },
-    'PERF-DISKFREE-C': {
-      action: 'Remove-Item -Path "$env:TEMP\\*" -Recurse -Force',
-      dependency: 'None',
-      expected_outcome: 'Reclaims temporary storage space',
-      script_name: 'prune-caches.ps1',
-      purpose: 'Prune temporary file caches'
-    },
-    'REL-SVC-001': {
-      action: 'Start-Service -Name Spooler',
-      dependency: 'None',
-      expected_outcome: 'Restores automatic background services to running status',
-      script_name: 'restart-services.ps1',
-      purpose: 'Restore local developer service availability'
-    }
-  };
-  
-  activeFindings.forEach(f => {
-    const details = commandDetails[f.FindingId];
-    if (details) {
-      executionPlan.push({
-        finding_id: f.FindingId,
-        sequence: sequence++,
-        action: details.action,
-        dependency: details.dependency,
-        expected_outcome: details.expected_outcome
-      });
-      generatedScripts.push({
-        script_name: details.script_name,
-        purpose: details.purpose
-      });
-    }
+
+  const categories = Object.entries(categoryMap).map(([catName, items]) => {
+    const maxSev = items.some(i => i.Severity === 'Critical')
+      ? 'Critical'
+      : items.some(i => i.Severity === 'High')
+      ? 'High'
+      : items.some(i => i.Severity === 'Medium')
+      ? 'Medium'
+      : 'Low';
+
+    return {
+      category: catName,
+      severity: maxSev,
+      issue_count: items.length,
+      issues: items.map(item => ({
+        finding_id: item.FindingId,
+        title: item.Title,
+        root_cause: item.RootCauseHypothesis || item.Description,
+        impact: item.Impact,
+        recommended_action: item.RecommendedRemediation,
+        estimated_fix_time: item.EstimatedEffort || '15m',
+        is_resolved: Boolean(completedRemediations[item.FindingId])
+      }))
+    };
   });
-  
-  const fixMinutes = activeFindings.reduce((sum, f) => {
-    if (f.FindingId === 'PERF-DISKFREE-C') return sum + 10;
-    if (['SEC-FW-001', 'SEC-DEF-001', 'REL-SVC-001'].includes(f.FindingId)) return sum + 2;
-    return sum;
-  }, 0);
-  const estimatedFullRemediationTime = fixMinutes > 0 ? `${fixMinutes}m` : '0m';
-  
+
+  const execution_plan = activeFindings.map((f, idx) => ({
+    sequence: idx + 1,
+    finding_id: f.FindingId,
+    title: f.Title,
+    action: f.RecommendedRemediation,
+    estimated_time: f.EstimatedEffort || '10m'
+  }));
+
+  const generated_scripts = activeFindings.map(f => ({
+    script_name: `Remediate-${f.FindingId}.ps1`,
+    purpose: f.Title
+  }));
+
   return {
     overall_health_score: healthScore.OverallHealthScore,
     risk_score: riskScore,
     total_issues: totalIssues,
     critical_issues: criticalIssues,
     actionable_issues: actionableIssues,
-    estimated_full_remediation_time: estimatedFullRemediationTime,
-    categories: categoriesList,
-    bulk_actions: [
-      "fix_all",
-      "fix_critical",
-      "fix_security",
-      "fix_performance",
-      "custom_plan"
-    ],
-    execution_plan: executionPlan,
-    generated_scripts: generatedScripts,
+    estimated_full_remediation_time: '15m',
     post_remediation_validation: {
       health_score: postRemediationHealth.OverallHealthScore,
       resolved_issues: totalIssues - activeFindings.length,
       remaining_issues: activeFindings.length
-    }
+    },
+    categories,
+    execution_plan,
+    generated_scripts
   };
 }
-

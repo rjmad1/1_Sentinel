@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { runAssessment } from '../../src/utils/assessmentEngine.js';
+import { runAssessment } from '../../src/utils/assessmentEngine.ts';
 import { compareAssessments, compareRisks } from './assertionFramework.js';
 
 const __filename = fileURLToPath(import.meta.url);

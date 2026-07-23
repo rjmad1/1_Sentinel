@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { getApiUrl } from '../utils/apiConfig';
 import { 
   Activity, Cpu, HardDrive, Shield, AlertTriangle, Globe, RefreshCw, Package
 } from 'lucide-react';
@@ -66,7 +67,7 @@ export const FleetAnalytics: React.FC<FleetAnalyticsProps> = ({ showToast }) => 
   const fetchFleetAnalytics = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v2/fleet/analytics');
+      const response = await fetch(getApiUrl('/api/v2/fleet/analytics'));
       if (response.ok) {
         const result = await response.json();
         if (result.total_machines > 0) {

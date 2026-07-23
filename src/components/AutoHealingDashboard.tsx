@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { getApiUrl } from '../utils/apiConfig';
 import { 
   RefreshCw, ToggleLeft, ToggleRight, Terminal, CheckCircle, XCircle, Zap, HardDrive, Play
 } from 'lucide-react';
@@ -48,12 +49,12 @@ export const AutoHealingDashboard: React.FC<AutoHealingDashboardProps> = ({ show
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const policyRes = await fetch('http://localhost:8000/api/v2/self-healing/policies');
+      const policyRes = await fetch(getApiUrl('/api/v2/self-healing/policies'));
       if (policyRes.ok) {
         setPolicies(await policyRes.json());
       }
       
-      const runsRes = await fetch('http://localhost:8000/api/v2/self-healing/runs');
+      const runsRes = await fetch(getApiUrl('/api/v2/self-healing/runs'));
       if (runsRes.ok) {
         setRuns(await runsRes.json());
       }

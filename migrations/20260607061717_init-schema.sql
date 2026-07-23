@@ -84,23 +84,23 @@ ALTER TABLE domain_scores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE findings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE remediation_plans ENABLE ROW LEVEL SECURITY;
 
--- Configure RLS Policies matching user tenant_id claim or auth bypass
+-- Configure RLS Policies matching user tenant_id claim
 CREATE POLICY tenant_isolation_policy ON machines
     FOR ALL
-    USING (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL)
-    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL);
+    USING (tenant_id = (auth.jwt() ->> 'tenant_id'))
+    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id'));
 
 CREATE POLICY tenant_isolation_policy ON domain_scores
     FOR ALL
-    USING (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL)
-    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL);
+    USING (tenant_id = (auth.jwt() ->> 'tenant_id'))
+    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id'));
 
 CREATE POLICY tenant_isolation_policy ON findings
     FOR ALL
-    USING (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL)
-    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL);
+    USING (tenant_id = (auth.jwt() ->> 'tenant_id'))
+    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id'));
 
 CREATE POLICY tenant_isolation_policy ON remediation_plans
     FOR ALL
-    USING (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL)
-    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id') OR auth.jwt() IS NULL);
+    USING (tenant_id = (auth.jwt() ->> 'tenant_id'))
+    WITH CHECK (tenant_id = (auth.jwt() ->> 'tenant_id'));
