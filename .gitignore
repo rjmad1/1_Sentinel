@@ -26,6 +26,7 @@ dist-ssr
 # Test and Lint artifacts
 test-results/
 lint_output.txt
+tests/golden-datasets/temp/
 
 
 .vercel

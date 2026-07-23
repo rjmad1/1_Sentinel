@@ -649,8 +649,9 @@ export const TimelineComponent: React.FC<TimelineComponentProps> = ({
         {/* Data Line Path */}
         {(() => {
           const points = historyData.map((run, idx) => {
+            const health = typeof run.OverallHealth === 'number' && !isNaN(run.OverallHealth) ? run.OverallHealth : 0;
             const x = 60 + (idx / Math.max(1, historyData.length - 1)) * 480;
-            const y = 210 - (run.OverallHealth / 100) * 180;
+            const y = 210 - (health / 100) * 180;
             return { x, y };
           });
           const dAttr = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
@@ -667,11 +668,12 @@ export const TimelineComponent: React.FC<TimelineComponentProps> = ({
 
         {/* Data Dots & Text Labels */}
         {historyData.map((run, idx) => {
+          const health = typeof run.OverallHealth === 'number' && !isNaN(run.OverallHealth) ? run.OverallHealth : 0;
           const x = 60 + (idx / Math.max(1, historyData.length - 1)) * 480;
-          const y = 210 - (run.OverallHealth / 100) * 180;
-          const dateStr = new Date(run.Timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          const y = 210 - (health / 100) * 180;
+          const dateStr = run.Timestamp ? new Date(run.Timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'N/A';
           return (
-            <g key={run.AssessmentId}>
+            <g key={run.AssessmentId || idx}>
               <circle cx={x} cy={y} r="8" fill="#3B82F6" opacity="0.1" />
               <circle
                 cx={x}
@@ -687,7 +689,7 @@ export const TimelineComponent: React.FC<TimelineComponentProps> = ({
               />
               <text x={x} y="225" fill="rgba(255,255,255,0.4)" fontSize="9" textAnchor="middle">{dateStr}</text>
               <text x={x} y={y - 12} fill="rgba(255,255,255,0.9)" fontSize="10" fontWeight="bold" textAnchor="middle" style={{ fontFamily: 'monospace' }}>
-                {run.OverallHealth.toFixed(1)}
+                {health.toFixed(1)}
               </text>
             </g>
           );

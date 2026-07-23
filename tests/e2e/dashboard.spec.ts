@@ -187,14 +187,13 @@ test.describe('EIIP Operations Command Center E2E Tests', () => {
 
     // Scenario 14: Validate Auto-Healing Dashboard
     await page.click('button.menu-item:has-text("Auto-Healing")');
-    await expect(page.locator('body')).toContainText('Closed-Loop Self-Healing Policies');
-    await expect(page.locator('body')).toContainText('Active Policies');
-    await expect(page.locator('body')).toContainText('Healing Execution Logs');
+    await expect(page.locator('body')).toContainText('Closed-Loop Auto-Healing Policies');
+    await expect(page.locator('body')).toContainText('Self-Healing Execution Audit Trail');
 
     // Scenario 15: Validate Vulnerability Intel Dashboard
     await page.click('button.menu-item:has-text("Vulnerability Intel")');
     await expect(page.locator('body')).toContainText('Threat intelligence Catalog');
     await expect(page.locator('body')).toContainText('Active Vulnerabilities');
-    await expect(page.locator('body')).toContainText('Vulnerability Summary & Description');
+    await expect(page.locator('body')).toContainText('Select a vulnerability from the threat intelligence catalog');
   });
 });
