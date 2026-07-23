@@ -26,6 +26,10 @@ import { AutoHealingDashboard } from './components/AutoHealingDashboard';
 import { VulnerabilityThreatIntel } from './components/VulnerabilityThreatIntel';
 import { WorkspaceManager } from './components/WorkspaceManager';
 import { RefreshAssessmentModal } from './components/modals/RefreshAssessmentModal';
+import { CommandPaletteModal } from './components/modals/CommandPaletteModal';
+import { WebhookSettingsModal } from './components/modals/WebhookSettingsModal';
+import { LocalAICopilot } from './components/LocalAICopilot';
+import { exportExecutiveReportPDFHTML } from './utils/executiveReportExporter';
 import { runAssessment, buildRemediationDashboard } from './utils/assessmentEngine';
 import {
   saveAssessment,
@@ -109,6 +113,8 @@ function DashboardCommandCenter() {
   // Console logging state & modal control state
   const [consoleErrors, setConsoleErrors] = useState<string[]>([]);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
 
   // --- Toast Notification System ---
   const showToast = useCallback((message: string, type: 'success' | 'info' | 'warning' | 'error') => {
@@ -122,6 +128,11 @@ function DashboardCommandCenter() {
   // --- Keyboard Shortcuts ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+        return;
+      }
       if (e.altKey && e.key >= '1' && e.key <= '9') {
         const tabs: Array<'overview' | 'auditor' | 'remediation' | 'software' | 'forecasting' | 'topology' | 'importer' | 'ai' | 'system-status'> = [
           'overview', 'auditor', 'remediation', 'software', 
@@ -4295,6 +4306,20 @@ ${capacityInfo}
             />
           )}
 
+          {/* 9.5 LOCAL AI COPILOT */}
+          {activeTab === 'ai' && (
+            <LocalAICopilot
+              environment={envDataState}
+              healthScore={healthScoreDataState?.OverallHealthScore || 85}
+              findings={findingsData}
+              softwareCatalog={activeAssessmentSoftware}
+              onApplyRemediationScript={(scriptName) => {
+                showToast(`Pushed '${scriptName}' to Auto-Healing Policy Engine.`, 'success');
+                setActiveTab('coming-soon-healing' as any);
+              }}
+            />
+          )}
+
           {/* 10. COMING SOON PAGES */}
           {activeTab.startsWith('coming-soon-') && (
             activeTab === 'coming-soon-healing' ? (
@@ -4312,6 +4337,37 @@ ${capacityInfo}
       </main>
     </div>
     
+    <CommandPaletteModal
+      isOpen={isCommandPaletteOpen}
+      onClose={() => setIsCommandPaletteOpen(false)}
+      onSelectTab={(tab) => setActiveTab(tab as any)}
+      onTriggerScan={() => setIsRefreshModalOpen(true)}
+      onExportAIPackage={() => setIsExportWarningOpen(true)}
+      onExportExecutiveReport={() => {
+        exportExecutiveReportPDFHTML({
+          environment: envDataState,
+          healthScore: healthScoreDataState?.OverallHealthScore || 85,
+          findings: findingsData,
+          softwareCatalog: activeAssessmentSoftware,
+          riskMatrix: riskMatrixData,
+          capacityForecast: capacityForecastDataState ? [capacityForecastDataState] : []
+        });
+      }}
+      onOpenWebhooks={() => setIsWebhookModalOpen(true)}
+      softwareItems={activeAssessmentSoftware.map((s: any) => ({
+        name: s.Name || s.Name || 'Package',
+        version: s.Version || '1.0.0',
+        manager: s.Source || 'Winget'
+      }))}
+      findingsCount={findingsData.length}
+    />
+
+    <WebhookSettingsModal
+      isOpen={isWebhookModalOpen}
+      onClose={() => setIsWebhookModalOpen(false)}
+      onShowToast={showToast}
+    />
+
     {isRefreshModalOpen && (
       <RefreshAssessmentModal
         onClose={() => setIsRefreshModalOpen(false)}

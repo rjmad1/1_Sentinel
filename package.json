@@ -10,8 +10,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:unit": "pwsh -NoProfile -ExecutionPolicy Bypass -Command \"Invoke-Pester -Path tests/unit\"",
-    "test:integration": "pwsh -NoProfile -ExecutionPolicy Bypass -Command \"Invoke-Pester -Path tests/integration\"",
+    "test:unit": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Invoke-Pester -Path tests/unit\"",
+    "test:integration": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Invoke-Pester -Path tests/integration\"",
     "test:e2e": "npx playwright test",
     "test:evaluate": "node tests/intelligence/evaluateRelease.js"
   },
