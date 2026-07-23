@@ -31,9 +31,118 @@ class Database:
             logger.info("Initializing PostgreSQL database connection pool...")
             self.pool = await asyncpg.create_pool(DATABASE_URL, command_timeout=5, timeout=5)
             logger.info("PostgreSQL database connection pool initialized successfully.")
+            await self._init_schema()
         except Exception as e:
             logger.warning(f"Failed to create database connection pool: {e}. Operating with in-memory fallback state.")
             self.pool = None
+
+    async def _init_schema(self):
+        if not self.pool:
+            return
+        try:
+            async with self.pool.acquire() as conn:
+                await conn.execute("""
+                CREATE TABLE IF NOT EXISTS machines (
+                    machine_id VARCHAR PRIMARY KEY,
+                    computer_name VARCHAR,
+                    domain VARCHAR,
+                    platform VARCHAR,
+                    architecture VARCHAR,
+                    hypervisor VARCHAR,
+                    bios_serial VARCHAR,
+                    mac_address VARCHAR,
+                    os_caption VARCHAR,
+                    os_version VARCHAR,
+                    os_install_date VARCHAR,
+                    os_last_boot_time VARCHAR,
+                    logical_cores INT,
+                    physical_processors INT,
+                    total_memory_gb DOUBLE PRECISION,
+                    free_memory_gb DOUBLE PRECISION,
+                    tenant_id VARCHAR DEFAULT 'default-tenant',
+                    site_id VARCHAR DEFAULT 'default-site',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE TABLE IF NOT EXISTS domain_scores (
+                    id VARCHAR PRIMARY KEY,
+                    machine_id VARCHAR,
+                    performance_score DOUBLE PRECISION,
+                    security_score DOUBLE PRECISION,
+                    reliability_score DOUBLE PRECISION,
+                    scalability_score DOUBLE PRECISION,
+                    serviceability_score DOUBLE PRECISION,
+                    usability_score DOUBLE PRECISION,
+                    overall_health_score DOUBLE PRECISION,
+                    data JSONB,
+                    tenant_id VARCHAR DEFAULT 'default-tenant',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE TABLE IF NOT EXISTS findings (
+                    id VARCHAR PRIMARY KEY,
+                    machine_id VARCHAR,
+                    assessment_id VARCHAR,
+                    finding_id VARCHAR,
+                    category VARCHAR,
+                    domain VARCHAR,
+                    severity VARCHAR,
+                    confidence VARCHAR,
+                    priority INT,
+                    title VARCHAR,
+                    description TEXT,
+                    evidence JSONB,
+                    impact TEXT,
+                    business_risk TEXT,
+                    root_cause_hypothesis TEXT,
+                    recommended_remediation TEXT,
+                    estimated_effort VARCHAR,
+                    verification_method VARCHAR,
+                    status VARCHAR DEFAULT 'open',
+                    tenant_id VARCHAR DEFAULT 'default-tenant',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE TABLE IF NOT EXISTS self_healing_policies (
+                    finding_id VARCHAR PRIMARY KEY,
+                    enabled BOOLEAN DEFAULT FALSE,
+                    execution_mode VARCHAR DEFAULT 'autonomous',
+                    tenant_id VARCHAR DEFAULT 'default-tenant',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE TABLE IF NOT EXISTS self_healing_runs (
+                    id VARCHAR PRIMARY KEY,
+                    machine_id VARCHAR,
+                    finding_id VARCHAR,
+                    status VARCHAR,
+                    error_message TEXT,
+                    stdout TEXT,
+                    stderr TEXT,
+                    computer_name VARCHAR,
+                    vss_snapshot_id VARCHAR,
+                    tenant_id VARCHAR DEFAULT 'default-tenant',
+                    executed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE TABLE IF NOT EXISTS vulnerabilities (
+                    cve_id VARCHAR PRIMARY KEY,
+                    package_name VARCHAR,
+                    version_pattern VARCHAR,
+                    severity VARCHAR,
+                    cvss_score DOUBLE PRECISION,
+                    summary TEXT,
+                    remediation_suggestion TEXT,
+                    tenant_id VARCHAR DEFAULT 'default-tenant',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                INSERT INTO vulnerabilities (cve_id, package_name, version_pattern, severity, cvss_score, summary, remediation_suggestion)
+                VALUES 
+                ('CVE-2023-27043', 'Python', '<3.11.5', 'High', 7.5, 'Email address parsing vulnerability in email.utils.parseaddr.', 'Upgrade to Python 3.11.5 or newer.'),
+                ('CVE-2023-32002', 'Node.js', '<20.5.0', 'Medium', 6.5, 'Permission model bypass via module.constructor.createRequire().', 'Upgrade Node.js to version 20.5.0 or newer.'),
+                ('CVE-2023-29007', 'Git', '<2.41.0.3', 'High', 8.1, 'Arbitrary configuration injection via git submodule deinit.', 'Upgrade Git to version 2.41.0.3 or newer.'),
+                ('CVE-2023-44487', 'Nginx', '<1.25.3', 'High', 7.5, 'HTTP/2 Rapid Reset DDoS vulnerability (flood of stream resets).', 'Upgrade Nginx to version 1.25.3 or newer.')
+                ON CONFLICT (cve_id) DO NOTHING;
+                """)
+        except Exception as e:
+            logger.warning(f"Schema initialization warning: {e}")
 
     async def close(self):
         if self.pool:
