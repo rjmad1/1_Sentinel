@@ -750,8 +750,11 @@ export function runCorrelationAssessment(findings: Finding[]): Finding[] {
   return correlations;
 }
 
-export function runAssessment(environment: { ExecutionMode?: string }, rawEvidence: EvidenceRecord[]): AssessmentResult {
-  const executionMode = environment.ExecutionMode || 'Audit';
+export function runAssessment(environment: Record<string, unknown> = {}, rawEvidence: EvidenceRecord[] = []): AssessmentResult {
+  const executionMode = (environment?.ExecutionMode as string) || 'Audit';
+  if (!Array.isArray(rawEvidence)) {
+    rawEvidence = [];
+  }
 
   let findings: Finding[] = [];
   findings.push(...runPerformanceAssessment(rawEvidence));

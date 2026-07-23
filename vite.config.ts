@@ -9,6 +9,7 @@ function backgroundDaemon() {
   return {
     name: 'background-daemon',
     configureServer() {
+      if (process.env.VITEST) return;
       console.log('Starting Sentinel background collector daemon...');
       const daemonScript = path.resolve(__dirname, 'collector/daemon/daemon.cjs');
       const daemonProcess = spawn('node', [daemonScript], {
@@ -41,4 +42,9 @@ function backgroundDaemon() {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tsconfigPaths(), backgroundDaemon()],
-})
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['tests/unit/**/*.test.ts']
+  }
+} as any)

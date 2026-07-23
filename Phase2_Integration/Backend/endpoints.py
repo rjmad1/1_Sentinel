@@ -16,6 +16,12 @@ logger = logging.getLogger("eiip-endpoints")
 
 router = APIRouter(prefix="/api/v2")
 
+from .routers import discovery, assessments, fleet, self_healing_router
+router.include_router(discovery.router)
+router.include_router(assessments.router)
+router.include_router(fleet.router)
+router.include_router(self_healing_router.router)
+
 # Dependency injector to resolve NatsManager from FastAPI app state
 async def get_nats(request: Request) -> NatsManager:
     return request.app.state.nats_manager

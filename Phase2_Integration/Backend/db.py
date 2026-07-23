@@ -133,6 +133,14 @@ class Database:
                     tenant_id VARCHAR DEFAULT 'default-tenant',
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    id VARCHAR PRIMARY KEY,
+                    action VARCHAR NOT NULL,
+                    actor VARCHAR NOT NULL,
+                    details JSONB,
+                    tenant_id VARCHAR DEFAULT 'default-tenant',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
                 INSERT INTO vulnerabilities (cve_id, package_name, version_pattern, severity, cvss_score, summary, remediation_suggestion)
                 VALUES 
                 ('CVE-2023-27043', 'Python', '<3.11.5', 'High', 7.5, 'Email address parsing vulnerability in email.utils.parseaddr.', 'Upgrade to Python 3.11.5 or newer.'),
@@ -143,6 +151,19 @@ class Database:
                 """)
         except Exception as e:
             logger.warning(f"Schema initialization warning: {e}")
+
+    async def record_audit_log(self, action: str, actor: str, details: dict = None, tenant_id: str = "default-tenant"):
+        import uuid
+        import json
+        log_id = str(uuid.uuid4())
+        details_json = json.dumps(details or {})
+        try:
+            await self.execute("""
+                INSERT INTO audit_logs (id, action, actor, details, tenant_id)
+                VALUES ($1, $2, $3, $4, $5)
+            """, log_id, action, actor, details_json, tenant_id)
+        except Exception as e:
+            logger.error(f"Failed to record audit log: {e}")
 
     async def close(self):
         if self.pool:

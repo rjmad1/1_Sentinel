@@ -45,10 +45,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserPayload:
         )
 
     try:
-        # Decode token without verification first to inspect payload (in production, verify with JWKS)
-        payload = jwt.decode(token, options={"verify_signature": False})
+        # Decode token with signature verification when secret key is provided
+        jwt_secret = os.getenv("SENTINEL_JWT_SECRET") or os.getenv("JWT_SECRET_KEY")
+        algorithms = [os.getenv("JWT_ALGORITHM", "HS256")]
         
-        username = payload.get("preferred_username", "anonymous")
+        if jwt_secret:
+            payload = jwt.decode(token, jwt_secret, algorithms=algorithms, options={"verify_signature": True})
+        else:
+            # Decode token with algorithm inspection (in production with Keycloak, use JWKS URL or configured secret)
+            payload = jwt.decode(token, options={"verify_signature": True if not DEVELOPMENT_MODE else False}, algorithms=["HS256", "RS256"])
+        
+        username = payload.get("preferred_username") or payload.get("sub") or "anonymous"
         tenant_id = payload.get("tenant_id", "default-tenant")
         
         # Keycloak maps client/realm roles in resource_access or realm_access claims
@@ -57,11 +64,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserPayload:
 
         logger.info(f"Authenticated user: {username} (tenant: {tenant_id}, roles: {roles})")
         return UserPayload(username=username, roles=roles, tenant_id=tenant_id)
-    except Exception as e:
-        logger.error(f"JWT decode error: {e}")
+    except jwt.ExpiredSignatureError:
+        logger.error("JWT token has expired.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.PyJWTError as e:
+        logger.error(f"JWT validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as e:
+        logger.error(f"Authentication error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -79,3 +100,4 @@ def require_role(required_role: str):
             )
         return user
     return role_checker
+
