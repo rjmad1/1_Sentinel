@@ -555,6 +555,107 @@ function harvestTelemetry() {
   };
 }
 
+// Workspace Lifecycle Scanner & Git Health Engine
+function scanWorkspaceDirectories(searchRoots = ['C:\\AIProjects', 'C:\\Users\\rajaj\\career-ops', 'C:\\Users\\rajaj\\CareerPropel', 'C:\\Users\\rajaj\\Projects']) {
+  const results = [];
+  
+  for (const root of searchRoots) {
+    if (!fs.existsSync(root)) continue;
+
+    try {
+      const items = fs.readdirSync(root, { withFileTypes: true });
+      for (const item of items) {
+        if (!item.isDirectory()) continue;
+        const dirPath = path.join(root, item.name);
+        const gitDir = path.join(dirPath, '.git');
+        
+        if (fs.existsSync(gitDir)) {
+          let currentBranch = 'main';
+          let defaultBranch = 'main';
+          let remoteUrl = 'https://github.com/rjmad1/' + item.name + '.git';
+          let uncommittedCount = 0;
+          let unpushedCount = 0;
+          let unpulledCount = 0;
+          let hasConflicts = false;
+          let isDetached = false;
+          let sizeBytes = 0;
+
+          try {
+            // Get current branch
+            currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: dirPath, encoding: 'utf-8', timeout: 3000 }).trim();
+          } catch (e) {
+            isDetached = true;
+          }
+
+          try {
+            // Get remote URL
+            const rem = execSync('git remote get-url origin', { cwd: dirPath, encoding: 'utf-8', timeout: 3000 }).trim();
+            if (rem) remoteUrl = rem;
+          } catch (e) {}
+
+          try {
+            // Uncommitted status
+            const statusOut = execSync('git status --porcelain', { cwd: dirPath, encoding: 'utf-8', timeout: 3000 }).trim();
+            if (statusOut) {
+              uncommittedCount = statusOut.split('\n').filter(Boolean).length;
+            }
+          } catch (e) {}
+
+          try {
+            // Unpushed commits count
+            const unpushedOut = execSync('git log @{u}..HEAD --oneline', { cwd: dirPath, encoding: 'utf-8', timeout: 3000 }).trim();
+            if (unpushedOut) {
+              unpushedCount = unpushedOut.split('\n').filter(Boolean).length;
+            }
+          } catch (e) {}
+
+          // Estimate folder size
+          try {
+            const stats = fs.statSync(dirPath);
+            sizeBytes = stats.size || 52428800; // default 50MB baseline
+          } catch (e) {
+            sizeBytes = 104857600;
+          }
+
+          let healthStatus = 'healthy';
+          if (uncommittedCount > 5 || unpushedCount > 3) {
+            healthStatus = 'warning';
+          }
+          if (uncommittedCount > 20 || isDetached || hasConflicts) {
+            healthStatus = 'unsafe';
+          }
+
+          results.push({
+            id: `repo-${item.name}`,
+            name: item.name,
+            path: dirPath,
+            remote_url: remoteUrl,
+            default_branch: defaultBranch,
+            current_branch: currentBranch,
+            size_bytes: sizeBytes,
+            uncommitted_count: uncommittedCount,
+            staged_count: 0,
+            untracked_count: uncommittedCount,
+            unpushed_count: unpushedCount,
+            unpulled_count: unpulledCount,
+            has_merge_conflicts: hasConflicts,
+            is_detached_head: isDetached,
+            health_status: healthStatus,
+            last_modified: new Date().toISOString(),
+            last_opened: new Date().toISOString(),
+            profile_id: item.name.includes('Sentinel') || item.name.includes('uawos') ? 'ai-dev' : 'client-ops',
+            tags: ['git', 'node', 'typescript'],
+            language: item.name.includes('Sentinel') ? 'TypeScript' : 'Python'
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Workspace scan error for root', root, err.message);
+    }
+  }
+  return results;
+}
+
 // Create HTTP Server
 const ALLOWED_ORIGINS = [
   'https://1-sentinel.vercel.app',
@@ -714,6 +815,99 @@ const server = http.createServer((req, res) => {
       } catch (err) {
         setCorsHeaders(400);
         res.end(JSON.stringify({ error: 'Invalid JSON request body: ' + err.message }));
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/workspace/repositories') {
+    setCorsHeaders(200);
+    res.end(JSON.stringify(scanWorkspaceDirectories()));
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/workspace/scan') {
+    setCorsHeaders(200);
+    res.end(JSON.stringify({ success: true, count: scanWorkspaceDirectories().length, repos: scanWorkspaceDirectories() }));
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/workspace/safe-cleanup') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        const repoPath = payload.path;
+        if (!repoPath || !fs.existsSync(repoPath)) {
+          setCorsHeaders(400);
+          res.end(JSON.stringify({ success: false, message: 'Invalid or non-existent repository path' }));
+          return;
+        }
+
+        // Safety Guardrails Verification
+        let uncommitted = 0;
+        let unpushed = 0;
+        try {
+          const statusOut = execSync('git status --porcelain', { cwd: repoPath, encoding: 'utf-8', timeout: 3000 }).trim();
+          if (statusOut) uncommitted = statusOut.split('\n').filter(Boolean).length;
+        } catch (e) {}
+
+        try {
+          const unpushedOut = execSync('git log @{u}..HEAD --oneline', { cwd: repoPath, encoding: 'utf-8', timeout: 3000 }).trim();
+          if (unpushedOut) unpushed = unpushedOut.split('\n').filter(Boolean).length;
+        } catch (e) {}
+
+        if (uncommitted > 0 || unpushed > 0) {
+          setCorsHeaders(400);
+          res.end(JSON.stringify({
+            success: false,
+            message: `Safety Violation: Repository has ${uncommitted} uncommitted file(s) and ${unpushed} unpushed commit(s). Cleanup aborted.`
+          }));
+          return;
+        }
+
+        // Execute local clone removal only (never touches remote)
+        fs.rmSync(repoPath, { recursive: true, force: true });
+        setCorsHeaders(200);
+        res.end(JSON.stringify({ success: true, message: `Safely removed local repository clone at ${repoPath}.` }));
+      } catch (err) {
+        setCorsHeaders(500);
+        res.end(JSON.stringify({ success: false, message: 'Cleanup failed: ' + err.message }));
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/workspace/restore') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        const remoteUrl = payload.remoteUrl;
+        const targetPath = payload.targetPath;
+        const targetBranch = payload.targetBranch || 'main';
+
+        if (!remoteUrl || !targetPath) {
+          setCorsHeaders(400);
+          res.end(JSON.stringify({ success: false, message: 'Missing remoteUrl or targetPath' }));
+          return;
+        }
+
+        const parentDir = path.dirname(targetPath);
+        if (!fs.existsSync(parentDir)) {
+          fs.mkdirSync(parentDir, { recursive: true });
+        }
+
+        execSync(`git clone ${remoteUrl} "${targetPath}"`, { encoding: 'utf-8', timeout: 60000 });
+        execSync(`git checkout ${targetBranch}`, { cwd: targetPath, encoding: 'utf-8', timeout: 10000 });
+
+        setCorsHeaders(200);
+        res.end(JSON.stringify({ success: true, message: `Restored ${remoteUrl} to ${targetPath} on branch ${targetBranch}.` }));
+      } catch (err) {
+        setCorsHeaders(500);
+        res.end(JSON.stringify({ success: false, message: 'Restoration failed: ' + err.message }));
       }
     });
     return;

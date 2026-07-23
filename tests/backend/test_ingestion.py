@@ -1,5 +1,6 @@
 import sys
 import os
+os.environ["DEVELOPMENT_MODE"] = "true"
 from fastapi.testclient import TestClient
 
 # Ensure Phase2_Integration is on the system path

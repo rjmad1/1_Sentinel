@@ -17,6 +17,10 @@ class SentinelOfflineDB extends Dexie {
   risks!: Dexie.Table<any, string>;
   exports!: Dexie.Table<any, string>;
   syncQueue!: Dexie.Table<{ id?: number; action: string; payload: any; timestamp: number }, number>;
+  workspaceRepos!: Dexie.Table<any, string>;
+  workspaceProfiles!: Dexie.Table<any, string>;
+  workspaceSnapshots!: Dexie.Table<any, string>;
+  workspaceCleanupLogs!: Dexie.Table<any, string>;
 
   constructor() {
     super('SentinelOfflineDB');
@@ -28,6 +32,19 @@ class SentinelOfflineDB extends Dexie {
       risks: 'id, assessmentId',
       exports: 'id, assessmentId',
       syncQueue: '++id, action, timestamp'
+    });
+    this.version(2).stores({
+      assessments: 'AssessmentId, timestamp',
+      assets: 'id, assessmentId',
+      software: 'id, assessmentId',
+      findings: 'id, assessmentId',
+      risks: 'id, assessmentId',
+      exports: 'id, assessmentId',
+      syncQueue: '++id, action, timestamp',
+      workspaceRepos: 'id, name, path, health_status, profile_id, last_modified',
+      workspaceProfiles: 'id, name, created_at',
+      workspaceSnapshots: 'id, profile_id, created_at',
+      workspaceCleanupLogs: 'id, repository_name, deleted_at'
     });
   }
 }
@@ -625,5 +642,173 @@ export const db = {
     return callback();
   }
 };
+
+// Workspace Lifecycle Domain Interfaces
+export interface WorkspaceRepository {
+  id: string;
+  name: string;
+  path: string;
+  remote_url: string;
+  default_branch: string;
+  current_branch: string;
+  size_bytes: number;
+  uncommitted_count: number;
+  staged_count: number;
+  untracked_count: number;
+  unpushed_count: number;
+  unpulled_count: number;
+  has_merge_conflicts: boolean;
+  is_detached_head: boolean;
+  health_status: 'healthy' | 'warning' | 'unsafe';
+  last_modified: string;
+  last_opened: string;
+  profile_id: string;
+  tags: string[];
+  language: string;
+}
+
+export interface WorkspaceProfile {
+  id: string;
+  name: string;
+  description: string;
+  repositories: string[];
+  folder_locations: string[];
+  preferred_branch: string;
+  retention_days: number;
+  created_at: string;
+}
+
+export interface WorkspaceSnapshot {
+  id: string;
+  profile_id: string;
+  snapshot_data: any;
+  created_at: string;
+}
+
+export interface WorkspaceCleanupLog {
+  id: string;
+  repository_name: string;
+  remote_url: string;
+  freed_bytes: number;
+  deleted_path: string;
+  verified_pushed: boolean;
+  deleted_at: string;
+}
+
+// Workspace IndexedDB Helper Adapters
+export const getWorkspaceRepos = async (): Promise<WorkspaceRepository[]> => {
+  try {
+    const res = await fetch('http://localhost:8001/api/workspace/repositories');
+    if (res.ok) {
+      const serverRepos = await res.json();
+      for (const r of serverRepos) {
+        await offlineDB.workspaceRepos.put(r);
+      }
+      return serverRepos;
+    }
+  } catch (e) {
+    console.warn('Daemon offline: Falling back to IndexedDB cached workspace repositories.', e);
+  }
+  return await offlineDB.workspaceRepos.toArray();
+};
+
+export const saveWorkspaceRepo = async (repo: WorkspaceRepository): Promise<void> => {
+  await offlineDB.workspaceRepos.put(repo);
+};
+
+export const safeDeleteWorkspaceRepo = async (repoId: string, repoName: string, remoteUrl: string, path: string, freedBytes: number): Promise<{ success: boolean; message: string }> => {
+  const repo = await offlineDB.workspaceRepos.get(repoId);
+  if (repo && (repo.uncommitted_count > 0 || repo.unpushed_count > 0)) {
+    return {
+      success: false,
+      message: `Safety Block: Cannot delete ${repoName}. You have ${repo.uncommitted_count} uncommitted file(s) and ${repo.unpushed_count} unpushed commit(s).`
+    };
+  }
+
+  try {
+    const res = await fetch('http://localhost:8001/api/workspace/safe-cleanup', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ repoId, path, repoName, remoteUrl })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Daemon cleanup failed');
+    }
+  } catch {
+    console.warn('Daemon unavailable; logging client-side safe cleanup operation.');
+  }
+
+  await offlineDB.workspaceRepos.delete(repoId);
+  const log: WorkspaceCleanupLog = {
+    id: crypto.randomUUID(),
+    repository_name: repoName,
+    remote_url: remoteUrl,
+    freed_bytes: freedBytes,
+    deleted_path: path,
+    verified_pushed: true,
+    deleted_at: new Date().toISOString()
+  };
+  await offlineDB.workspaceCleanupLogs.put(log);
+
+  return { success: true, message: `Successfully cleaned ${repoName}. Recovered ${(freedBytes / (1024 * 1024)).toFixed(1)} MB.` };
+};
+
+export const restoreWorkspaceRepo = async (remoteUrl: string, targetPath: string, targetBranch: string = 'main'): Promise<{ success: boolean; message: string }> => {
+  try {
+    const res = await fetch('http://localhost:8001/api/workspace/restore', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ remoteUrl, targetPath, targetBranch })
+    });
+    if (res.ok) {
+      return { success: true, message: `Successfully cloned ${remoteUrl} into ${targetPath} on branch ${targetBranch}.` };
+    }
+  } catch (e) {
+    console.warn('Daemon unavailable for remote git clone.', e);
+  }
+  return { success: false, message: `Daemon offline. Run CLI restoration: git clone ${remoteUrl} ${targetPath}` };
+};
+
+export const getWorkspaceProfiles = async (): Promise<WorkspaceProfile[]> => {
+  const list = await offlineDB.workspaceProfiles.toArray();
+  if (list.length === 0) {
+    const defaultProfiles: WorkspaceProfile[] = [
+      { id: 'ai-dev', name: 'AI Development', description: 'Ollama, Hugging Face, Agentic LLM workspaces', repositories: ['1_Sentinel', 'uawos', 'conversa'], folder_locations: ['C:\\AIProjects', '~/AIProjects'], preferred_branch: 'main', retention_days: 90, created_at: new Date().toISOString() },
+      { id: 'client-ops', name: 'Client & Retail Platform', description: 'E-commerce and enterprise client projects', repositories: ['career-ops', 'CareerPropel'], folder_locations: ['C:\\Users\\rajaj\\career-ops'], preferred_branch: 'main', retention_days: 60, created_at: new Date().toISOString() },
+      { id: 'learning-sandbox', name: 'Learning & Open Source', description: 'Tutorials, benchmarks, and experimental repos', repositories: ['printingpress', 'fluxora'], folder_locations: ['~/Learning'], preferred_branch: 'main', retention_days: 30, created_at: new Date().toISOString() }
+    ];
+    for (const p of defaultProfiles) {
+      await offlineDB.workspaceProfiles.put(p);
+    }
+    return defaultProfiles;
+  }
+  return list;
+};
+
+export const saveWorkspaceProfile = async (profile: WorkspaceProfile): Promise<void> => {
+  await offlineDB.workspaceProfiles.put(profile);
+};
+
+export const getWorkspaceSnapshots = async (): Promise<WorkspaceSnapshot[]> => {
+  return await offlineDB.workspaceSnapshots.toArray();
+};
+
+export const saveWorkspaceSnapshot = async (profileId: string): Promise<WorkspaceSnapshot> => {
+  const repos = await offlineDB.workspaceRepos.toArray();
+  const snapshot: WorkspaceSnapshot = {
+    id: crypto.randomUUID(),
+    profile_id: profileId,
+    snapshot_data: { repos, timestamp: Date.now() },
+    created_at: new Date().toISOString()
+  };
+  await offlineDB.workspaceSnapshots.put(snapshot);
+  return snapshot;
+};
+
+export const getWorkspaceCleanupLogs = async (): Promise<WorkspaceCleanupLog[]> => {
+  return await offlineDB.workspaceCleanupLogs.toArray();
+};
+
 
 

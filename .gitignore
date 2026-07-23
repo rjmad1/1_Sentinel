@@ -49,3 +49,7 @@ lint_output.txt
 __pycache__/
 *.pyc
 
+# Rust / Tauri build artifacts
+src-tauri/target/
+
+

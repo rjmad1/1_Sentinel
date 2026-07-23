@@ -89,7 +89,7 @@ export const AutoHealingDashboard: React.FC<AutoHealingDashboardProps> = ({ show
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, []);
 
   useEffect(() => {
     fetchData();

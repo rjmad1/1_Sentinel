@@ -9,8 +9,8 @@ logger = logging.getLogger("eiip-auth")
 # Token endpoint reference
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
-# Development bypass flag
-DEVELOPMENT_MODE = os.getenv("DEVELOPMENT_MODE", "true").lower() == "true"
+# Development bypass flag (defaults to False for production security)
+DEVELOPMENT_MODE = os.getenv("DEVELOPMENT_MODE", "false").lower() == "true"
 
 # Try to import jwt for signature decoding
 try:

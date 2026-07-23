@@ -292,46 +292,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           </Flex>
         </form>
 
-        <Box mt="6" borderTop="1px solid rgba(255,255,255,0.1)" pt="4">
-          <Text fontSize="11px" color="text.muted" mb="3">
-            Developer / Local Offline Testing
-          </Text>
-          <Flex gap="2">
-            <Button 
-              variant="outline" 
-              size="xs" 
-              flex="1" 
-              borderColor="rgba(6,182,212,0.3)"
-              color="#06B6D4"
-              _hover={{ bg: 'rgba(6,182,212,0.05)', borderColor: '#06B6D4' }}
-              onClick={() => bypassAuth('admin')}
-            >
-              Bypass (Admin)
-            </Button>
-            <Button 
-              variant="outline" 
-              size="xs" 
-              flex="1" 
-              borderColor="rgba(245,158,11,0.3)"
-              color="#F5A524"
-              _hover={{ bg: 'rgba(245,158,11,0.05)', borderColor: '#F5A524' }}
-              onClick={() => bypassAuth('operator')}
-            >
-              Bypass (Operator)
-            </Button>
-            <Button 
-              variant="outline" 
-              size="xs" 
-              flex="1" 
-              borderColor="rgba(255,255,255,0.15)"
-              color="text.secondary"
-              _hover={{ bg: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.3)' }}
-              onClick={() => bypassAuth('auditor')}
-            >
-              Bypass (Auditor)
-            </Button>
-          </Flex>
-        </Box>
+        {(import.meta.env.DEV || IS_E2E) && (
+          <Box mt="6" borderTop="1px solid rgba(255,255,255,0.1)" pt="4">
+            <Text fontSize="11px" color="text.muted" mb="3">
+              Developer / Local Offline Testing
+            </Text>
+            <Flex gap="2">
+              <Button 
+                variant="outline" 
+                size="xs" 
+                flex="1" 
+                borderColor="rgba(6,182,212,0.3)"
+                color="#06B6D4"
+                _hover={{ bg: 'rgba(6,182,212,0.05)', borderColor: '#06B6D4' }}
+                onClick={() => bypassAuth('admin')}
+              >
+                Bypass (Admin)
+              </Button>
+              <Button 
+                variant="outline" 
+                size="xs" 
+                flex="1" 
+                borderColor="rgba(245,158,11,0.3)"
+                color="#F5A524"
+                _hover={{ bg: 'rgba(245,158,11,0.05)', borderColor: '#F5A524' }}
+                onClick={() => bypassAuth('operator')}
+              >
+                Bypass (Operator)
+              </Button>
+              <Button 
+                variant="outline" 
+                size="xs" 
+                flex="1" 
+                borderColor="rgba(255,255,255,0.15)"
+                color="text.secondary"
+                _hover={{ bg: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.3)' }}
+                onClick={() => bypassAuth('auditor')}
+              >
+                Bypass (Auditor)
+              </Button>
+            </Flex>
+          </Box>
+        )}
       </Box>
     </Flex>
   );

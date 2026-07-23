@@ -37,41 +37,41 @@ All relational tables employ PostgreSQL Row Level Security (RLS) to enforce stri
 - Under development and unit testing contexts, mock overrides bypass authentication gates.
 
 ## Technical Stack & Layers
+
 ```text
-┌─────────────────────────────┐
-│ User Experience Layer       │
-│ React + React Flow          │
-└─────────────┬───────────────┘
-              │ (REST / WebSockets)
-              ▼
-┌─────────────────────────────┐
-│ API & Orchestration Layer   │
-│ FastAPI (Python) + Temporal │
-└─────────────┬───────────────┘
-              │ (CloudEvents / NATS)
-              ▼
-┌─────────────────────────────┐
-│ Core Domain Services Layer  │
-│ 10 Bounded Contexts         │
-└─────────────┬───────────────┘
-              │
-              ├─────────────────────────┐
-              ▼                         ▼
-┌─────────────────────────┐       ┌─────────────────────────┐
-│ Relational: PostgreSQL  │       │   Graph: JanusGraph     │
-└─────────────────────────┘       └─────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│ User Experience Layer (React 19 + React Flow + Dexie DB)  │
+└─────────────────────────────┬─────────────────────────────┘
+                              │ (REST / WebSockets)
+                              ▼
+┌───────────────────────────────────────────────────────────┐
+│ API & Orchestration Gateway (FastAPI + Python Backend)    │
+└─────────────────────────────┬─────────────────────────────┘
+                              │ (CloudEvents 1.0 / NATS JetStream)
+                              ▼
+┌───────────────────────────────────────────────────────────┐
+│ System Harvester & Rules Engine (Rust + Node Daemon + JS) │
+└─────────────────────────────┬─────────────────────────────┘
+                              │
+                              ▼
+┌───────────────────────────────────────────────────────────┐
+│ Relational & Document Storage Layer (PostgreSQL + Dexie)  │
+└───────────────────────────────────────────────────────────┘
 ```
 
-### Approved OSS Technologies
-- **Frontend**: React + React Flow + Graphology (MIT)
-- **Identity**: Keycloak + OAuth2 Proxy (Apache 2.0)
-- **Discovery**: PowerShell Framework + osquery (MIT/Apache 2.0)
-- **Telemetry**: OpenTelemetry Collector (Apache 2.0)
-- **API**: FastAPI (MIT)
-- **Persistence**: PostgreSQL (PostgreSQL License)
-- **Graph Layer**: JanusGraph + Apache TinkerPop (Apache 2.0)
-- **Messaging**: NATS + CloudEvents (Apache 2.0)
-- **Rules Engine**: Microsoft RulesEngine (MIT)
-- **Workflow**: Temporal (MIT)
-- **Forecasting**: ML.NET (MIT)
-- **AI Layer**: LlamaIndex + LiteLLM (MIT)
+### Implemented Production Technologies (v2.0 GA)
+- **Frontend SPA**: React 19 + Chakra UI v3 + React Flow (`@xyflow/react`) + Graphology + Dexie IndexedDB Offline Cache (MIT)
+- **Desktop Packaging**: Tauri v1/v2 Rust Desktop Application Wrapper (MIT/Apache 2.0)
+- **Collector Daemon**: Rust Native `sysinfo` Telemetry Collector + Node.js Express Daemon (MIT)
+- **API Gateway**: FastAPI + `asyncpg` Asynchronous Connection Pool (MIT)
+- **Persistence**: PostgreSQL Layer (PostgreSQL License) with Row Level Security (RLS) policies
+- **Messaging**: CloudEvents 1.0 + NATS JetStream Publisher (`nats-py` with structured log stream fallback) (Apache 2.0)
+- **Assessment Engine**: Deterministic Rules Engine (JS & Python) evaluating 8 golden workstation/server datasets
+- **Observability**: Prometheus Exporter (`/metrics`) + Structured Logging
+
+### Target Enterprise Ecosystem Roadmap (Phase 5+)
+- **Identity Provider**: Keycloak OIDC Integration
+- **Distributed Workflow Engine**: Temporal Orchestrator
+- **Enterprise Graph Database**: JanusGraph + Apache TinkerPop
+- **AI Gateway & RAG**: LlamaIndex + LiteLLM integration
+
