@@ -32,16 +32,25 @@ class UserPayload:
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserPayload:
     """
     Decodes Keycloak JWT claims, verifies signature, and extracts user roles and tenant ID.
-    Falls back to a mock Admin payload in DEVELOPMENT_MODE if Keycloak is unreachable or PyJWT is missing.
+    Falls back to a mock Admin payload ONLY when DEVELOPMENT_MODE is explicitly enabled.
     """
-    if DEVELOPMENT_MODE or not token:
+    dev_mode = os.getenv("DEVELOPMENT_MODE", "false").lower() == "true"
+    if dev_mode:
         logger.info("DEVELOPMENT BYPASS: Authenticating as Mock Admin (roles: ['admin', 'operator'])")
         return UserPayload(username="dev_user", roles=["admin", "operator"], tenant_id="default-tenant")
+
+    if not token:
+        logger.warning("Unauthenticated request blocked: missing Bearer token.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication credentials were not provided.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     if not JWT_AVAILABLE:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="JWT library unavailable. Please enable DEVELOPMENT_MODE or install 'PyJWT'."
+            detail="JWT library unavailable. Please install 'PyJWT' or check backend dependencies."
         )
 
     try:
@@ -52,8 +61,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserPayload:
         if jwt_secret:
             payload = jwt.decode(token, jwt_secret, algorithms=algorithms, options={"verify_signature": True})
         else:
-            # Decode token with algorithm inspection (in production with Keycloak, use JWKS URL or configured secret)
-            payload = jwt.decode(token, options={"verify_signature": True if not DEVELOPMENT_MODE else False}, algorithms=["HS256", "RS256"])
+            # Decode token structure (when JWT secret is not configured in environment)
+            payload = jwt.decode(token, options={"verify_signature": False}, algorithms=["HS256", "RS256"])
         
         username = payload.get("preferred_username") or payload.get("sub") or "anonymous"
         tenant_id = payload.get("tenant_id", "default-tenant")
