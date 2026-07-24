@@ -38,8 +38,12 @@
 ### 📁 [Phase2_Integration/](file:///c:/AIProjects/1_Sentinel/Phase2_Integration) (Phase 2 Enterprise Specs)
 - Integration blueprints, bounded contexts, event contracts, NATS and JanusGraph configuration plans, and actionable work checklists.
 
+### 📁 [.agents/skills/](file:///c:/AIProjects/1_Sentinel/.agents/skills) (Agent Skills)
+- **[enterprise-software-assessment](file:///c:/AIProjects/1_Sentinel/.agents/skills/enterprise-software-assessment/SKILL.md)**: Custom agent skill defining the 16-persona, 26-phase Enterprise Software Codebase Assessment framework.
+
 ### 📁 [docs/](file:///c:/AIProjects/1_Sentinel/docs) (Documentation Wiki)
-- Markdown files housing user guides, releasing guides, dashboards walkthroughs, and troubleshooting advice.
+- Markdown files housing user guides, release guides, dashboard walkthroughs, troubleshooting advice, and the **[EnterpriseCodeAuditGuide.md](file:///c:/AIProjects/1_Sentinel/docs/EnterpriseCodeAuditGuide.md)**.
+
 
 ### 📁 [tests/](file:///c:/AIProjects/1_Sentinel/tests) (Test Suites)
 - Unit, integration, golden datasets, intelligence, and contract validation suites.

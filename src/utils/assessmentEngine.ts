@@ -873,3 +873,99 @@ export function buildRemediationDashboard(
     generated_scripts
   };
 }
+
+/**
+ * Enterprise Software Codebase Assessment Engine Interfaces & Helpers
+ */
+
+export interface EnterpriseReadinessScorecard {
+  ArchitectureScore: number;
+  SecurityScore: number;
+  OperationsScore: number;
+  CICDScore: number;
+  TestingScore: number;
+  DocumentationScore: number;
+  MaintainabilityScore: number;
+  PerformanceScore: number;
+  ReliabilityScore: number;
+  DeploymentScore: number;
+  ObservabilityScore: number;
+  OverallReadinessScore: number;
+}
+
+export interface ProductionReadinessItem {
+  ChecklistId: string;
+  Category: string;
+  Requirement: string;
+  Status: 'Pass' | 'Fail' | 'Not Verified';
+  Confidence: 'High' | 'Medium' | 'Low' | 'Unknown';
+  Evidence: string;
+  RemediationGuidance?: string;
+}
+
+export interface ModernizationInitiative {
+  Title: string;
+  BusinessValue: string;
+  EngineeringEffort: 'Low' | 'Medium' | 'High';
+  Dependencies: string[];
+  ImplementationRisk: 'Low' | 'Medium' | 'High';
+  SuccessCriteria: string;
+}
+
+export interface CodebaseAssessmentSummary {
+  ProjectName: string;
+  BusinessPurpose: string;
+  InferredArchitecture: string;
+  Confidence: 'High' | 'Medium' | 'Low' | 'Unknown';
+  Status: 'Verified' | 'Inferred' | 'Not Verified';
+  ReadinessScorecard: EnterpriseReadinessScorecard;
+  ProductionReadinessChecklist: ProductionReadinessItem[];
+  ModernizationRoadmap: {
+    Plan30Day: ModernizationInitiative[];
+    Plan90Day: ModernizationInitiative[];
+    Plan180Day: ModernizationInitiative[];
+  };
+}
+
+export function createCodebaseFinding(data: {
+  findingId: string;
+  domain: 'Architecture' | 'Security' | 'Dependencies' | 'LicenseRisk' | 'APIQuality' | 'CICDMaturity' | 'ProductionReadiness' | 'Infrastructure' | 'DataArchitecture';
+  severity: 'Critical' | 'High' | 'Medium' | 'Low' | 'Informational';
+  confidence: 'High' | 'Medium' | 'Low' | 'Unknown';
+  title: string;
+  description: string;
+  filePath: string;
+  lineNumber?: string;
+  impact: string;
+  recommendedRemediation: string;
+}): Finding {
+  const evidenceRecord: EvidenceRecord = {
+    Source: 'CodebaseAssessment',
+    Name: 'SourceLocation',
+    Value: `${data.filePath}${data.lineNumber ? '#' + data.lineNumber : ''}`,
+    ValidationState: data.confidence === 'High' ? 'Validated' : 'Inferred',
+    Collector: 'EnterpriseAssessmentSkill',
+    Notes: `Domain: ${data.domain}`,
+    Timestamp: new Date().toISOString()
+  };
+
+  return {
+    FindingId: data.findingId,
+    Category: data.domain,
+    Domain: data.domain,
+    Severity: data.severity,
+    Confidence: data.confidence,
+    Priority: data.severity === 'Critical' ? 1 : data.severity === 'High' ? 2 : data.severity === 'Medium' ? 3 : 4,
+    Title: data.title,
+    Description: data.description,
+    Evidence: [evidenceRecord],
+    Impact: data.impact,
+    BusinessRisk: `Codebase risk in ${data.domain}`,
+    RootCauseHypothesis: `Discovered during 26-phase software assessment of ${data.filePath}`,
+    RecommendedRemediation: data.recommendedRemediation,
+    EstimatedEffort: '30m',
+    VerificationMethod: `Inspect ${data.filePath}`,
+    CreatedOn: new Date().toISOString()
+  };
+}
+

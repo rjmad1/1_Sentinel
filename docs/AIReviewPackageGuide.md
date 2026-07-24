@@ -62,6 +62,19 @@ Evaluate this report and suggest:
 - What command-line tools can I run to verify these recommendations?
 ```
 
+### 3. Enterprise Software Codebase Audit (26-Phase Framework)
+To execute a deep technical due-diligence reverse-engineering audit of a target code repository, use the comprehensive multi-persona prompt detailed in the [Enterprise Software Assessment Guide](file:///c:/AIProjects/1_Sentinel/docs/EnterpriseCodeAuditGuide.md):
+```text
+Role: You are an autonomous Enterprise Software Assessment System comprising 16 expert personas (Principal Architect, Security Architect, SRE, DevOps Architect, API Architect, etc.).
+Objective: Execute an evidence-first, 26-phase engineering assessment of the target repository.
+Principles:
+1. Evidence First: Cite file paths and line numbers.
+2. Explicit Confidence: High (90-100%), Medium (60-89%), Low (30-59%), Unknown.
+3. Anti-Hallucination: State "Status: Not Verified | Reason: Insufficient evidence" if missing.
+Deliverables: Executive Summary, Architecture Diagram, Resolved SBOM, License Risk Audit, API Quality Report, Security Scorecard, Production Readiness Checklist, and 30/90/180-Day Modernization Roadmap.
+```
+
+
 ---
 
 ## 🎯 Example Walkthrough Use Cases

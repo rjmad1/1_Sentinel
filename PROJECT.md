@@ -19,7 +19,7 @@ The Enterprise Infrastructure Intelligence Platform (EIIP) / Sentinel is a fleet
 - **Version & Upgrade Tracking**: Highlights installed vs. latest versions, upgrade availability, and lifecycle states (EOL, Deprecated).
 - **Dependency Visualization**: Renders an interactive, draggable SVG topology graph showing service-to-host relationships.
 - **Upgrade & Uninstall Planner**: Previews dependency conflicts and runs simulated uninstalls or upgrades before execution.
-- **AI Review Package Export**: Package your infrastructure state into a ZIP archive optimized for LLM analysis.
+- **AI Review Package & Code Audit System**: Package host telemetry into ZIP archives and execute 26-phase evidence-backed Enterprise Software Assessments across codebase architecture, SBOMs, API quality, license compliance, and production readiness.
 - **Local-First Privacy**: 100% of data is stored in your browser's IndexedDB. Zero server-side transmissions.
 - **Zero Infrastructure**: Runs as a static browser application. Just run the PowerShell collector and import the result.
 
@@ -27,5 +27,6 @@ The Enterprise Infrastructure Intelligence Platform (EIIP) / Sentinel is a fleet
 1. **V1: Discover & Map [COMPLETE]**: Local PowerShell collector, interactive SVG topology graph, IndexedDB, software catalog normalization, AI Review Package export.
 2. **V2: Reason & Guide [COMPLETE]**: Enhanced Risk Scoring matrix, root cause hypotheses and remediation checklist, version upgrade validation simulations.
 3. **V3: Predict & Scale [COMPLETE]**: Disk/memory capacity forecasting charts, multi-node data aggregation, Linux/macOS Shell collectors support.
-4. **V4: Closed-Loop Act [COMPLETE]**: Closed-loop self-healing policies, auto-remediation logs, API integrations, and vulnerability threat intelligence correlation.
+4. **V4: Closed-Loop Act & Code Assessment [COMPLETE]**: Closed-loop self-healing policies, auto-remediation logs, API integrations, threat correlation, and 26-phase Enterprise Software Codebase Assessment framework.
 5. **V5: Autonomous AIOps [PLANNED]**: Continuous background scanning agents, self-healing thresholds, in-browser local conversational AI Copilot.
+
