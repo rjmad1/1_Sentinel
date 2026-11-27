@@ -29,6 +29,11 @@ COPY --from=frontend-builder /app/dist /app/static
 ENV PORT=8000
 ENV DEVELOPMENT_MODE=false
 
+RUN adduser --system --group --uid 1001 appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
 EXPOSE 8000
 
 CMD ["uvicorn", "Phase2_Integration.Backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
